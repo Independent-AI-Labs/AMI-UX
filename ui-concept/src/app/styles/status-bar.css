@@ -1,0 +1,115 @@
+/* Status Bar */
+.status-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, 
+        rgba(255, 255, 255, 0.6) 0%, 
+        rgba(255, 255, 255, 0) 100%
+    );
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    backdrop-filter: blur(12px) saturate(180%);
+    z-index: 100;
+    pointer-events: auto; /* Allow mouse interaction for expand/collapse */
+    transition: height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Compact state - clock height only */
+.status-bar.compact {
+    height: 40px;
+}
+
+/* Expanded state - full height with date */
+.status-bar.expanded {
+    height: 75px;
+}
+
+.status-bar-content {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    height: 100%;
+    padding: 12px 20px 0 20px;
+    max-width: 100%;
+}
+
+.status-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    pointer-events: auto; /* Enable interaction for left section */
+}
+
+.status-time {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #4a4a4a;
+    line-height: 1;
+}
+
+.status-date {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #3a3a3a;
+    line-height: 1;
+    animation: status-date-appear 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes status-date-appear {
+    0% {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0px);
+    }
+}
+
+.status-middle {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* This area is reserved for error toasts */
+    /* Toasts will position themselves here */
+}
+
+.status-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: auto; /* Enable interaction for right section */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .status-bar.compact {
+        height: 35px;
+    }
+    
+    .status-bar.expanded {
+        height: 67px;
+    }
+    
+    .status-bar-content {
+        padding: 10px 15px 0 15px;
+    }
+    
+    .status-time {
+        font-size: 14px;
+    }
+    
+    .status-date {
+        font-size: 10px;
+    }
+}
+
+/* Ensure status bar doesn't interfere with other elements */
+.status-bar * {
+    user-select: none;
+}
+

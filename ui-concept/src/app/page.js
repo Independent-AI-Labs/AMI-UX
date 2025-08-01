@@ -20,6 +20,7 @@ import ContextMenu from './components/ContextMenu';
 import VideoBackdrop from './components/VideoBackdrop';
 import ErrorToast from './components/ErrorToast';
 import AnimatedUITile from './components/AnimatedUITile';
+import StatusBar from './components/StatusBar';
 
 // Import CSS files
 import './styles/hexagon.css';
@@ -31,6 +32,7 @@ import './styles/message-transition.css';
 import './styles/video-backdrop.css';
 import './styles/error-toast.css';
 import './styles/ui-tile-animations.css';
+import './styles/status-bar.css';
 
 const HexagonalMessageGrid = () => {
     // Messages with coordinates and conversation IDs - this is the single source of truth
@@ -777,6 +779,9 @@ const HexagonalMessageGrid = () => {
 
     return (
         <div className="min-h-screen relative overflow-hidden">
+            {/* Status Bar */}
+            <StatusBar hasActiveToast={errorToast.visible} />
+            
             {/* Video Backdrop with Parallax */}
             <VideoBackdrop 
                 viewState={viewState}
@@ -797,12 +802,6 @@ const HexagonalMessageGrid = () => {
                 onExitLocked={unlockConversation}
                 onResetView={resetView}
             />
-            {/* Debug: Show current state */}
-            <div style={{ position: 'fixed', top: 10, right: 10, background: 'black', color: 'white', padding: '5px', fontSize: '12px', zIndex: 1000 }}>
-                State: {appState.currentState}<br/>
-                Locked: {conversationState.isLocked ? 'YES' : 'NO'}<br/>
-                ConvID: {conversationState.conversationId || 'none'}
-            </div>
 
             {/* Canvas Container */}
             <div
