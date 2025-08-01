@@ -11,6 +11,7 @@ const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick,
         width: hexWidth,
         height: hexHeight,
         clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+        zIndex: 10, // Ensure hexagons are above video backdrop
         ...style
     }), [x, y, hexSize, hexWidth, hexHeight, style]);
 

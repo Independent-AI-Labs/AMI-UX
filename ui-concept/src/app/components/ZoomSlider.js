@@ -9,7 +9,7 @@ const ZoomSlider = ({ viewState, onZoomSliderChange }) => {
                 </div>
                 <input
                     type="range"
-                    min="0.4"
+                    min="0.2"
                     max="3.0"
                     step="0.1"
                     value={viewState.zoom}

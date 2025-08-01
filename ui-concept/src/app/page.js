@@ -11,12 +11,17 @@ import ZoomSlider from './components/ZoomSlider';
 import Instructions from './components/Instructions';
 import HexagonSVG from './components/HexagonSVG';
 import GridSelection from './components/GridSelection';
+import ContextMenu from './components/ContextMenu';
+import VideoBackdrop from './components/VideoBackdrop';
 
 // Import CSS files
 import './styles/hexagon.css';
 import './styles/message.css';
 import './styles/input.css';
 import './styles/controls.css';
+import './styles/context-menu.css';
+import './styles/message-transition.css';
+import './styles/video-backdrop.css';
 
 const HexagonalMessageGrid = () => {
     const [messages, setMessages] = useState([
@@ -86,6 +91,7 @@ const HexagonalMessageGrid = () => {
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [screenCenter, setScreenCenter] = useState({ x: 0, y: 0 });
     const [gridSelection, setGridSelection] = useState({ visible: false, x: 0, y: 0 });
+    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
 
     const containerRef = useRef(null);
     const inputRef = useRef(null);
@@ -101,25 +107,60 @@ const HexagonalMessageGrid = () => {
         return { x, y };
     };
 
-    // Generate conversation thread in strict 2-column vertical pattern
-    const getConversationPositions = () => {
+    // Store conversation positions assigned at creation time
+    const [conversationTargets, setConversationTargets] = useState(new Map());
+    
+    // Generate positions for all messages across multiple conversations
+    const getConversationPositions = useCallback(() => {
         const positions = [];
-
-        for (let i = 0; i < 25; i++) {
-            const row = Math.floor(i / 2);
-            const isLeft = i % 2 === 0;
-
-            if (isLeft) {
-                positions.push({ q: 0, r: row });
-            } else {
-                positions.push({ q: 1, r: row });
+        const conversationStarts = [];
+        
+        // Find all conversation starts
+        messages.forEach((message, index) => {
+            if (index === 0 || (message.sender === 'ai' && message.text.includes("Welcome to a new conversation"))) {
+                conversationStarts.push(index);
             }
-        }
+        });
+
+        // Assign positions to each conversation
+        conversationStarts.forEach((startIndex, convIndex) => {
+            // Use stored target position if available, otherwise default
+            const targetQ = conversationTargets.get(startIndex) || convIndex * 2;
+            console.log(`Conversation ${convIndex} starts at message ${startIndex}, targetQ: ${targetQ} (stored: ${conversationTargets.get(startIndex)}, default: ${convIndex * 2})`);
+            const endIndex = conversationStarts[convIndex + 1] || messages.length;
+            
+            let rowInConversation = 0;
+            for (let msgIndex = startIndex; msgIndex < endIndex; msgIndex++) {
+                const isLeft = (msgIndex - startIndex) % 2 === 0;
+                positions[msgIndex] = {
+                    q: targetQ + (isLeft ? 0 : 1),
+                    r: rowInConversation
+                };
+                
+                if (!isLeft) {
+                    rowInConversation++;
+                }
+            }
+        });
+
+        // Add input position (always in the last conversation)
+        const lastConvIndex = conversationStarts.length - 1;
+        const lastStartIndex = conversationStarts[lastConvIndex] || 0;
+        const lastConvQ = conversationTargets.get(lastStartIndex) || lastConvIndex * 2;
+        const lastConvStart = conversationStarts[lastConvIndex] || 0;
+        const messagesInLastConv = messages.length - lastConvStart;
+        const isInputLeft = messagesInLastConv % 2 === 0;
+        const inputRow = Math.floor(messagesInLastConv / 2);
+        
+        positions.push({
+            q: lastConvQ + (isInputLeft ? 0 : 1),
+            r: inputRow
+        });
 
         return positions;
-    };
+    }, [messages, conversationTargets]);
 
-    const conversationPositions = useMemo(() => getConversationPositions(), []);
+    const conversationPositions = useMemo(() => getConversationPositions(), [getConversationPositions]);
 
     // Convert pixel coordinates to hex grid coordinates
     const pixelToHex = useCallback((pixelX, pixelY) => {
@@ -140,6 +181,96 @@ const HexagonalMessageGrid = () => {
         });
         return usedPositions.has(`${q},${r}`);
     }, [conversationPositions, messages.length]);
+
+    // Find available column pair near mouse position
+    const getAvailableColumnsNearMouse = useCallback((mouseX, mouseY) => {
+        const usedPositions = new Set();
+        messages.forEach((_, index) => {
+            const pos = conversationPositions[index];
+            if (pos) {
+                usedPositions.add(`${pos.q},${pos.r}`);
+            }
+        });
+
+        // Convert mouse position to world coordinates
+        const worldX = (mouseX - viewState.x) / viewState.zoom;
+        const worldY = (mouseY - viewState.y) / viewState.zoom;
+        
+        // Convert to hex coordinates
+        const mouseHex = pixelToHex(worldX, worldY);
+        
+        // Find the nearest even column (conversations start on even columns)
+        const nearestEvenQ = Math.round(mouseHex.q / 2) * 2;
+        
+        // Check columns starting from the nearest even column, then expanding outward
+        const columnsToCheck = [nearestEvenQ];
+        for (let offset = 2; offset <= 20; offset += 2) {
+            columnsToCheck.push(nearestEvenQ + offset);
+            if (nearestEvenQ - offset >= 0) {
+                columnsToCheck.push(nearestEvenQ - offset);
+            }
+        }
+
+        for (const startQ of columnsToCheck) {
+            if (startQ < 0) continue;
+            
+            let hasSpace = true;
+            // Check if this column pair has enough space (at least 12 rows)
+            for (let row = 0; row < 12; row++) {
+                const leftPos = `${startQ},${row}`;
+                const rightPos = `${startQ + 1},${row}`;
+                if (usedPositions.has(leftPos) || usedPositions.has(rightPos)) {
+                    hasSpace = false;
+                    break;
+                }
+            }
+            if (hasSpace) {
+                return startQ;
+            }
+        }
+        return null;
+    }, [messages, conversationPositions, viewState, pixelToHex]);
+
+    const canStartNewChat = useMemo(() => {
+        // Use a default position for checking availability
+        return getAvailableColumnsNearMouse(screenCenter.x, screenCenter.y) !== null;
+    }, [getAvailableColumnsNearMouse, screenCenter]);
+
+    const startNewChat = useCallback((mouseX = screenCenter.x, mouseY = screenCenter.y) => {
+        // Convert mouse position to world coordinates
+        const worldX = (mouseX - viewState.x) / viewState.zoom;
+        const worldY = (mouseY - viewState.y) / viewState.zoom;
+        
+        // Convert to hex coordinates and find nearest even column
+        const mouseHex = pixelToHex(worldX, worldY);
+        const targetQ = Math.round(mouseHex.q / 2) * 2; // Round to nearest even column
+        
+        console.log(`Mouse at screen: (${mouseX}, ${mouseY})`);
+        console.log(`View state:`, viewState);
+        console.log(`World coordinates: (${worldX}, ${worldY})`);
+        console.log(`Hex coordinates: (${mouseHex.q}, ${mouseHex.r})`);
+        console.log(`Target conversation columns: ${targetQ}-${targetQ + 1}`);
+
+        // Store the target position for this conversation using the index where it will be placed
+        const newMessageIndex = messages.length;
+        console.log(`Storing target Q=${targetQ} for message index ${newMessageIndex}`);
+        
+        // Add new conversation first
+        const newMessage = {
+            id: Date.now(),
+            text: "**Welcome to a new conversation!** \\n\\n*Ready to explore new ideas together.*\\n\\nWhat would you like to discuss today?",
+            sender: "ai",
+            timestamp: new Date()
+        };
+
+        setConversationTargets(prev => {
+            const newMap = new Map(prev);
+            newMap.set(newMessageIndex, targetQ);
+            console.log(`Updated conversation targets:`, Array.from(newMap.entries()));
+            return newMap;
+        });
+        setMessages(prevMessages => [...prevMessages, newMessage]);
+    }, [screenCenter, viewState, pixelToHex, messages.length]);
 
     // Simple markdown renderer
     const renderMarkdown = (text) => {
@@ -206,10 +337,17 @@ const HexagonalMessageGrid = () => {
     const lockToConversation = (q, r) => {
         const zoom = 1.8;
         const clickedHexCenter = hexToPixel(q, r);
-        const worldTargetX = hexSize * 0.75;
+        
+        // Find the conversation column (even number) that this message belongs to
+        const conversationQ = Math.floor(q / 2) * 2;
+        const conversationCenter = hexToPixel(conversationQ + 0.5, r); // Center between the two columns
+        
+        const worldTargetX = conversationCenter.x;
         const worldTargetY = clickedHexCenter.y;
         const newX = screenCenter.x - (worldTargetX * zoom);
         const newY = screenCenter.y - (worldTargetY * zoom);
+
+        console.log(`Locking to conversation at columns ${conversationQ}-${conversationQ + 1}, center: (${worldTargetX}, ${worldTargetY})`);
 
         animationManager.current.setViewState({
             x: newX,
@@ -295,6 +433,19 @@ const HexagonalMessageGrid = () => {
         setIsDragging(false);
     };
 
+    const handleContextMenu = useCallback((e) => {
+        e.preventDefault();
+        setContextMenu({
+            visible: true,
+            x: e.clientX,
+            y: e.clientY,
+        });
+    }, []);
+
+    const handleCloseContextMenu = useCallback(() => {
+        setContextMenu(prev => ({ ...prev, visible: false }));
+    }, []);
+
     const handleWheel = (e) => {
         e.preventDefault();
 
@@ -303,7 +454,7 @@ const HexagonalMessageGrid = () => {
             animationManager.current.updatePosition(0, -deltaY);
         } else {
             const zoomFactor = e.deltaY > 0 ? 0.85 : 1.18;
-            const newZoom = Math.max(0.4, Math.min(3.0, viewState.zoom * zoomFactor));
+            const newZoom = Math.max(0.2, Math.min(3.0, viewState.zoom * zoomFactor));
             const mouseX = mousePos.x;
             const mouseY = mousePos.y;
             animationManager.current.setZoom(newZoom, mouseX, mouseY, screenCenter);
@@ -312,13 +463,9 @@ const HexagonalMessageGrid = () => {
 
     const handleZoomSlider = (e) => {
         const newZoom = parseFloat(e.target.value);
-        if (isLocked) {
-            animationManager.current.setViewState({ ...viewState, zoom: newZoom });
-        } else {
-            const centerX = screenCenter.x;
-            const centerY = screenCenter.y;
-            animationManager.current.setZoom(newZoom, centerX, centerY, screenCenter);
-        }
+        const centerX = screenCenter.x;
+        const centerY = screenCenter.y;
+        animationManager.current.setZoom(newZoom, centerX, centerY, screenCenter);
     };
 
     const handleSend = () => {
@@ -372,7 +519,13 @@ const HexagonalMessageGrid = () => {
     // No longer need backgroundHexes
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 relative overflow-hidden">
+        <div className="min-h-screen relative overflow-hidden">
+            {/* Video Backdrop with Parallax */}
+            <VideoBackdrop 
+                viewState={viewState}
+                screenCenter={screenCenter}
+            />
+            
             <HexagonSVG />
             <ZoomSlider
                 viewState={viewState}
@@ -392,11 +545,13 @@ const HexagonalMessageGrid = () => {
             <div
                 ref={containerRef}
                 className="absolute inset-0 cursor-grab active:cursor-grabbing"
+                style={{ zIndex: 1 }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
                 onWheel={handleWheel}
+                onContextMenu={handleContextMenu}
             >
                 {/* Hexagonal Grid */}
                 <div
@@ -465,6 +620,16 @@ const HexagonalMessageGrid = () => {
                     )}
                 </div>
             </div>
+
+            {/* Context Menu - Outside transform but same stacking level */}
+            <ContextMenu
+                x={contextMenu.x}
+                y={contextMenu.y}
+                visible={contextMenu.visible}
+                onClose={handleCloseContextMenu}
+                canStartNewChat={canStartNewChat}
+                onStartNewChat={() => startNewChat(contextMenu.x, contextMenu.y)}
+            />
 
             <Instructions isLocked={isLocked} />
         </div>
