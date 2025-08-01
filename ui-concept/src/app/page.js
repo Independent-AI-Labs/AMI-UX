@@ -3,6 +3,10 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import AnimationManager from './animationManager';
 import lodManager, { CONTEXT_LEVELS } from './lodManager';
+import tileManager from './tileManager';
+import tileGrid, { DataTile, UITile } from './tileSystem';
+import { useAppState, useConversationState, useContextMenuState, useInputState } from './hooks/useAppState';
+import { StateActions } from './appStateManager';
 import HexMessage from './components/HexMessage';
 import HexInput from './components/HexInput';
 import HexBackground from './components/HexBackground';
@@ -14,6 +18,8 @@ import HexagonSVG from './components/HexagonSVG';
 import GridSelection from './components/GridSelection';
 import ContextMenu from './components/ContextMenu';
 import VideoBackdrop from './components/VideoBackdrop';
+import ErrorToast from './components/ErrorToast';
+import AnimatedUITile from './components/AnimatedUITile';
 
 // Import CSS files
 import './styles/hexagon.css';
@@ -23,208 +29,187 @@ import './styles/controls.css';
 import './styles/context-menu.css';
 import './styles/message-transition.css';
 import './styles/video-backdrop.css';
+import './styles/error-toast.css';
+import './styles/ui-tile-animations.css';
 
 const HexagonalMessageGrid = () => {
+    // Messages with coordinates and conversation IDs - this is the single source of truth
     const [messages, setMessages] = useState([
         {
             id: 1,
+            conversationId: "conv_1",
             text: "**Neural interface initialized.** \n\n*System status: Online*\n\nHow may I assist you with your quantum computing research today?",
             sender: "ai",
-            timestamp: new Date(Date.now() - 600000)
+            timestamp: new Date(Date.now() - 600000),
+            q: 0,
+            r: 0
         },
         {
             id: 2,
+            conversationId: "conv_1", 
             text: "I need help understanding **quantum entanglement protocols** for secure communication systems. Can you explain the key implementation strategies?",
             sender: 'user',
-            timestamp: new Date(Date.now() - 580000)
+            timestamp: new Date(Date.now() - 580000),
+            q: 1,
+            r: 0
         },
         {
             id: 3,
+            conversationId: "conv_1",
             text: "Quantum entanglement protocols involve creating **correlated quantum states** between particles separated by arbitrary distances.\n\n**Key implementations include:**\n• Bell state measurement\n• Quantum teleportation sequences\n• Distributed quantum key generation\n\nThese enable *provably secure* communication channels through quantum mechanical properties.",
             sender: "ai",
-            timestamp: new Date(Date.now() - 560000)
+            timestamp: new Date(Date.now() - 560000),
+            q: 0,
+            r: 1
         },
         {
             id: 4,
+            conversationId: "conv_1",
             text: "That's fascinating! How do we handle **quantum decoherence** in practical implementations? I'm particularly interested in error correction methods.",
             sender: 'user',
-            timestamp: new Date(Date.now() - 540000)
+            timestamp: new Date(Date.now() - 540000),
+            q: 1,
+            r: 1
         },
         {
             id: 5,
+            conversationId: "conv_1",
             text: "**Quantum Error Correction (QEC)** is crucial for practical systems:\n\n**Surface Codes:**\n• Use 2D lattice of qubits\n• Detect both bit-flip and phase-flip errors\n• Threshold ~1% error rate\n\n**Stabilizer Codes:**\n• Encode logical qubits in physical qubit states\n• Enable fault-tolerant operations\n• Examples: Shor code, Steane code\n\n*Decoherence times* typically range from microseconds to milliseconds depending on the physical implementation.",
             sender: "ai",
-            timestamp: new Date(Date.now() - 520000)
+            timestamp: new Date(Date.now() - 520000),
+            q: 0,
+            r: 2
         },
         {
             id: 6,
+            conversationId: "conv_1",
             text: "What about **scalability challenges**? How do current quantum systems compare to classical distributed systems in terms of network topology and latency?",
             sender: 'user',
-            timestamp: new Date(Date.now() - 500000)
+            timestamp: new Date(Date.now() - 500000),
+            q: 1,
+            r: 2
         },
         {
             id: 7,
+            conversationId: "conv_1",
             text: "**Scalability remains a major challenge:**\n\n**Current Limitations:**\n• Limited qubit counts (100-1000 range)\n• High error rates (~0.1-1%)\n• Short coherence times\n\n**Network Topology:**\n• *Star configurations* for small networks\n• *Linear chains* for quantum repeaters\n• *Mesh topologies* for fault tolerance\n\n**Latency Comparison:**\n• Classical: ~1-100ms global\n• Quantum: Limited by light speed + processing\n• Quantum repeaters add ~10-100ms per hop\n\nThe **quantum internet** will likely use hybrid classical-quantum protocols for optimal performance.",
             sender: "ai",
-            timestamp: new Date(Date.now() - 480000)
+            timestamp: new Date(Date.now() - 480000),
+            q: 0,
+            r: 3
         },
         {
             id: 8,
+            conversationId: "conv_1",
             text: "Interesting! Can you provide some **concrete examples** of companies or research institutions that are successfully implementing these quantum communication protocols at scale?",
             sender: 'user',
-            timestamp: new Date(Date.now() - 460000)
+            timestamp: new Date(Date.now() - 460000),
+            q: 1,
+            r: 3
         },
         {
             id: 9,
+            conversationId: "conv_1",
             text: "**Leading Quantum Communication Implementations:**\n\n**Commercial Deployments:**\n• **ID Quantique** - Quantum key distribution networks in Geneva and Vienna\n• **Toshiba** - QKD links in UK and Japan (100+ km fiber)\n• **QuantumCTek** - Chinese quantum communication backbone\n\n**Research Institutions:**\n• **MIT Lincoln Lab** - Quantum internet testbed\n• **Delft University** - Quantum network node experiments\n• **University of Vienna** - Long-distance quantum teleportation\n\n**Recent Milestones:**\n• China's *Micius satellite* - 1200km quantum communication\n• European Quantum Internet Alliance - Multi-node networks\n• IBM Q Network - 20+ quantum computers accessible globally\nMost systems currently operate at **kilobit/second** rates with plans to reach megabit speeds by 2030.",
             sender: "ai",
-            timestamp: new Date(Date.now() - 440000)
+            timestamp: new Date(Date.now() - 440000),
+            q: 0,
+            r: 4
         }
     ]);
 
+    // App state management
+    const appState = useAppState();
+    const conversationState = useConversationState();
+    const contextMenuState = useContextMenuState();
+    const inputState = useInputState();
+    
+    // UI state (not managed by state machine)
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    // Initialize viewState to center the grid - will be updated once screenCenter is calculated
     const [viewState, setViewState] = useState({ x: 0, y: 0, zoom: 1 });
     const [isDragging, setIsDragging] = useState(false);
     const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
     const [startMousePos, setStartMousePos] = useState({ x: 0, y: 0 });
-    const [isLocked, setIsLocked] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [screenCenter, setScreenCenter] = useState({ x: 0, y: 0 });
     const [gridSelection, setGridSelection] = useState({ visible: false, x: 0, y: 0 });
-    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
+    const [currentHexCoords, setCurrentHexCoords] = useState({ q: 0, r: 0 });
+    const [rightClickHexCoords, setRightClickHexCoords] = useState({ q: 0, r: 0 });
     
     // LoD system state
     const [lodState, setLodState] = useState(null);
     
-    // Track which conversation is currently locked for input positioning
-    const [lockedConversationQ, setLockedConversationQ] = useState(null);
+    // Error toast state
+    const [errorToast, setErrorToast] = useState({ visible: false, message: '' });
 
     const containerRef = useRef(null);
     const inputRef = useRef(null);
     const dragRef = useRef(false);
     const animationManager = useRef(null);
 
-    // Hexagon math utilities
+    // Hexagon math utilities (using tile manager)
     const hexSize = 180;
 
     const hexToPixel = (q, r) => {
-        const x = hexSize * (3 / 2 * q);
-        const y = hexSize * (Math.sqrt(3) / 2 * q + Math.sqrt(3) * r);
-        return { x, y };
+        return tileManager.hexToPixel(q, r);
     };
 
-    // Store conversation positions assigned at creation time
-    const [conversationTargets, setConversationTargets] = useState(new Map());
-    
-    // Generate positions for all messages across multiple conversations
-    const getConversationPositions = useCallback(() => {
-        const positions = [];
-        const conversationStarts = [];
-        
-        // Find all conversation starts
-        messages.forEach((message, index) => {
-            if (index === 0 || (message.sender === 'ai' && message.text.includes("Welcome to a new conversation"))) {
-                conversationStarts.push(index);
-            }
+    const pixelToHex = (x, y) => {
+        return tileManager.pixelToHex(x, y);
+    };
+
+    // Simple helper: Get occupied columns from messages
+    const getOccupiedColumns = useCallback(() => {
+        const occupiedColumns = new Set();
+        messages.forEach(msg => {
+            const conversationStartQ = Math.floor(msg.q / 2) * 2;
+            occupiedColumns.add(conversationStartQ);
         });
+        return occupiedColumns;
+    }, [messages]);
 
-        // Assign positions to each conversation
-        conversationStarts.forEach((startIndex, convIndex) => {
-            // Use stored target position if available, otherwise default
-            const targetQ = conversationTargets.get(startIndex) || convIndex * 2;
-            console.log(`Conversation ${convIndex} starts at message ${startIndex}, targetQ: ${targetQ} (stored: ${conversationTargets.get(startIndex)}, default: ${convIndex * 2})`);
-            const endIndex = conversationStarts[convIndex + 1] || messages.length;
-            
-            let rowInConversation = 0;
-            for (let msgIndex = startIndex; msgIndex < endIndex; msgIndex++) {
-                const isLeft = (msgIndex - startIndex) % 2 === 0;
-                positions[msgIndex] = {
-                    q: targetQ + (isLeft ? 0 : 1),
-                    r: rowInConversation
-                };
-                
-                if (!isLeft) {
-                    rowInConversation++;
-                }
-            }
-        });
-
-        // Add input position - use locked conversation if available, otherwise last conversation
-        let targetConvQ, targetConvStart, targetConvIndex;
-        
-        if (lockedConversationQ !== null) {
-            // Find the conversation that matches the locked Q
-            targetConvIndex = conversationStarts.findIndex(startIndex => {
-                const convQ = conversationTargets.get(startIndex) || Math.floor(startIndex / 2) * 2;
-                return convQ === lockedConversationQ;
-            });
-            
-            if (targetConvIndex !== -1) {
-                targetConvStart = conversationStarts[targetConvIndex];
-                targetConvQ = conversationTargets.get(targetConvStart) || targetConvIndex * 2;
-            } else {
-                // Fallback to last conversation if locked conversation not found
-                targetConvIndex = conversationStarts.length - 1;
-                targetConvStart = conversationStarts[targetConvIndex] || 0;
-                targetConvQ = conversationTargets.get(targetConvStart) || targetConvIndex * 2;
-            }
-        } else {
-            // Use last conversation when not locked
-            targetConvIndex = conversationStarts.length - 1;
-            targetConvStart = conversationStarts[targetConvIndex] || 0;
-            targetConvQ = conversationTargets.get(targetConvStart) || targetConvIndex * 2;
-        }
-        
-        const endIndex = conversationStarts[targetConvIndex + 1] || messages.length;
-        const messagesInTargetConv = endIndex - targetConvStart;
-        const isInputLeft = messagesInTargetConv % 2 === 0;
-        const inputRow = Math.floor(messagesInTargetConv / 2);
-        
-        positions.push({
-            q: targetConvQ + (isInputLeft ? 0 : 1),
-            r: inputRow
-        });
-
-        return positions;
-    }, [messages, conversationTargets, lockedConversationQ]);
-
-    const conversationPositions = useMemo(() => getConversationPositions(), [getConversationPositions]);
-
-    // Convert pixel coordinates to hex grid coordinates
-    const pixelToHex = useCallback((pixelX, pixelY) => {
-        const x = pixelX / hexSize;
-        const y = pixelY / hexSize;
-        
-        const q = Math.round((2 / 3) * x);
-        const r = Math.round((-1 / 3) * x + (Math.sqrt(3) / 3) * y);
-        
-        return { q, r };
+    // Simple helper: Check if columns are available for new conversation
+    const areColumnsAvailable = useCallback((q) => {
+        return tileGrid.isColumnPairAvailable(q);
     }, []);
 
-    // Check if a hex position is occupied by a message
+    // Simple helper: Get message position (all messages already have coordinates)
+    const getMessagePosition = (message) => {
+        return { q: message.q, r: message.r };
+    };
+
+
+    // Pixel to hex conversion now handled by tile manager
+
+    // Check if a hex position is occupied (now using tile manager)
     const isHexOccupied = useCallback((q, r) => {
-        const usedPositions = new Set();
-        conversationPositions.slice(0, messages.length + 1).forEach(pos => {
-            usedPositions.add(`${pos.q},${pos.r}`);
-        });
-        return usedPositions.has(`${q},${r}`);
-    }, [conversationPositions, messages.length]);
+        return tileManager.isTileOccupied(q, r);
+    }, []);
 
     // Find available column pair near mouse position
     const getAvailableColumnsNearMouse = useCallback((mouseX, mouseY) => {
         const usedPositions = new Set();
-        messages.forEach((_, index) => {
-            const pos = conversationPositions[index];
+        messages.forEach((message, index) => {
+            const pos = getMessagePosition(message, index);
             if (pos) {
                 usedPositions.add(`${pos.q},${pos.r}`);
             }
         });
 
-        // Convert mouse position to world coordinates
-        const worldX = (mouseX - viewState.x) / viewState.zoom;
-        const worldY = (mouseY - viewState.y) / viewState.zoom;
+        // Convert screen coordinates to container-relative coordinates (same as startNewChat)
+        const rect = containerRef.current?.getBoundingClientRect();
+        let containerX = mouseX;
+        let containerY = mouseY;
+        
+        if (rect) {
+            containerX = mouseX - rect.left;
+            containerY = mouseY - rect.top;
+        }
+        
+        // Convert container position to world coordinates
+        const worldX = (containerX - viewState.x) / viewState.zoom;
+        const worldY = (containerY - viewState.y) / viewState.zoom;
         
         // Convert to hex coordinates
         const mouseHex = pixelToHex(worldX, worldY);
@@ -259,59 +244,137 @@ const HexagonalMessageGrid = () => {
             }
         }
         return null;
-    }, [messages, conversationPositions, viewState, pixelToHex]);
+    }, [messages, viewState, pixelToHex]);
 
     const canStartNewChat = useMemo(() => {
         // Use a default position for checking availability
         return getAvailableColumnsNearMouse(screenCenter.x, screenCenter.y) !== null;
     }, [getAvailableColumnsNearMouse, screenCenter]);
 
-    const startNewChat = useCallback((mouseX = screenCenter.x, mouseY = screenCenter.y) => {
-        // Convert screen coordinates to container-relative coordinates
-        const rect = containerRef.current?.getBoundingClientRect();
-        let containerX = mouseX;
-        let containerY = mouseY;
-        
-        if (rect) {
-            containerX = mouseX - rect.left;
-            containerY = mouseY - rect.top;
+    // Check if two adjacent columns are completely free and don't overlap with existing conversations
+    const areColumnsEntirelyFree = useCallback((q1, q2) => {
+        // First check if individual tiles are occupied
+        for (let r = 0; r < 20; r++) {
+            if (tileManager.isTileOccupied(q1, r) || tileManager.isTileOccupied(q2, r)) {
+                return false;
+            }
         }
         
-        // Convert container position to world coordinates
-        const worldX = (containerX - viewState.x) / viewState.zoom;
-        const worldY = (containerY - viewState.y) / viewState.zoom;
+        // Then check if these columns would overlap with existing conversation territories
+        // Conversations span 2 columns: even Q and Q+1
+        const existingConversations = new Set();
         
-        // Convert to hex coordinates and find nearest even column
-        const mouseHex = pixelToHex(worldX, worldY);
-        const targetQ = Math.round(mouseHex.q / 2) * 2; // Round to nearest even column
+        messages.forEach((message, index) => {
+            let messageQ;
+            if (message.q !== undefined) {
+                messageQ = message.q;
+            } else {
+                const pos = getMessagePosition(message, index);
+                messageQ = pos ? pos.q : 0;
+            }
+            
+            // Find the conversation territory (even Q start)
+            const convStartQ = Math.floor(messageQ / 2) * 2;
+            existingConversations.add(`${convStartQ}-${convStartQ + 1}`);
+        });
         
-        console.log(`Mouse at screen: (${mouseX}, ${mouseY})`);
-        console.log(`Container coordinates: (${containerX}, ${containerY})`);
-        console.log(`View state:`, viewState);
-        console.log(`World coordinates: (${worldX}, ${worldY})`);
-        console.log(`Hex coordinates: (${mouseHex.q}, ${mouseHex.r})`);
-        console.log(`Target conversation columns: ${targetQ}-${targetQ + 1}`);
+        // Check if our target columns would overlap any existing conversation territory
+        const targetTerritory = `${Math.floor(q1 / 2) * 2}-${Math.floor(q1 / 2) * 2 + 1}`;
+        
+        for (const existingTerritory of existingConversations) {
+            const [existingStart, existingEnd] = existingTerritory.split('-').map(Number);
+            const [targetStart, targetEnd] = targetTerritory.split('-').map(Number);
+            
+            // Check for any overlap between territories
+            if (targetStart <= existingEnd && targetEnd >= existingStart) {
+                console.log(`Territory overlap detected: target ${targetTerritory} overlaps with existing ${existingTerritory}`);
+                return false;
+            }
+        }
+        
+        return true;
+    }, [messages]);
 
-        // Store the target position for this conversation using the index where it will be placed
-        const newMessageIndex = messages.length;
-        console.log(`Storing target Q=${targetQ} for message index ${newMessageIndex}`);
+    // UI Tile Management: Handle input tile display
+    useEffect(() => {
+        // Remove existing input UI tile
+        const existingInput = Array.from(tileGrid.uiTiles.values()).find(tile => tile.type === 'input');
+        if (existingInput) {
+            tileGrid.removeTile(existingInput.id);
+        }
         
-        // Add new conversation first
+        // Add input UI tile if conversation is locked
+        if (conversationState.isLocked && conversationState.conversationId) {
+            const inputPosition = tileGrid.getNextConversationPosition(conversationState.conversationId);
+            if (inputPosition) {
+                const inputTile = new UITile(
+                    'input_' + conversationState.conversationId,
+                    'input',
+                    inputPosition,
+                    { conversationId: conversationState.conversationId }
+                );
+                tileGrid.addUITile(inputTile);
+            }
+        }
+    }, [conversationState.isLocked, conversationState.conversationId]);
+
+    // Get input position for rendering
+    const getInputPosition = useCallback(() => {
+        const inputTile = Array.from(tileGrid.uiTiles.values()).find(tile => tile.type === 'input');
+        return inputTile ? inputTile.position : { q: 0, r: 0 };
+    }, []);
+
+    const startNewChat = useCallback(() => {
+        // Get the right-clicked tile from tile manager
+        const rightClickedTile = tileManager.getRightClickedTile();
+        
+        if (!rightClickedTile) {
+            console.warn('No right-clicked tile found');
+            return;
+        }
+        
+        const clickedQ = rightClickedTile.q;
+        const clickedR = rightClickedTile.r;
+        
+        // Check if columns are available
+        if (!areColumnsAvailable(clickedQ)) {
+            setErrorToast({
+                visible: true,
+                message: `Territory occupied. Cannot establish conversation at (${clickedQ}, ${clickedR}).`
+            });
+            return;
+        }
+        
+        // Create new conversation ID
+        const conversationId = `conv_${Date.now()}`;
+        const conversationStartQ = Math.floor(clickedQ / 2) * 2;
+        
+        // Create new message with coordinates
         const newMessage = {
             id: Date.now(),
+            conversationId: conversationId,
             text: "**Welcome to a new conversation!** \\n\\n*Ready to explore new ideas together.*\\n\\nWhat would you like to discuss today?",
             sender: "ai",
-            timestamp: new Date()
+            timestamp: new Date(),
+            q: conversationStartQ,  // Always start at left column
+            r: clickedR
         };
 
-        setConversationTargets(prev => {
-            const newMap = new Map(prev);
-            newMap.set(newMessageIndex, targetQ);
-            console.log(`Updated conversation targets:`, Array.from(newMap.entries()));
-            return newMap;
-        });
+        // Create functional data tile
+        const dataTile = new DataTile(
+            newMessage.id,
+            'message',
+            newMessage,
+            { q: conversationStartQ, r: clickedR }
+        );
+        tileGrid.addDataTile(dataTile);
+
+        // Add message to state (this will trigger tile grid refresh)
         setMessages(prevMessages => [...prevMessages, newMessage]);
-    }, [screenCenter, viewState, pixelToHex, messages.length]);
+        
+        // Lock to the new conversation using state manager
+        conversationState.lock(conversationId, newMessage.id);
+    }, [areColumnsAvailable, conversationState]);
 
     // Simple markdown renderer
     const renderMarkdown = (text) => {
@@ -341,8 +404,9 @@ const HexagonalMessageGrid = () => {
         };
     }, []);
     
-    // Initialize LoD system
+    // Initialize LoD system and tile manager
     useEffect(() => {
+        
         lodManager.initialize({
             onStateChange: (newState) => {
                 setLodState(newState);
@@ -353,10 +417,31 @@ const HexagonalMessageGrid = () => {
             }
         });
         
+        // Clear and populate tile grid with messages (functional data tiles)
+        tileGrid.dataTiles.clear();
+        tileGrid.uiTiles.clear();
+        tileGrid.positionIndex.clear();
+        tileGrid.conversationIndex.clear();
+        
+        messages.forEach(message => {
+            const dataTile = new DataTile(
+                message.id,
+                'message',
+                message,
+                { q: message.q, r: message.r }
+            );
+            tileGrid.addDataTile(dataTile);
+            
+            // Also update old tile manager for compatibility
+            tileManager.occupyTile(message.q, message.r, 'message', message.conversationId);
+        });
+        
+        // Tile grid initialized
+        
         return () => {
             // Cleanup if needed
         };
-    }, []);
+    }, [messages]);
 
     // Screen center tracking
     useEffect(() => {
@@ -397,28 +482,48 @@ const HexagonalMessageGrid = () => {
         }
     }, [screenCenter]);
 
-    // Handle escape key to navigate LoD levels
+    // Centralized unlock function - force clear all states
+    const unlockConversation = useCallback(() => {
+        // Force unlock all systems to prevent stuck states
+        try {
+            // 1. Force unlock conversation state
+            if (conversationState && typeof conversationState.unlock === 'function') {
+                conversationState.unlock();
+            }
+            
+            // 2. Force clear LoD manager
+            lodManager.unlock();
+            lodManager.returnToWorkspace();
+            
+            // 3. Force clear animation manager
+            if (animationManager.current) {
+                animationManager.current.setLocked(false);
+            }
+            
+            // 4. Force reset view to workspace if needed
+            const currentState = lodManager.getCurrentState();
+            if (currentState.context.level !== 'workspace') {
+                lodManager.returnToWorkspace();
+            }
+        } catch (error) {
+            console.error('Error during unlock, forcing reset:', error);
+            // If anything fails, force reset everything
+            lodManager.returnToWorkspace();
+        }
+    }, [conversationState]);
+
+    // Handle escape key - simplified to always unlock completely
     useEffect(() => {
         const handleKeyPress = (e) => {
             if (e.key === 'Escape') {
-                const currentState = lodManager.getCurrentState();
-                
-                if (currentState.context.level === CONTEXT_LEVELS.MESSAGE) {
-                    // Return to conversation level
-                    lodManager.returnToConversation();
-                } else if (currentState.context.level === CONTEXT_LEVELS.CONVERSATION) {
-                    // Return to workspace level
-                    lodManager.returnToWorkspace();
-                    animationManager.current.setLocked(false);
-                    setIsLocked(false);
-                    setLockedConversationQ(null); // Clear locked conversation
-                }
+                // Always force complete unlock to prevent stuck states
+                unlockConversation();
             }
         };
 
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
-    }, []);
+    }, [unlockConversation]);
 
     const resetView = () => {
         // Reset to centered position instead of (0,0)
@@ -428,17 +533,19 @@ const HexagonalMessageGrid = () => {
             zoom: 1
         };
         animationManager.current.setViewState(centeredViewState);
-        setIsLocked(false);
-        setLockedConversationQ(null); // Clear locked conversation
+        conversationState.unlock(); // Clear locked conversation
     };
 
-    const lockToConversation = (q, r, messageId) => {
+    const lockToConversation = useCallback((q, r, messageId) => {
         // Check current LoD context level
         const currentState = lodManager.getCurrentState();
         
         if (currentState.context.level === CONTEXT_LEVELS.WORKSPACE) {
+            // Find the message to get its conversationId
+            const message = messages.find(m => m.id === messageId);
+            const conversationId = message ? message.conversationId : `conv_${Math.floor(q / 2)}`;
+            
             // Transition to conversation level
-            const conversationId = `conv_${Math.floor(q / 2)}`;
             lodManager.lockToConversation(conversationId, messageId);
             
             const zoom = 1.8;
@@ -448,15 +555,13 @@ const HexagonalMessageGrid = () => {
             const conversationQ = Math.floor(q / 2) * 2;
             const conversationCenter = hexToPixel(conversationQ + 0.5, r); // Center between the two columns
             
-            // Track which conversation is locked for input positioning
-            setLockedConversationQ(conversationQ);
+            // Lock conversation using state manager
+            conversationState.lock(conversationId, messageId);
             
             const worldTargetX = conversationCenter.x;
             const worldTargetY = clickedHexCenter.y;
             const newX = screenCenter.x - (worldTargetX * zoom);
             const newY = screenCenter.y - (worldTargetY * zoom);
-
-            console.log(`Locking to conversation at columns ${conversationQ}-${conversationQ + 1}, center: (${worldTargetX}, ${worldTargetY})`);
 
             animationManager.current.setViewState({
                 x: newX,
@@ -464,7 +569,6 @@ const HexagonalMessageGrid = () => {
                 zoom: zoom
             });
             animationManager.current.setLocked(true);
-            setIsLocked(true);
             
         } else if (currentState.context.level === CONTEXT_LEVELS.CONVERSATION) {
             // Transition to message level - expand message to full viewport
@@ -472,8 +576,9 @@ const HexagonalMessageGrid = () => {
             
             // Implement full viewport expansion animation
             const targetZoom = 2.5; // Larger zoom for message focus
-            const newX = screenCenter.x - (clickedHexCenter.x * targetZoom);
-            const newY = screenCenter.y - (clickedHexCenter.y * targetZoom);
+            const messageCenter = hexToPixel(q, r); // Calculate center for this message
+            const newX = screenCenter.x - (messageCenter.x * targetZoom);
+            const newY = screenCenter.y - (messageCenter.y * targetZoom);
             
             animationManager.current.setViewState({
                 x: newX,
@@ -483,7 +588,7 @@ const HexagonalMessageGrid = () => {
             
             console.log(`Expanding message ${messageId} to full viewport`);
         }
-    };
+    }, [messages, screenCenter, hexToPixel]);
 
     const handleMouseDown = useCallback((e) => {
         if (e.target.tagName === 'INPUT' ||
@@ -491,8 +596,14 @@ const HexagonalMessageGrid = () => {
             e.target.closest('.hex-rich-input-editor') ||
             e.target.closest('.hex-editor-toolbar') ||
             e.target.closest('.hex-message-actions') ||
-            (isLocked && e.target.closest('.selectable-text')) ||
-            (isLocked && e.target.closest('.hex-message'))) {
+            (conversationState.isLocked && e.target.closest('.selectable-text')) ||
+            (conversationState.isLocked && e.target.closest('.hex-message'))) {
+            return;
+        }
+
+        // If locked and clicking outside the conversation, unlock (act as ESC)
+        if (conversationState.isLocked) {
+            unlockConversation();
             return;
         }
 
@@ -501,32 +612,35 @@ const HexagonalMessageGrid = () => {
         setStartMousePos({ x: e.clientX, y: e.clientY });
         animationManager.current.setInitialVelocity(0, 0);
         dragRef.current = false;
-    }, [isLocked]);
+    }, [conversationState.isLocked, unlockConversation]);
 
     const handleMouseMove = (e) => {
         setMousePos({ x: e.clientX, y: e.clientY });
 
-        // Calculate grid selection position (only in browser)
-        if (typeof window !== 'undefined' && !isDragging && !isLocked) {
+        // Calculate grid selection position using tile manager
+        if (typeof window !== 'undefined' && !isDragging && !conversationState.isLocked) {
             const rect = containerRef.current?.getBoundingClientRect();
             if (rect) {
                 // Convert screen coordinates to world coordinates
                 const worldX = (e.clientX - rect.left - viewState.x) / viewState.zoom;
                 const worldY = (e.clientY - rect.top - viewState.y) / viewState.zoom;
                 
-                // Convert to hex coordinates
-                const hexCoords = pixelToHex(worldX, worldY);
+                // Get the tile at this position
+                const tile = tileManager.getTileAtPixel(worldX, worldY);
+                tileManager.setHoveredTile(tile.q, tile.r);
                 
-                // Check if this position is not occupied and within reasonable bounds
+                // Update current hex coords for compatibility
+                setCurrentHexCoords({ q: tile.q, r: tile.r });
+                
+                // Check if this tile is available and within reasonable bounds
                 const maxRadius = 12;
-                const distance = Math.sqrt(hexCoords.q * hexCoords.q + hexCoords.r * hexCoords.r);
+                const distance = Math.sqrt(tile.q * tile.q + tile.r * tile.r);
                 
-                if (distance <= maxRadius && !isHexOccupied(hexCoords.q, hexCoords.r)) {
-                    const pixelPos = hexToPixel(hexCoords.q, hexCoords.r);
+                if (distance <= maxRadius && !tile.occupied) {
                     setGridSelection({
                         visible: true,
-                        x: pixelPos.x,
-                        y: pixelPos.y
+                        x: tile.x,
+                        y: tile.y
                     });
                 } else {
                     setGridSelection(prev => ({ ...prev, visible: false }));
@@ -545,7 +659,7 @@ const HexagonalMessageGrid = () => {
             dragRef.current = true;
         }
 
-        if (isLocked) {
+        if (conversationState.isLocked) {
             animationManager.current.updatePosition(0, deltaY);
             animationManager.current.setInitialVelocity(0, deltaY * 0.3);
         } else {
@@ -562,21 +676,37 @@ const HexagonalMessageGrid = () => {
 
     const handleContextMenu = useCallback((e) => {
         e.preventDefault();
-        setContextMenu({
-            visible: true,
-            x: e.clientX,
-            y: e.clientY,
-        });
-    }, []);
+        
+        // Get the tile at right-click location using tile manager
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect) {
+            const worldX = (e.clientX - rect.left - viewState.x) / viewState.zoom;
+            const worldY = (e.clientY - rect.top - viewState.y) / viewState.zoom;
+            
+            const tile = tileManager.getTileAtPixel(worldX, worldY);
+            tileManager.setRightClickedTile(tile.q, tile.r);
+            
+            // Store right-clicked tile for context menu actions
+        }
+        
+        contextMenuState.open(
+            { x: e.clientX, y: e.clientY },
+            { canStartNewChat: canStartNewChat }
+        );
+    }, [viewState, contextMenuState, canStartNewChat]);
 
     const handleCloseContextMenu = useCallback(() => {
-        setContextMenu(prev => ({ ...prev, visible: false }));
+        contextMenuState.close();
+    }, [contextMenuState]);
+
+    const handleHideErrorToast = useCallback(() => {
+        setErrorToast(prev => ({ ...prev, visible: false }));
     }, []);
 
     const handleWheel = (e) => {
         e.preventDefault();
 
-        if (isLocked) {
+        if (conversationState.isLocked) {
             const deltaY = e.deltaY * 2;
             animationManager.current.updatePosition(0, -deltaY);
         } else {
@@ -660,13 +790,19 @@ const HexagonalMessageGrid = () => {
             />
 
             <Controls
-                isLocked={isLocked}
+                isLocked={conversationState.isLocked}
                 viewState={viewState}
                 screenCenter={screenCenter}
                 animationManager={animationManager}
-                onExitLocked={() => setIsLocked(false)}
+                onExitLocked={unlockConversation}
                 onResetView={resetView}
             />
+            {/* Debug: Show current state */}
+            <div style={{ position: 'fixed', top: 10, right: 10, background: 'black', color: 'white', padding: '5px', fontSize: '12px', zIndex: 1000 }}>
+                State: {appState.currentState}<br/>
+                Locked: {conversationState.isLocked ? 'YES' : 'NO'}<br/>
+                ConvID: {conversationState.conversationId || 'none'}
+            </div>
 
             {/* Canvas Container */}
             <div
@@ -698,7 +834,17 @@ const HexagonalMessageGrid = () => {
 
                     {/* Conversation Thread */}
                     {messages.map((message, index) => {
-                        const position = conversationPositions[index];
+                        // Use direct coordinates from message if available, otherwise fall back to old system
+                        let position;
+                        if (message.q !== undefined && message.r !== undefined) {
+                            // New direct positioning system
+                            position = { q: message.q, r: message.r };
+                            // console.log(`Message ${message.id} using direct coordinates: (${message.q}, ${message.r})`);
+                        } else {
+                            // Old conversation positioning system
+                            position = getMessagePosition(message, index);
+                        }
+                        
                         const pixelPosition = hexToPixel(position.q, position.r);
 
                         return (
@@ -707,7 +853,7 @@ const HexagonalMessageGrid = () => {
                                 message={message}
                                 position={{ ...position, ...pixelPosition }}
                                 hexSize={hexSize}
-                                isLocked={isLocked}
+                                isLocked={conversationState.isLocked}
                                 dragRef={dragRef}
                                 onLockToConversation={(q, r) => lockToConversation(q, r, message.id)}
                                 onCopyMessage={handleCopyMessage}
@@ -719,48 +865,76 @@ const HexagonalMessageGrid = () => {
                         );
                     })}
 
-                    {/* Typing Indicator */}
-                    {isTyping && (
-                        <TypingIndicator
-                            position={{
-                                ...conversationPositions[messages.length],
-                                ...hexToPixel(conversationPositions[messages.length].q, conversationPositions[messages.length].r)
-                            }}
-                            hexSize={hexSize}
-                        />
-                    )}
+                    {/* Typing Indicator - animated */}
+                    <AnimatedUITile 
+                        isVisible={isTyping}
+                        tileType="typing"
+                        delay={50}
+                    >
+                        {isTyping && (
+                            <TypingIndicator
+                                position={{
+                                    ...getInputPosition(),
+                                    ...hexToPixel(getInputPosition().q, getInputPosition().r)
+                                }}
+                                hexSize={hexSize}
+                            />
+                        )}
+                    </AnimatedUITile>
 
-                    {/* Input Hex */}
-                    {!isTyping && (
-                        <HexInput
-                            position={{
-                                ...conversationPositions[messages.length],
-                                ...hexToPixel(conversationPositions[messages.length].q, conversationPositions[messages.length].r)
-                            }}
-                            hexSize={hexSize}
-                            inputRef={inputRef}
-                            inputText={inputText}
-                            onInputChange={setInputText}
-                            onSend={handleSend}
-                            isLocked={isLocked}
-                            zoom={viewState.zoom}
-                            lodState={lodState}
-                        />
-                    )}
+                    {/* Input Hex - animated based on conversation lock state */}
+                    <AnimatedUITile 
+                        isVisible={!isTyping && conversationState.isLocked}
+                        tileType="input"
+                        delay={100}
+                    >
+                        {!isTyping && conversationState.isLocked && (() => {
+                            const inputPos = getInputPosition();
+                            const inputPixelPos = hexToPixel(inputPos.q, inputPos.r);
+                            
+                            return (
+                                <HexInput
+                                    position={{
+                                        ...inputPos,
+                                        ...inputPixelPos
+                                    }}
+                                    hexSize={hexSize}
+                                    inputRef={inputRef}
+                                    inputText={inputText}
+                                    onInputChange={setInputText}
+                                    onSend={handleSend}
+                                    isLocked={conversationState.isLocked}
+                                    zoom={viewState.zoom}
+                                    lodState={lodState}
+                                />
+                            );
+                        })()}
+                    </AnimatedUITile>
                 </div>
             </div>
 
-            {/* Context Menu - Outside transform but same stacking level */}
-            <ContextMenu
-                x={contextMenu.x}
-                y={contextMenu.y}
-                visible={contextMenu.visible}
-                onClose={handleCloseContextMenu}
-                canStartNewChat={canStartNewChat}
-                onStartNewChat={() => startNewChat(contextMenu.x, contextMenu.y)}
+            <Instructions isLocked={conversationState.isLocked} />
+            
+            {/* Context Menu - Completely outside scalable layer with higher z-index */}
+            <div style={{ position: 'fixed', top: 0, left: 0, zIndex: 200, pointerEvents: 'none' }}>
+                <div style={{ pointerEvents: 'auto' }}>
+                    <ContextMenu
+                        x={contextMenuState.position?.x || 0}
+                        y={contextMenuState.position?.y || 0}
+                        visible={contextMenuState.isOpen}
+                        onClose={handleCloseContextMenu}
+                        canStartNewChat={canStartNewChat}
+                        onStartNewChat={startNewChat}
+                    />
+                </div>
+            </div>
+            
+            {/* Error Toast */}
+            <ErrorToast
+                message={errorToast.message}
+                visible={errorToast.visible}
+                onHide={handleHideErrorToast}
             />
-
-            <Instructions isLocked={isLocked} />
         </div>
     );
 };
