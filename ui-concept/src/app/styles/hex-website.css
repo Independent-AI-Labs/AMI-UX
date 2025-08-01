@@ -1,0 +1,334 @@
+/* Hex Website Base */
+.hex-website {
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    border-radius: 12px;
+}
+
+.hex-website:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    border: 3px solid lime !important; /* Temporary visual indicator */
+}
+
+.hex-website.in-locked-mode {
+    background: rgba(255, 255, 255, 0.95);
+    cursor: default;
+}
+
+/* Website Content Container */
+.hex-website-content {
+    flex: 1;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Website IFrame */
+.hex-website-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 8px;
+    background: white;
+}
+
+/* Loading State */
+.hex-website-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.hex-website-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f4f6;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: hex-website-spin 0.8s linear infinite;
+}
+
+@keyframes hex-website-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error State */
+.hex-website-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    color: #dc2626;
+    text-align: center;
+    padding: 8px;
+}
+
+.hex-website-error-text {
+    font-size: 9px;
+    opacity: 0.8;
+}
+
+.hex-website-open-button {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(59, 130, 246, 0.8);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 4px;
+}
+
+.hex-website-open-button:hover {
+    background: rgba(59, 130, 246, 1);
+    transform: scale(1.05);
+}
+
+/* Floating Handle - Completely outside clipping */
+.hex-website-floating-handle {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: auto;
+}
+
+/* External Actions - Outside clipping area */
+.hex-website-external-actions {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    display: flex;
+    gap: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+}
+
+/* Website Actions - Inside hexagon */
+.hex-website-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+}
+
+/* Hover effects for actions */
+.hex-website:hover .hex-website-actions,
+.hex-website.in-locked-mode .hex-website-actions {
+    opacity: 1;
+}
+
+/* Floating handle visibility controlled by React state */
+.hex-website-floating-handle.visible {
+    opacity: 1;
+}
+
+.hex-website-action-button {
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: 4px;
+    padding: 6px;
+    cursor: pointer;
+    color: white;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
+}
+
+.hex-website-action-button:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+}
+
+.hex-website-remove {
+    background: rgba(220, 38, 38, 0.8);
+}
+
+.hex-website-remove:hover {
+    background: rgba(220, 38, 38, 1);
+}
+
+.hex-website-drag {
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: #4a4a4a !important;
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+}
+
+.hex-website-drag:hover {
+    background: rgba(255, 255, 255, 1) !important;
+    color: #2a2a2a !important;
+    border: 1px solid rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Website Footer */
+.hex-website-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0 0 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    margin-top: 4px;
+}
+
+.hex-website-url-display {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 8px;
+    color: #6b7280;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.hex-website-url {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 9px;
+    color: #6b7280;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 80px;
+}
+
+/* LoD Placeholder */
+.hex-website-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #9ca3af;
+}
+
+.hex-placeholder-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 60%;
+}
+
+.hex-placeholder-line {
+    height: 2px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 1px;
+}
+
+.hex-placeholder-line-1 {
+    width: 80%;
+}
+
+.hex-placeholder-line-2 {
+    width: 60%;
+}
+
+/* Animations */
+@keyframes hex-website-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.hex-website {
+    animation: hex-website-fade-in 0.6s ease-out forwards;
+}
+
+/* Drag Silhouette */
+.hex-website-drag-silhouette {
+    width: 120px;
+    height: 120px;
+    pointer-events: none;
+}
+
+.hex-website-silhouette {
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px dashed rgba(59, 130, 246, 0.6);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    opacity: 0.8;
+}
+
+.hex-website-silhouette-url {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 10px;
+    color: #4a4a4a;
+    text-align: center;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Global mouse tracking for drag */
+html {
+    --mouse-x: 0px;
+    --mouse-y: 0px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hex-website-url-display {
+        font-size: 7px;
+    }
+    
+    .hex-website-loading {
+        font-size: 10px;
+    }
+    
+    .hex-website-error {
+        font-size: 9px;
+    }
+}

@@ -17,6 +17,8 @@ import Instructions from './components/Instructions';
 import HexagonSVG from './components/HexagonSVG';
 import GridSelection from './components/GridSelection';
 import ContextMenu from './components/ContextMenu';
+import IframeModal from './components/IframeModal';
+import HexWebsite from './components/HexWebsite';
 import VideoBackdrop from './components/VideoBackdrop';
 import ErrorToast from './components/ErrorToast';
 import AnimatedUITile from './components/AnimatedUITile';
@@ -33,6 +35,8 @@ import './styles/video-backdrop.css';
 import './styles/error-toast.css';
 import './styles/ui-tile-animations.css';
 import './styles/status-bar.css';
+import './styles/iframe-modal.css';
+import './styles/hex-website.css';
 
 const HexagonalMessageGrid = () => {
     // Messages with coordinates and conversation IDs - this is the single source of truth
@@ -120,10 +124,17 @@ const HexagonalMessageGrid = () => {
         }
     ]);
 
+    // Websites with coordinates
+    const [websites, setWebsites] = useState([]);
+
+    // Store last right-clicked position for context menu actions
+    const lastRightClickPosition = useRef({ q: 0, r: 0 });
+
     // App state management
     const appState = useAppState();
     const conversationState = useConversationState();
     const contextMenuState = useContextMenuState();
+    const [showIframeModal, setShowIframeModal] = useState(false);
     const inputState = useInputState();
     
     // UI state (not managed by state machine)
@@ -535,7 +546,14 @@ const HexagonalMessageGrid = () => {
             zoom: 1
         };
         animationManager.current.setViewState(centeredViewState);
-        conversationState.unlock(); // Clear locked conversation
+        // Clear locked conversation with error handling
+        try {
+            if (conversationState && typeof conversationState.unlock === 'function') {
+                conversationState.unlock();
+            }
+        } catch (error) {
+            console.error('Error during unlock in resetView:', error);
+        }
     };
 
     const lockToConversation = useCallback((q, r, messageId) => {
@@ -681,18 +699,31 @@ const HexagonalMessageGrid = () => {
         
         // Get the tile at right-click location using tile manager
         const rect = containerRef.current?.getBoundingClientRect();
+        let worldX = 0, worldY = 0, tile = { q: 0, r: 0 };
+        
         if (rect) {
-            const worldX = (e.clientX - rect.left - viewState.x) / viewState.zoom;
-            const worldY = (e.clientY - rect.top - viewState.y) / viewState.zoom;
+            worldX = (e.clientX - rect.left - viewState.x) / viewState.zoom;
+            worldY = (e.clientY - rect.top - viewState.y) / viewState.zoom;
             
-            const tile = tileManager.getTileAtPixel(worldX, worldY);
+            tile = tileManager.getTileAtPixel(worldX, worldY);
+            console.log('Context menu - world coords:', { worldX, worldY });
+            console.log('Context menu - tile from tileManager:', tile);
+            
+            // Store the position for later use
+            lastRightClickPosition.current = { q: tile.q, r: tile.r };
+            
             tileManager.setRightClickedTile(tile.q, tile.r);
-            
-            // Store right-clicked tile for context menu actions
         }
         
         contextMenuState.open(
-            { x: e.clientX, y: e.clientY },
+            { 
+                x: e.clientX, 
+                y: e.clientY,
+                worldX: worldX,
+                worldY: worldY,
+                hexQ: tile.q,
+                hexR: tile.r
+            },
             { canStartNewChat: canStartNewChat }
         );
     }, [viewState, contextMenuState, canStartNewChat]);
@@ -701,24 +732,124 @@ const HexagonalMessageGrid = () => {
         contextMenuState.close();
     }, [contextMenuState]);
 
+    const handleOpenIframeModal = useCallback(() => {
+        setShowIframeModal(true);
+    }, []);
+
+    const handleCloseIframeModal = useCallback(() => {
+        setShowIframeModal(false);
+    }, []);
+
+    const handleCreateWebsite = useCallback((url) => {
+        // Find next available position near the clicked position
+        const findNextAvailablePosition = () => {
+            const occupiedPositions = new Set([
+                ...messages.map(m => `${m.q},${m.r}`),
+                ...websites.map(w => `${w.q},${w.r}`)
+            ]);
+            
+            // Use hex coordinates from last right-click position
+            let baseQ = lastRightClickPosition.current.q;
+            let baseR = lastRightClickPosition.current.r;
+            console.log('Using stored right-click position:', { baseQ, baseR });
+            
+            // Try nearby positions in a spiral pattern
+            for (let radius = 0; radius < 10; radius++) {
+                for (let i = 0; i < (radius === 0 ? 1 : 6 * radius); i++) {
+                    let q, r;
+                    if (radius === 0) {
+                        q = baseQ;
+                        r = baseR;
+                    } else {
+                        // Hexagonal spiral
+                        const angle = (i / (6 * radius)) * 2 * Math.PI;
+                        q = baseQ + Math.round(radius * Math.cos(angle));
+                        r = baseR + Math.round(radius * Math.sin(angle));
+                    }
+                    
+                    if (!occupiedPositions.has(`${q},${r}`)) {
+                        return { q, r };
+                    }
+                }
+            }
+            
+            return { q: 0, r: 0 }; // Fallback
+        };
+
+        const position = findNextAvailablePosition();
+        console.log('Final position chosen for website:', position);
+        const newWebsite = {
+            id: Date.now(),
+            url: url,
+            timestamp: new Date(),
+            ...position
+        };
+        console.log('New website object:', newWebsite);
+
+        setWebsites(prev => [...prev, newWebsite]);
+        setShowIframeModal(false);
+    }, [messages, websites]);
+
+    const handleRemoveWebsite = useCallback((websiteId) => {
+        setWebsites(prev => prev.filter(w => w.id !== websiteId));
+    }, []);
+
+    const handleMoveWebsite = useCallback((websiteId, newQ, newR) => {
+        // Check if the target position is free
+        const occupiedPositions = new Set([
+            ...messages.map(m => `${m.q},${m.r}`),
+            ...websites.filter(w => w.id !== websiteId).map(w => `${w.q},${w.r}`)
+        ]);
+        
+        if (!occupiedPositions.has(`${newQ},${newR}`)) {
+            setWebsites(prev => prev.map(w => 
+                w.id === websiteId ? { ...w, q: newQ, r: newR } : w
+            ));
+            console.log(`Moved website ${websiteId} to position (${newQ}, ${newR})`);
+        } else {
+            console.log(`Position (${newQ}, ${newR}) is occupied, cannot move website`);
+        }
+    }, [messages, websites]);
+
     const handleHideErrorToast = useCallback(() => {
         setErrorToast(prev => ({ ...prev, visible: false }));
     }, []);
 
-    const handleWheel = (e) => {
-        e.preventDefault();
+    // Track mouse position for drag silhouette
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+            document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+        };
 
-        if (conversationState.isLocked) {
-            const deltaY = e.deltaY * 2;
-            animationManager.current.updatePosition(0, -deltaY);
-        } else {
-            const zoomFactor = e.deltaY > 0 ? 0.85 : 1.18;
-            const newZoom = Math.max(0.2, Math.min(3.0, viewState.zoom * zoomFactor));
-            const mouseX = mousePos.x;
-            const mouseY = mousePos.y;
-            animationManager.current.setZoom(newZoom, mouseX, mouseY, screenCenter);
-        }
-    };
+        document.addEventListener('mousemove', handleMouseMove);
+        return () => document.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    // Add wheel event listener with passive: false to allow preventDefault
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleWheelEvent = (e) => {
+            e.preventDefault();
+
+            if (conversationState.isLocked) {
+                const deltaY = e.deltaY * 2;
+                animationManager.current.updatePosition(0, -deltaY);
+            } else {
+                const zoomFactor = e.deltaY > 0 ? 0.85 : 1.18;
+                const newZoom = Math.max(0.2, Math.min(3.0, viewState.zoom * zoomFactor));
+                const mouseX = mousePos.x;
+                const mouseY = mousePos.y;
+                animationManager.current.setZoom(newZoom, mouseX, mouseY, screenCenter);
+            }
+        };
+
+        container.addEventListener('wheel', handleWheelEvent, { passive: false });
+        return () => container.removeEventListener('wheel', handleWheelEvent);
+    }, [conversationState.isLocked, viewState.zoom, mousePos.x, mousePos.y, screenCenter]);
+
 
     const handleZoomSlider = (e) => {
         const newZoom = parseFloat(e.target.value);
@@ -812,7 +943,6 @@ const HexagonalMessageGrid = () => {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                onWheel={handleWheel}
                 onContextMenu={handleContextMenu}
             >
                 {/* Hexagonal Grid */}
@@ -857,6 +987,32 @@ const HexagonalMessageGrid = () => {
                                 onLockToConversation={(q, r) => lockToConversation(q, r, message.id)}
                                 onCopyMessage={handleCopyMessage}
                                 renderMarkdown={renderMarkdownMemo}
+                                index={index}
+                                zoom={viewState.zoom}
+                                lodState={lodState}
+                            />
+                        );
+                    })}
+
+                    {/* Website Tiles */}
+                    {websites.map((website, index) => {
+                        const position = { q: website.q, r: website.r };
+                        const pixelPosition = hexToPixel(position.q, position.r);
+
+                        return (
+                            <HexWebsite
+                                key={website.id}
+                                website={website}
+                                position={{ ...position, ...pixelPosition }}
+                                hexSize={hexSize}
+                                isLocked={conversationState.isLocked}
+                                dragRef={dragRef}
+                                onLockToConversation={() => {/* Websites don't lock to conversations */}}
+                                onRemoveWebsite={handleRemoveWebsite}
+                                onMoveWebsite={handleMoveWebsite}
+                                pixelToHex={pixelToHex}
+                                viewState={viewState}
+                                containerRef={containerRef}
                                 index={index}
                                 zoom={viewState.zoom}
                                 lodState={lodState}
@@ -924,6 +1080,7 @@ const HexagonalMessageGrid = () => {
                         onClose={handleCloseContextMenu}
                         canStartNewChat={canStartNewChat}
                         onStartNewChat={startNewChat}
+                        onOpenIframeModal={handleOpenIframeModal}
                     />
                 </div>
             </div>
@@ -933,6 +1090,16 @@ const HexagonalMessageGrid = () => {
                 message={errorToast.message}
                 visible={errorToast.visible}
                 onHide={handleHideErrorToast}
+            />
+            
+            {/* Status Bar */}
+            <StatusBar hasActiveToast={errorToast.visible} />
+            
+            {/* Iframe Modal */}
+            <IframeModal 
+                isOpen={showIframeModal} 
+                onClose={handleCloseIframeModal}
+                onCreateWebsite={handleCreateWebsite}
             />
         </div>
     );

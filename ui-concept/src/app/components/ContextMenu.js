@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Copy, ClipboardPaste, ChevronRight, MessageSquarePlus } from 'lucide-react';
+import { Plus, Copy, ClipboardPaste, ChevronRight, MessageSquarePlus, ExternalLink } from 'lucide-react';
 
-const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat }) => {
+const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat, onOpenIframeModal }) => {
     const menuRef = useRef(null);
     const [isAnimating, setIsAnimating] = useState(false);
     const [ripples, setRipples] = useState([]);
@@ -25,8 +25,8 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat }
                 },
                 {
                     id: 'new-document',
-                    label: 'Document',
-                    icon: Plus,
+                    label: 'Website',
+                    icon: ExternalLink,
                 },
             ]
         },
@@ -66,11 +66,13 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat }
 
         if (visible) {
             document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('click', handleClickOutside);
             document.addEventListener('contextmenu', handleClickOutside);
         }
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('click', handleClickOutside);
             document.removeEventListener('contextmenu', handleClickOutside);
         };
     }, [visible, onClose]);
@@ -116,6 +118,8 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat }
         // Handle specific actions
         if (item.id === 'new-chat' && !item.disabled) {
             onStartNewChat();
+        } else if (item.id === 'new-document') {
+            onOpenIframeModal();
         }
 
         setTimeout(() => {
