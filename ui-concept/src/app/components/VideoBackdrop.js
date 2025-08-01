@@ -12,14 +12,14 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
         const parallaxFactorY = 0.04;
         const zoomFactor = 0.2; // 20% of canvas zoom (much smaller)
         
-        // Calculate video transform with initial coordinate correction
-        // Add percentage-based offset to center video relative to grid
-        const offsetX = typeof window !== 'undefined' ? -window.innerWidth * 0.05 : 0;
-        const offsetY = typeof window !== 'undefined' ? -window.innerHeight * 0.025 : 0;
+        // Calculate video transform - account for grid being centered at screenCenter
+        // Only apply parallax to the movement from center, not the centering itself
+        const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
+        const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
         
-        const videoX = x * parallaxFactorX + offsetX;
-        const videoY = y * parallaxFactorY + offsetY;
-        const videoZoom = 1.2 + (zoom - 1) * zoomFactor; // Start at 120% with smaller zoom factor
+        const videoX = (x - centerX) * parallaxFactorX;
+        const videoY = (y - centerY) * parallaxFactorY;
+        const videoZoom = 1 + (zoom - 1) * zoomFactor; // Start at 120% with smaller zoom factor
         
         return {
             transform: `translate(-50%, -50%) translate(${videoX}px, ${videoY}px) scale(${videoZoom})`,
@@ -38,7 +38,7 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
             video.muted = true;
             video.playsInline = true;
             video.loop = true;
-            video.playbackRate = 0.5; // Slow down to 50% speed
+            video.playbackRate = 0.75; // Slow down to 50% speed
             
             // Add event listeners for debugging and auto-play
             const handleVideoEvent = (eventName) => (e) => {

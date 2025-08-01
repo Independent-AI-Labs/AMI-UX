@@ -144,7 +144,7 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat }
             // Set a delay before closing submenu to allow mouse to move to submenu
             submenuTimeoutRef.current = setTimeout(() => {
                 setActiveSubmenu(prev => prev === item.id ? null : prev);
-            }, 300); // Increased delay
+            }, 300); // Reduced delay for better responsiveness
         }
     };
 

@@ -1,40 +1,54 @@
 import React from 'react';
 import { User, Bot, Copy, RotateCw, GitBranch } from 'lucide-react';
 import HexMessageLoD from './HexMessageLoD';
+import { generateLoDStyles } from './LoD';
 
 const HexMessageTransition = ({ 
     message, 
     useLoD, 
     isLocked, 
     renderMarkdown,
-    onCopyMessage 
+    onCopyMessage,
+    lodState
 }) => {
 
     const handleCopy = () => {
         onCopyMessage(message.text);
     };
 
-    const shouldShowActions = !useLoD && isLocked;
+    // Use LoD system to determine capabilities and styling
+    const capabilities = lodState?.capabilities || {};
+    const showContent = capabilities.showContent || 'full';
+    const showActions = capabilities.showActions && isLocked;
+    const showTimestamps = capabilities.showTimestamps !== false;
+    const showAvatars = capabilities.showAvatars !== false;
+    
+    // Generate LoD-based styles
+    const lodStyles = lodState ? generateLoDStyles(lodState, 'message') : {};
+    
     const renderedText = renderMarkdown(message.text);
 
-    // Show LoD version when zoomed out
-    if (useLoD) {
+    // Show LoD version when content should be placeholder
+    if (showContent === 'placeholder') {
         return <HexMessageLoD message={message} />;
     }
 
-    // Show full version - simplified structure like HexInput
+    // Show full version - LoD-aware structure
     return (
         <div
             className={`hex-message ${message.sender === 'user' ? 'hex-message-user' : 'hex-message-ai'} ${isLocked ? 'in-locked-mode' : ''}`}
+            style={lodStyles}
         >
-            {/* Avatar */}
-            <div
-                className={`hex-avatar ${message.sender === 'user' ? 'hex-avatar-user' : 'hex-avatar-ai'}`}>
-                {message.sender === 'user' ?
-                    <User className="w-3 h-3 text-cyan-300" /> :
-                    <Bot className="w-3 h-3 text-white/90" />
-                }
-            </div>
+            {/* Avatar - conditionally shown based on LoD */}
+            {showAvatars && (
+                <div
+                    className={`hex-avatar ${message.sender === 'user' ? 'hex-avatar-user' : 'hex-avatar-ai'}`}>
+                    {message.sender === 'user' ?
+                        <User className="w-3 h-3 text-gray-800" /> :
+                        <Bot className="w-3 h-3 text-gray-900" />
+                    }
+                </div>
+            )}
 
             {/* Message Content */}
             <div
@@ -58,20 +72,23 @@ const HexMessageTransition = ({
                 }}
             >
                 <div
-                    className="hex-text selectable-text"
+                    className={`hex-text selectable-text ${showContent === 'enhanced' ? 'enhanced-content' : ''}`}
                     dangerouslySetInnerHTML={renderedText}
                 />
             </div>
             
-            <p className="hex-timestamp">
-                {message.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                })}
-            </p>
+            {/* Timestamp - conditionally shown based on LoD */}
+            {showTimestamps && (
+                <p className="hex-timestamp">
+                    {message.timestamp.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}
+                </p>
+            )}
 
-            {/* Message Actions - only show when not using LoD and locked */}
-            {shouldShowActions && (
+            {/* Message Actions - shown based on LoD capabilities */}
+            {showActions && (
                 <div className="hex-message-actions">
                     <button
                         className="hex-action-button copy"

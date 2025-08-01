@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import AnimationManager from './animationManager';
+import lodManager, { CONTEXT_LEVELS } from './lodManager';
 import HexMessage from './components/HexMessage';
 import HexInput from './components/HexInput';
 import HexBackground from './components/HexBackground';
@@ -83,6 +84,7 @@ const HexagonalMessageGrid = () => {
 
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    // Initialize viewState to center the grid - will be updated once screenCenter is calculated
     const [viewState, setViewState] = useState({ x: 0, y: 0, zoom: 1 });
     const [isDragging, setIsDragging] = useState(false);
     const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
@@ -92,6 +94,12 @@ const HexagonalMessageGrid = () => {
     const [screenCenter, setScreenCenter] = useState({ x: 0, y: 0 });
     const [gridSelection, setGridSelection] = useState({ visible: false, x: 0, y: 0 });
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
+    
+    // LoD system state
+    const [lodState, setLodState] = useState(null);
+    
+    // Track which conversation is currently locked for input positioning
+    const [lockedConversationQ, setLockedConversationQ] = useState(null);
 
     const containerRef = useRef(null);
     const inputRef = useRef(null);
@@ -143,22 +151,44 @@ const HexagonalMessageGrid = () => {
             }
         });
 
-        // Add input position (always in the last conversation)
-        const lastConvIndex = conversationStarts.length - 1;
-        const lastStartIndex = conversationStarts[lastConvIndex] || 0;
-        const lastConvQ = conversationTargets.get(lastStartIndex) || lastConvIndex * 2;
-        const lastConvStart = conversationStarts[lastConvIndex] || 0;
-        const messagesInLastConv = messages.length - lastConvStart;
-        const isInputLeft = messagesInLastConv % 2 === 0;
-        const inputRow = Math.floor(messagesInLastConv / 2);
+        // Add input position - use locked conversation if available, otherwise last conversation
+        let targetConvQ, targetConvStart, targetConvIndex;
+        
+        if (lockedConversationQ !== null) {
+            // Find the conversation that matches the locked Q
+            targetConvIndex = conversationStarts.findIndex(startIndex => {
+                const convQ = conversationTargets.get(startIndex) || Math.floor(startIndex / 2) * 2;
+                return convQ === lockedConversationQ;
+            });
+            
+            if (targetConvIndex !== -1) {
+                targetConvStart = conversationStarts[targetConvIndex];
+                targetConvQ = conversationTargets.get(targetConvStart) || targetConvIndex * 2;
+            } else {
+                // Fallback to last conversation if locked conversation not found
+                targetConvIndex = conversationStarts.length - 1;
+                targetConvStart = conversationStarts[targetConvIndex] || 0;
+                targetConvQ = conversationTargets.get(targetConvStart) || targetConvIndex * 2;
+            }
+        } else {
+            // Use last conversation when not locked
+            targetConvIndex = conversationStarts.length - 1;
+            targetConvStart = conversationStarts[targetConvIndex] || 0;
+            targetConvQ = conversationTargets.get(targetConvStart) || targetConvIndex * 2;
+        }
+        
+        const endIndex = conversationStarts[targetConvIndex + 1] || messages.length;
+        const messagesInTargetConv = endIndex - targetConvStart;
+        const isInputLeft = messagesInTargetConv % 2 === 0;
+        const inputRow = Math.floor(messagesInTargetConv / 2);
         
         positions.push({
-            q: lastConvQ + (isInputLeft ? 0 : 1),
+            q: targetConvQ + (isInputLeft ? 0 : 1),
             r: inputRow
         });
 
         return positions;
-    }, [messages, conversationTargets]);
+    }, [messages, conversationTargets, lockedConversationQ]);
 
     const conversationPositions = useMemo(() => getConversationPositions(), [getConversationPositions]);
 
@@ -237,15 +267,26 @@ const HexagonalMessageGrid = () => {
     }, [getAvailableColumnsNearMouse, screenCenter]);
 
     const startNewChat = useCallback((mouseX = screenCenter.x, mouseY = screenCenter.y) => {
-        // Convert mouse position to world coordinates
-        const worldX = (mouseX - viewState.x) / viewState.zoom;
-        const worldY = (mouseY - viewState.y) / viewState.zoom;
+        // Convert screen coordinates to container-relative coordinates
+        const rect = containerRef.current?.getBoundingClientRect();
+        let containerX = mouseX;
+        let containerY = mouseY;
+        
+        if (rect) {
+            containerX = mouseX - rect.left;
+            containerY = mouseY - rect.top;
+        }
+        
+        // Convert container position to world coordinates
+        const worldX = (containerX - viewState.x) / viewState.zoom;
+        const worldY = (containerY - viewState.y) / viewState.zoom;
         
         // Convert to hex coordinates and find nearest even column
         const mouseHex = pixelToHex(worldX, worldY);
         const targetQ = Math.round(mouseHex.q / 2) * 2; // Round to nearest even column
         
         console.log(`Mouse at screen: (${mouseX}, ${mouseY})`);
+        console.log(`Container coordinates: (${containerX}, ${containerY})`);
         console.log(`View state:`, viewState);
         console.log(`World coordinates: (${worldX}, ${worldY})`);
         console.log(`Hex coordinates: (${mouseHex.q}, ${mouseHex.r})`);
@@ -292,9 +333,28 @@ const HexagonalMessageGrid = () => {
     useEffect(() => {
         animationManager.current = new AnimationManager(viewState, (newViewState) => {
             setViewState(newViewState);
+            // Update LoD system when zoom changes
+            lodManager.updateZoom(newViewState.zoom);
         });
         return () => {
             animationManager.current.stop();
+        };
+    }, []);
+    
+    // Initialize LoD system
+    useEffect(() => {
+        lodManager.initialize({
+            onStateChange: (newState) => {
+                setLodState(newState);
+                console.log('LoD State Changed:', newState);
+            },
+            onTransition: (transitionType, data, newState) => {
+                console.log('LoD Transition:', transitionType, data, newState);
+            }
+        });
+        
+        return () => {
+            // Cleanup if needed
         };
     }, []);
 
@@ -316,46 +376,113 @@ const HexagonalMessageGrid = () => {
         }
     }, []);
 
-    // Handle escape key to exit locked mode
+    // Center the grid when screenCenter is first calculated
+    useEffect(() => {
+        if (screenCenter.x > 0 && screenCenter.y > 0 && viewState.x === 0 && viewState.y === 0) {
+            // Center the grid by placing the origin (0,0) hex at screen center
+            setViewState(prev => ({
+                ...prev,
+                x: screenCenter.x,
+                y: screenCenter.y
+            }));
+            
+            // Also update animation manager if it exists
+            if (animationManager.current) {
+                animationManager.current.setViewState({
+                    x: screenCenter.x,
+                    y: screenCenter.y,
+                    zoom: 1
+                });
+            }
+        }
+    }, [screenCenter]);
+
+    // Handle escape key to navigate LoD levels
     useEffect(() => {
         const handleKeyPress = (e) => {
-            if (e.key === 'Escape' && isLocked) {
-                animationManager.current.setLocked(false);
-                setIsLocked(false);
+            if (e.key === 'Escape') {
+                const currentState = lodManager.getCurrentState();
+                
+                if (currentState.context.level === CONTEXT_LEVELS.MESSAGE) {
+                    // Return to conversation level
+                    lodManager.returnToConversation();
+                } else if (currentState.context.level === CONTEXT_LEVELS.CONVERSATION) {
+                    // Return to workspace level
+                    lodManager.returnToWorkspace();
+                    animationManager.current.setLocked(false);
+                    setIsLocked(false);
+                    setLockedConversationQ(null); // Clear locked conversation
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [isLocked]);
+    }, []);
 
     const resetView = () => {
-        animationManager.current.reset();
+        // Reset to centered position instead of (0,0)
+        const centeredViewState = {
+            x: screenCenter.x,
+            y: screenCenter.y,
+            zoom: 1
+        };
+        animationManager.current.setViewState(centeredViewState);
         setIsLocked(false);
+        setLockedConversationQ(null); // Clear locked conversation
     };
 
-    const lockToConversation = (q, r) => {
-        const zoom = 1.8;
-        const clickedHexCenter = hexToPixel(q, r);
+    const lockToConversation = (q, r, messageId) => {
+        // Check current LoD context level
+        const currentState = lodManager.getCurrentState();
         
-        // Find the conversation column (even number) that this message belongs to
-        const conversationQ = Math.floor(q / 2) * 2;
-        const conversationCenter = hexToPixel(conversationQ + 0.5, r); // Center between the two columns
-        
-        const worldTargetX = conversationCenter.x;
-        const worldTargetY = clickedHexCenter.y;
-        const newX = screenCenter.x - (worldTargetX * zoom);
-        const newY = screenCenter.y - (worldTargetY * zoom);
+        if (currentState.context.level === CONTEXT_LEVELS.WORKSPACE) {
+            // Transition to conversation level
+            const conversationId = `conv_${Math.floor(q / 2)}`;
+            lodManager.lockToConversation(conversationId, messageId);
+            
+            const zoom = 1.8;
+            const clickedHexCenter = hexToPixel(q, r);
+            
+            // Find the conversation column (even number) that this message belongs to
+            const conversationQ = Math.floor(q / 2) * 2;
+            const conversationCenter = hexToPixel(conversationQ + 0.5, r); // Center between the two columns
+            
+            // Track which conversation is locked for input positioning
+            setLockedConversationQ(conversationQ);
+            
+            const worldTargetX = conversationCenter.x;
+            const worldTargetY = clickedHexCenter.y;
+            const newX = screenCenter.x - (worldTargetX * zoom);
+            const newY = screenCenter.y - (worldTargetY * zoom);
 
-        console.log(`Locking to conversation at columns ${conversationQ}-${conversationQ + 1}, center: (${worldTargetX}, ${worldTargetY})`);
+            console.log(`Locking to conversation at columns ${conversationQ}-${conversationQ + 1}, center: (${worldTargetX}, ${worldTargetY})`);
 
-        animationManager.current.setViewState({
-            x: newX,
-            y: newY,
-            zoom: zoom
-        });
-        animationManager.current.setLocked(true);
-        setIsLocked(true);
+            animationManager.current.setViewState({
+                x: newX,
+                y: newY,
+                zoom: zoom
+            });
+            animationManager.current.setLocked(true);
+            setIsLocked(true);
+            
+        } else if (currentState.context.level === CONTEXT_LEVELS.CONVERSATION) {
+            // Transition to message level - expand message to full viewport
+            lodManager.expandToMessage(messageId);
+            
+            // Implement full viewport expansion animation
+            const targetZoom = 2.5; // Larger zoom for message focus
+            const newX = screenCenter.x - (clickedHexCenter.x * targetZoom);
+            const newY = screenCenter.y - (clickedHexCenter.y * targetZoom);
+            
+            animationManager.current.setViewState({
+                x: newX,
+                y: newY,
+                zoom: targetZoom
+            });
+            
+            console.log(`Expanding message ${messageId} to full viewport`);
+        }
     };
 
     const handleMouseDown = useCallback((e) => {
@@ -582,11 +709,12 @@ const HexagonalMessageGrid = () => {
                                 hexSize={hexSize}
                                 isLocked={isLocked}
                                 dragRef={dragRef}
-                                onLockToConversation={lockToConversation}
+                                onLockToConversation={(q, r) => lockToConversation(q, r, message.id)}
                                 onCopyMessage={handleCopyMessage}
                                 renderMarkdown={renderMarkdownMemo}
                                 index={index}
                                 zoom={viewState.zoom}
+                                lodState={lodState}
                             />
                         );
                     })}
@@ -616,6 +744,7 @@ const HexagonalMessageGrid = () => {
                             onSend={handleSend}
                             isLocked={isLocked}
                             zoom={viewState.zoom}
+                            lodState={lodState}
                         />
                     )}
                 </div>

@@ -9,8 +9,8 @@ const HexMessageLoD = React.memo(({ message }) => {
             <div className={`hex-avatar ${message.sender === 'user' ? 'hex-avatar-user' : 'hex-avatar-ai'}`}
                  style={{ padding: '12px', marginBottom: '12px' }}>
                 {message.sender === 'user' ?
-                    <User className="w-6 h-6 text-cyan-300" /> :
-                    <Bot className="w-6 h-6 text-white/90" />
+                    <User className="w-6 h-6 text-gray-800" /> :
+                    <Bot className="w-6 h-6 text-gray-900" />
                 }
             </div>
 

@@ -1,7 +1,7 @@
 /* Context Menu Styles - Sleek & Satisfying */
 .context-menu {
     position: fixed;
-    z-index: 10000;
+    z-index: 100; /* Lower z-index to see video backdrop */
     pointer-events: all;
     transform-origin: top left;
     
@@ -42,7 +42,7 @@
     
     /* Glass styling */
     position: relative;
-    z-index: 9999;
+    z-index: 2; /* Just above video overlay */
 }
 
 
@@ -190,7 +190,7 @@
 /* Sliding Submenu Styles */
 .context-submenu {
     position: absolute;
-    left: 100%;
+    left: 100%; /* Start right at the edge */
     top: 0;
     min-width: 180px;
     background: rgba(255, 255, 255, 0.15);
@@ -198,7 +198,7 @@
     backdrop-filter: blur(12px) saturate(180%);
     border-radius: 8px;
     padding: 6px;
-    margin-left: 8px;
+    margin-left: 2px; /* Minimal gap */
     box-shadow: 
         0 20px 40px rgba(0, 0, 0, 0.15),
         0 4px 12px rgba(0, 0, 0, 0.1);
@@ -208,6 +208,18 @@
     opacity: 0;
     animation: submenuSlideIn 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
     z-index: 1000;
+}
+
+/* Invisible bridge to help with mouse movement */
+.context-submenu::before {
+    content: '';
+    position: absolute;
+    left: -10px; /* Extends back towards the main menu */
+    top: 0;
+    width: 10px;
+    height: 100%;
+    background: transparent;
+    z-index: -1;
 }
 
 .context-submenu-item {

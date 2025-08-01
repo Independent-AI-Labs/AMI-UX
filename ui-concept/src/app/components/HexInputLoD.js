@@ -10,7 +10,7 @@ const HexInputLoD = React.memo(() => {
                 <div className="hex-placeholder-line hex-placeholder-line-2"></div>
             </div>
             <div className="hex-input-lod-button">
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4 text-gray-800" />
             </div>
         </div>
     );

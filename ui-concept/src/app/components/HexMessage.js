@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import Hexagon from './Hexagon';
 import HexMessageTransition from './HexMessageTransition';
+import { LoDHexWrapper } from './LoD';
 
 const HexMessage = React.memo(({ 
     message, 
@@ -12,7 +13,8 @@ const HexMessage = React.memo(({
     onCopyMessage,
     renderMarkdown,
     index,
-    zoom 
+    zoom,
+    lodState
 }) => {
     const { x, y } = position;
 
@@ -34,30 +36,33 @@ const HexMessage = React.memo(({
 
     const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text]);
     
-    // Use Level of Detail when zoom is below 80%
-    const useLoD = zoom < 0.8;
-    const shouldShowActions = !useLoD && isLocked;
+    // Use LoD system to determine detail level
+    const useLoD = lodState?.zoom.config.showContent === 'placeholder';
+    const shouldShowActions = lodState?.capabilities.showActions || false;
 
     return (
-        <Hexagon
-            key={message.id}
-            q={position.q}
-            r={position.r}
-            x={x}
-            y={y}
-            hexSize={hexSize}
-            className="animate-fade-in hex-with-backdrop"
-            style={animationStyle}
-            onClick={handleClick}
-        >
-            <HexMessageTransition
-                message={message}
-                useLoD={useLoD}
-                isLocked={isLocked}
-                renderMarkdown={renderMarkdown}
-                onCopyMessage={onCopyMessage}
-            />
-        </Hexagon>
+        <LoDHexWrapper lodState={lodState} hexType="message">
+            <Hexagon
+                key={message.id}
+                q={position.q}
+                r={position.r}
+                x={x}
+                y={y}
+                hexSize={hexSize}
+                className="animate-fade-in hex-with-backdrop"
+                style={animationStyle}
+                onClick={handleClick}
+            >
+                <HexMessageTransition
+                    message={message}
+                    useLoD={useLoD}
+                    isLocked={isLocked}
+                    renderMarkdown={renderMarkdown}
+                    onCopyMessage={onCopyMessage}
+                    lodState={lodState}
+                />
+            </Hexagon>
+        </LoDHexWrapper>
     );
 });
 

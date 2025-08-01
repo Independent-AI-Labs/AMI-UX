@@ -26,9 +26,11 @@
     max-width: 180px;
     overflow-y: auto;
     overflow-x: hidden;
-    flex: 1;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+    justify-content: center; /* Center content when there's extra space */
+    min-height: 0; /* Allow shrinking */
     max-height: 200px;
     padding-right: 4px;
 }
@@ -38,21 +40,21 @@
 }
 
 .hex-content::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.05);
     border-radius: 2px;
 }
 
 .hex-content::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.3);
     border-radius: 2px;
 }
 
 .hex-content::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.5);
 }
 
 .hex-text {
-    color: rgba(255, 255, 255, 0.95);
+    color: rgba(0, 0, 0, 0.95);
     font-size: 8px;
     line-height: 1.4;
     font-weight: 300;
@@ -60,7 +62,7 @@
     overflow-wrap: break-word;
     word-wrap: break-word;
     hyphens: auto;
-    flex: 1;
+    flex: 0 1 auto; /* Don't grow, but can shrink */
 }
 
 .selectable-text {
@@ -88,21 +90,21 @@
 }
 
 .hex-text strong {
-    color: rgba(255, 255, 255, 1);
+    color: rgba(0, 0, 0, 1);
     font-weight: 600;
 }
 
 .hex-text em {
-    color: rgba(6, 182, 212, 0.9);
+    color: rgba(0, 0, 0, 0.8);
     font-style: italic;
 }
 
 .hex-text code {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.1);
     padding: 1px 3px;
     font-family: monospace;
     font-size: 9px;
-    color: rgba(34, 197, 94, 0.9);
+    color: rgba(0, 0, 0, 0.9);
 }
 
 .hex-text li {
@@ -113,12 +115,12 @@
 
 .hex-text li:before {
     content: "•";
-    color: rgba(6, 182, 212, 0.8);
+    color: rgba(0, 0, 0, 0.6);
     margin-right: 4px;
 }
 
 .hex-timestamp {
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(0, 0, 0, 0.5);
     font-size: 8px;
     font-family: monospace;
     letter-spacing: 0.5px;
@@ -201,7 +203,7 @@
 
 .hex-placeholder-line {
     height: 6px;
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 3px;
 }
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { Bold, Italic, Code, Send, Paperclip } from 'lucide-react';
 import Hexagon from './Hexagon';
 import HexInputLoD from './HexInputLoD';
+import { LoDHexWrapper } from './LoD';
 
 const HexInput = React.memo(({ 
     position, 
@@ -11,7 +12,8 @@ const HexInput = React.memo(({
     onInputChange, 
     onSend, 
     isLocked,
-    zoom 
+    zoom,
+    lodState
 }) => {
     const { x, y } = position;
 
@@ -71,78 +73,82 @@ const HexInput = React.memo(({
         inputRef.current?.focus();
     };
 
-    // Use Level of Detail when zoom is below 80%
-    const useLoD = zoom < 0.8;
+    // Use LoD system to determine content display
+    const capabilities = lodState?.capabilities || {};
+    const showContent = capabilities.showContent || 'full';
+    const useLoD = showContent === 'placeholder';
 
     return (
-        <Hexagon
-            q={position.q}
-            r={position.r}
-            x={x}
-            y={y}
-            hexSize={hexSize}
-        >
-            {useLoD ? (
-                <HexInputLoD />
-            ) : (
-                <div className="hex-input-message-editor">
-                    {/* Formatting Controls */}
-                    <div className="hex-editor-toolbar">
-                        <button
-                            onMouseDown={(e) => handleFormatButton('bold', e)}
-                            className="hex-format-button"
-                            title="Bold (Ctrl+B)"
-                        >
-                            <Bold className="w-2 h-2" />
-                        </button>
-                        <button
-                            onMouseDown={(e) => handleFormatButton('italic', e)}
-                            className="hex-format-button"
-                            title="Italic (Ctrl+I)"
-                        >
-                            <Italic className="w-2 h-2" />
-                        </button>
-                        <button
-                            onMouseDown={(e) => handleFormatButton('code', e)}
-                            className="hex-format-button"
-                            title="Code"
-                        >
-                            <Code className="w-2 h-2" />
-                        </button>
-                    </div>
+        <LoDHexWrapper lodState={lodState} hexType="input">
+            <Hexagon
+                q={position.q}
+                r={position.r}
+                x={x}
+                y={y}
+                hexSize={hexSize}
+            >
+                {useLoD ? (
+                    <HexInputLoD />
+                ) : (
+                    <div className={`hex-input-message-editor ${isLocked ? 'in-locked-mode' : ''}`}>
+                        {/* Formatting Controls */}
+                        <div className="hex-editor-toolbar">
+                            <button
+                                onMouseDown={(e) => handleFormatButton('bold', e)}
+                                className="hex-format-button"
+                                title="Bold (Ctrl+B)"
+                            >
+                                <Bold className="w-2 h-2" />
+                            </button>
+                            <button
+                                onMouseDown={(e) => handleFormatButton('italic', e)}
+                                className="hex-format-button"
+                                title="Italic (Ctrl+I)"
+                            >
+                                <Italic className="w-2 h-2" />
+                            </button>
+                            <button
+                                onMouseDown={(e) => handleFormatButton('code', e)}
+                                className="hex-format-button"
+                                title="Code"
+                            >
+                                <Code className="w-2 h-2" />
+                            </button>
+                        </div>
 
-                    {/* Rich Text Input */}
-                    <div
-                        ref={inputRef}
-                        contentEditable
-                        suppressContentEditableWarning={true}
-                        className="hex-rich-input-editor"
-                        onInput={(e) => onInputChange(e.target.textContent || '')}
-                        onKeyDown={handleKeyDown}
-                        onWheel={handleWheel}
-                        data-placeholder="Continue thread..."
-                    />
+                        {/* Rich Text Input */}
+                        <div
+                            ref={inputRef}
+                            contentEditable
+                            suppressContentEditableWarning={true}
+                            className="hex-rich-input-editor"
+                            onInput={(e) => onInputChange(e.target.textContent || '')}
+                            onKeyDown={handleKeyDown}
+                            onWheel={handleWheel}
+                            data-placeholder="Continue thread..."
+                        />
 
-                    {/* Send Button Row */}
-                    <div className="hex-button-row">
-                        <button
-                            className="hex-attach-button"
-                            title="Attach file"
-                        >
-                            <Paperclip className="w-2 h-2" />
-                        </button>
-                        <button
-                            onClick={onSend}
-                            disabled={!inputText.trim()}
-                            className="hex-send-button-editor"
-                        >
-                            <Send className="w-2 h-2 mr-1" />
-                            Send
-                        </button>
+                        {/* Send Button Row */}
+                        <div className="hex-button-row">
+                            <button
+                                className="hex-attach-button"
+                                title="Attach file"
+                            >
+                                <Paperclip className="w-2 h-2" />
+                            </button>
+                            <button
+                                onClick={onSend}
+                                disabled={!inputText.trim()}
+                                className="hex-send-button-editor"
+                            >
+                                <Send className="w-2 h-2 mr-1" />
+                                Send
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </Hexagon>
+                )}
+            </Hexagon>
+        </LoDHexWrapper>
     );
 });
 
