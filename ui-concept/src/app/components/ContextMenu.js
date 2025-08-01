@@ -19,13 +19,13 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat }
             submenu: [
                 {
                     id: 'new-chat',
-                    label: 'New Chat',
+                    label: 'Chat',
                     icon: MessageSquarePlus,
                     disabled: !canStartNewChat,
                 },
                 {
                     id: 'new-document',
-                    label: 'New Document',
+                    label: 'Document',
                     icon: Plus,
                 },
             ]
@@ -199,7 +199,6 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat }
             }}
             onMouseLeave={handleMenuLeave}
         >
-            <div className="context-menu-content">
                 {menuItems.map((item, index) => {
                     const IconComponent = item.icon;
                     const isSubmenuOpen = activeSubmenu === item.id;
@@ -275,7 +274,6 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat }
                         </div>
                     );
                 })}
-            </div>
         </div>
     );
 

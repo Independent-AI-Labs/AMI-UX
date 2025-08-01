@@ -1,0 +1,110 @@
+/* UI Tile Animations */
+
+/* Base animation classes for UI tiles */
+.ui-tile-enter {
+    animation: ui-tile-enter 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.ui-tile-exit {
+    animation: ui-tile-exit 0.3s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+}
+
+/* Enter animation - smooth 2-stage blur-in */
+@keyframes ui-tile-enter {
+    0% {
+        opacity: 0;
+        filter: blur(15px);
+    }
+    100% {
+        opacity: 1;
+        filter: blur(0px);
+    }
+}
+
+/* Exit animation - smooth 2-stage blur-out */
+@keyframes ui-tile-exit {
+    0% {
+        opacity: 1;
+        filter: blur(0px);
+    }
+    100% {
+        opacity: 0;
+        filter: blur(10px);
+    }
+}
+
+/* Special animations for input tiles */
+.input-tile-enter {
+    animation: input-tile-enter 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.input-tile-exit {
+    animation: input-tile-exit 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+}
+
+@keyframes input-tile-enter {
+    0% {
+        opacity: 0;
+        filter: blur(15px);
+    }
+    100% {
+        opacity: 1;
+        filter: blur(0px);
+    }
+}
+
+@keyframes input-tile-exit {
+    0% {
+        opacity: 1;
+        filter: blur(0px);
+    }
+    100% {
+        opacity: 0;
+        filter: blur(10px);
+    }
+}
+
+/* Typing indicator animations */
+.typing-tile-enter {
+    animation: typing-tile-enter 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.typing-tile-exit {
+    animation: typing-tile-exit 0.2s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+}
+
+@keyframes typing-tile-enter {
+    0% {
+        opacity: 0;
+        filter: blur(15px);
+    }
+    100% {
+        opacity: 1;
+        filter: blur(0px);
+    }
+}
+
+@keyframes typing-tile-exit {
+    0% {
+        opacity: 1;
+        filter: blur(0px);
+    }
+    100% {
+        opacity: 0;
+        filter: blur(10px);
+    }
+}
+
+/* Animation states for controlled transitions */
+.ui-tile-animate {
+    transition: none; /* Disable other transitions during animation */
+}
+
+/* Prevent interaction during animation */
+.ui-tile-animate * {
+    pointer-events: none;
+}
+
+.ui-tile-animate.animation-complete * {
+    pointer-events: auto;
+}
