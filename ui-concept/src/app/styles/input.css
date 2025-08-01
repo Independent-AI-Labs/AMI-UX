@@ -1,0 +1,196 @@
+/* Input Message Editor */
+.hex-input-message-editor {
+    width: 100%;
+    height: 100%;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 12px;
+    transition: all 0.3s ease;
+    gap: 6px;
+}
+
+.hex-input-message-editor:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    transform: scale(1.01);
+}
+
+.hex-editor-toolbar {
+    display: flex;
+    gap: 2px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    justify-content: center;
+    width: 160px;
+    margin: 0 auto;
+}
+
+.hex-format-button {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.6);
+    padding: 2px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hex-format-button:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: rgba(255, 255, 255, 0.9);
+    transform: scale(1.05);
+}
+
+.hex-format-button:active {
+    background: rgba(6, 182, 212, 0.2);
+    border: 1px solid rgba(6, 182, 212, 0.4);
+    color: rgba(6, 182, 212, 1);
+}
+
+.hex-rich-input-editor {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 6px 4px;
+    font-size: 8px;
+    font-weight: 300;
+    outline: none;
+    min-height: 100px;
+    max-height: 160px;
+    overflow-y: auto;
+    line-height: 1.4;
+    word-wrap: break-word;
+    user-select: text;
+    cursor: text;
+    width: 160px;
+    margin: 0 auto;
+}
+
+.hex-rich-input-editor:empty:before {
+    content: attr(data-placeholder);
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+    font-size: 7px;
+}
+
+.hex-rich-input-editor:focus:empty:before {
+    content: "";
+}
+
+.hex-rich-input-editor strong {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 1);
+}
+
+.hex-rich-input-editor em {
+    font-style: italic;
+    color: rgba(6, 182, 212, 0.9);
+}
+
+.hex-rich-input-editor code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1px 3px;
+    font-family: monospace;
+    font-size: 7px;
+    color: rgba(34, 197, 94, 0.9);
+}
+
+.hex-rich-input-editor::selection {
+    background: rgba(6, 182, 212, 0.3);
+}
+
+.hex-rich-input-editor::-webkit-scrollbar {
+    width: 2px;
+}
+
+.hex-rich-input-editor::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.hex-rich-input-editor::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 1px;
+}
+
+.hex-button-row {
+    display: flex;
+    width: 160px;
+    margin: 4px auto 0;
+    gap: 4px;
+    align-items: center;
+}
+
+.hex-send-button-editor {
+    background: rgba(6, 182, 212, 0.2);
+    border: 1px solid rgba(6, 182, 212, 0.4);
+    color: white;
+    padding: 4px 8px;
+    font-size: 7px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hex-send-button-editor:hover:not(:disabled) {
+    background: rgba(6, 182, 212, 0.3);
+    border: 1px solid rgba(6, 182, 212, 0.6);
+    transform: scale(1.02);
+}
+
+.hex-send-button-editor:disabled {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
+    opacity: 0.5;
+}
+
+.hex-attach-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 4px;
+    transition: all 0.2s ease;
+    margin-right: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.hex-attach-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Input LoD Styles */
+.hex-input-lod-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6, 182, 212, 0.2);
+    border: 1px solid rgba(6, 182, 212, 0.4);
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 12px;
+    width: 40px;
+    height: 32px;
+    align-self: center;
+}
