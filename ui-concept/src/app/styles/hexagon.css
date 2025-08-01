@@ -68,8 +68,16 @@
 }
 
 .hex-message:not(.in-locked-mode):hover {
-    transform: scale(1.08) translateY(-3px);
+    transform: scale(1.02) translateY(-3px); /* Smaller hex scale for stronger parallax */
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* Parallax zoom effect - content zooms more than hex container */
+.hex-message:not(.in-locked-mode):hover .hex-content,
+.hex-message:not(.in-locked-mode):hover .hex-avatar,
+.hex-message:not(.in-locked-mode):hover .hex-message-actions,
+.hex-message:not(.in-locked-mode):hover .hex-timestamp {
+    transform: scale(1.15) !important; /* Stronger content scale + important to override LoD */
 }
 
 .hex-message-user {

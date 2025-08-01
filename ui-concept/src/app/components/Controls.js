@@ -18,7 +18,7 @@ const Controls = ({
     };
 
     return (
-        <div className="absolute top-6 right-6 z-50 flex flex-col space-y-2">
+        <div className="absolute top-24 right-6 z-50 flex flex-col space-y-2">
             {isLocked && (
                 <button
                     onClick={onExitLocked}
