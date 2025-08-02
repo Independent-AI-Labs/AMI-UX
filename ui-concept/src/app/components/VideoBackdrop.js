@@ -23,7 +23,7 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
         
         return {
             transform: `translate(-50%, -50%) translate(${videoX}px, ${videoY}px) scale(${videoZoom})`,
-            transformOrigin: 'center center',
+            // Remove transformOrigin from inline styles - let CSS handle it
         };
     }, [viewState]);
 

@@ -1,0 +1,299 @@
+/* Website Content Component Styles */
+.website-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+}
+
+.website-content.expanded {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    max-width: 95%;
+    max-height: 95%;
+}
+
+.website-display {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.website-content.expanded .website-display {
+    width: 100%;
+    height: 95%; /* Take almost all available space */
+    overflow: hidden; /* Hide the overflow from scaled content */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.website-iframe {
+    border-radius: 8px;
+    transition: opacity 0.3s ease;
+    zoom: 0.5; /* Zoom content to 50% - simulates higher DPI */
+}
+
+.website-content.expanded .website-iframe {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    zoom: 0.5; /* Keep 50% zoom in expanded view */
+}
+
+.website-error,
+.website-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.error-text,
+.loading-text {
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.open-button {
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.open-button:hover {
+    background: rgba(0, 0, 0, 0.2);
+    transform: scale(1.05);
+}
+
+.website-url {
+    margin-top: 10px;
+    color: rgba(0, 0, 0, 0.5);
+    font-family: monospace;
+    word-break: break-all;
+    text-align: center;
+}
+
+.website-content.expanded .website-url {
+    font-size: 12px !important;
+    margin-top: 10px;
+    flex-shrink: 0;
+}
+
+.website-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 15px;
+    flex-shrink: 0;
+}
+
+.website-content.expanded .website-actions {
+    margin-top: 10px;
+}
+
+.website-action-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(0, 0, 0, 0.7);
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.website-action-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.website-action-button.open {
+    color: rgba(34, 197, 94, 0.8);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.website-action-button.open:hover {
+    background: rgba(34, 197, 94, 0.1);
+    color: rgba(34, 197, 94, 1);
+    border-color: rgba(34, 197, 94, 0.5);
+}
+
+.website-action-button.remove {
+    color: rgba(239, 68, 68, 0.8);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.website-action-button.remove:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgba(239, 68, 68, 1);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Website overlay actions - positioned over iframe */
+.website-overlay-actions {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+}
+
+.website-overlay-actions:hover {
+    opacity: 1;
+}
+
+/* Address Bar Styles */
+.website-address-bar {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 6px 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 20;
+    min-width: 400px;
+    max-width: 80%;
+}
+
+.nav-button {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(0, 0, 0, 0.6);
+    transition: all 0.2s ease;
+}
+
+.nav-button:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.8);
+    border-color: rgba(0, 0, 0, 0.25);
+}
+
+.nav-button:active {
+    transform: scale(0.95);
+}
+
+.address-input-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    padding: 4px 8px;
+    min-width: 0;
+}
+
+.address-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.8);
+    font-family: monospace;
+}
+
+.address-display {
+    width: 100%;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.7);
+    font-family: monospace;
+    cursor: text;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 0;
+}
+
+.address-display:hover {
+    color: rgba(0, 0, 0, 0.9);
+}
+
+.action-button {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.action-button.open {
+    color: rgba(34, 197, 94, 0.8);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.action-button.open:hover {
+    background: rgba(34, 197, 94, 0.1);
+    color: rgba(34, 197, 94, 1);
+    border-color: rgba(34, 197, 94, 0.5);
+}
+
+.action-button.remove {
+    color: rgba(239, 68, 68, 0.8);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.action-button.remove:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgba(239, 68, 68, 1);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.go-button {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: rgba(59, 130, 246, 0.8);
+    border-color: rgba(59, 130, 246, 0.3);
+    font-size: 12px;
+    margin-right: 12px; /* Add spacing before action buttons */
+}
+
+.go-button:hover {
+    background: rgba(59, 130, 246, 0.1);
+    color: rgba(59, 130, 246, 1);
+    border-color: rgba(59, 130, 246, 0.5);
+}

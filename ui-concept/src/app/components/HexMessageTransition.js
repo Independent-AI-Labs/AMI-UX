@@ -1,6 +1,6 @@
 import React from 'react';
-import { User, Bot, Copy, RotateCw, GitBranch } from 'lucide-react';
 import HexMessageLoD from './HexMessageLoD';
+import MessageContent from './MessageContent';
 import { generateLoDStyles } from './LoD';
 
 const HexMessageTransition = ({ 
@@ -9,12 +9,9 @@ const HexMessageTransition = ({
     isLocked, 
     renderMarkdown,
     onCopyMessage,
+    onCloseExpanded,
     lodState
 }) => {
-
-    const handleCopy = () => {
-        onCopyMessage(message.text);
-    };
 
     // Use LoD system to determine capabilities and styling
     const capabilities = lodState?.capabilities || {};
@@ -22,40 +19,25 @@ const HexMessageTransition = ({
     const showActions = capabilities.showActions && isLocked;
     const showTimestamps = capabilities.showTimestamps !== false;
     const showAvatars = capabilities.showAvatars !== false;
+    const isExpanded = lodState?.context?.level === 'message' && lodState?.context?.messageId === message.id;
     
     // Generate LoD-based styles
     const lodStyles = lodState ? generateLoDStyles(lodState, 'message') : {};
-    
-    const renderedText = renderMarkdown(message.text);
 
     // Show LoD version when content should be placeholder
     if (showContent === 'placeholder') {
         return <HexMessageLoD message={message} />;
     }
 
-    // Show full version - LoD-aware structure
+    // Show full version - using MessageContent component
     return (
         <div
             className={`hex-message ${message.sender === 'user' ? 'hex-message-user' : 'hex-message-ai'} ${isLocked ? 'in-locked-mode' : ''}`}
             style={lodStyles}
-        >
-            {/* Avatar - conditionally shown based on LoD */}
-            {showAvatars && (
-                <div
-                    className={`hex-avatar ${message.sender === 'user' ? 'hex-avatar-user' : 'hex-avatar-ai'}`}>
-                    {message.sender === 'user' ?
-                        <User className="w-3 h-3 text-gray-800" /> :
-                        <Bot className="w-3 h-3 text-gray-900" />
-                    }
-                </div>
-            )}
-
-            {/* Message Content */}
-            <div
-                className="hex-content"
-                onWheel={(e) => {
-                    if (isLocked) {
-                        const element = e.currentTarget;
+            onWheel={(e) => {
+                if (isLocked) {
+                    const element = e.currentTarget.querySelector('.hex-content');
+                    if (element) {
                         const hasScrollbar = element.scrollHeight > element.clientHeight;
 
                         if (hasScrollbar) {
@@ -69,50 +51,19 @@ const HexMessageTransition = ({
                             }
                         }
                     }
-                }}
-            >
-                <div
-                    className={`hex-text selectable-text ${showContent === 'enhanced' ? 'enhanced-content' : ''}`}
-                    dangerouslySetInnerHTML={renderedText}
-                />
-            </div>
-            
-            {/* Timestamp - conditionally shown based on LoD */}
-            {showTimestamps && (
-                <p className="hex-timestamp">
-                    {message.timestamp.toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })}
-                </p>
-            )}
-
-            {/* Message Actions - shown based on LoD capabilities */}
-            {showActions && (
-                <div className="hex-message-actions">
-                    <button
-                        className="hex-action-button copy"
-                        onClick={handleCopy}
-                        title="Copy message"
-                    >
-                        <Copy className="w-2 h-2" />
-                    </button>
-                    <button
-                        className="hex-action-button rerun"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Re-run"
-                    >
-                        <RotateCw className="w-2 h-2" />
-                    </button>
-                    <button
-                        className="hex-action-button branch"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Branch conversation"
-                    >
-                        <GitBranch className="w-2 h-2" />
-                    </button>
-                </div>
-            )}
+                }
+            }}
+        >
+            <MessageContent
+                message={message}
+                renderMarkdown={renderMarkdown}
+                isLocked={isLocked}
+                showActions={showActions}
+                showTimestamps={showTimestamps}
+                showAvatars={showAvatars}
+                onCopyMessage={onCopyMessage}
+                size="normal"
+            />
         </div>
     );
 };

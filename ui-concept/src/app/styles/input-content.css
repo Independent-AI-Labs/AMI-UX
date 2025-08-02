@@ -1,0 +1,90 @@
+/* Input Content Component Styles */
+.input-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+}
+
+.input-content.expanded {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    max-width: 90%;
+    max-height: 90%;
+}
+
+.input-form {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.input-textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    color: rgba(0, 0, 0, 0.9);
+    font-family: inherit;
+    resize: none;
+    overflow-y: auto;
+    transition: all 0.2s ease;
+}
+
+.input-textarea::placeholder {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.input-textarea:focus {
+    border-color: rgba(144, 192, 255, 0.5);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.input-content.expanded .input-textarea {
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+    min-height: 200px;
+}
+
+.send-button {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(144, 192, 255, 0.8);
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    color: white;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.send-button:hover {
+    background: rgba(144, 192, 255, 1);
+    transform: scale(1.05);
+}
+
+.input-content.expanded .send-button {
+    padding: 12px;
+    bottom: 12px;
+    right: 12px;
+}
+
+.input-content.expanded .hex-avatar {
+    margin-bottom: 20px;
+    padding: 12px;
+}

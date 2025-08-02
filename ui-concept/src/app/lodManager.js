@@ -197,6 +197,18 @@ class LoD {
         }
     }
     
+    expandToMessage(messageId) {
+        if (this.contextLevel !== CONTEXT_LEVELS.MESSAGE) {
+            this.pushState(); // Save current state
+            this.contextLevel = CONTEXT_LEVELS.MESSAGE;
+            this.currentMessageId = messageId;
+            this.isLocked = true;
+            
+            this.notifyTransition('expandToMessage', { messageId });
+            this.notifyStateChange();
+        }
+    }
+
     returnToWorkspace() {
         if (this.contextLevel !== CONTEXT_LEVELS.WORKSPACE) {
             this.contextLevel = CONTEXT_LEVELS.WORKSPACE;
@@ -208,6 +220,11 @@ class LoD {
             this.notifyTransition('returnToWorkspace', {});
             this.notifyStateChange();
         }
+    }
+    
+    // Force unlock - alias for returnToWorkspace
+    unlock() {
+        this.returnToWorkspace();
     }
     
     // State history management
