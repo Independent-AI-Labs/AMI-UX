@@ -10,12 +10,9 @@
     background: rgba(255, 255, 255, 0.03);
 }
 
-/* Hexagon with backdrop filter - applied to the clipped container */
+/* Hexagon with backdrop filter - remove CSS rules, use only inline styles */
 .hex-with-backdrop {
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    backdrop-filter: blur(12px) saturate(180%);
-    background: var(--hex-bg-base, rgba(255, 255, 255, 0.3)); /* LoD-aware base transparency */
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    /* All backdrop-filter styling now done via inline styles */
 }
 
 .hex-with-backdrop:hover {
@@ -27,28 +24,29 @@
 
 /* Locked mode - higher transparency for better readability */
 .hex-with-backdrop .hex-message-ai.in-locked-mode {
-    background: var(--hex-bg-locked, rgba(255, 255, 255, 0.5)); /* LoD-aware locked transparency */
+    /* Background removed - using parent's backdrop-filter */
 }
 
 .hex-with-backdrop .hex-message-ai.in-locked-mode:hover {
-    background: var(--hex-bg-locked, rgba(255, 255, 255, 0.6));
+    /* Background removed - using parent's backdrop-filter */
 }
 
 .hex-with-backdrop .hex-message-user.in-locked-mode {
-    background: rgba(144, 192, 255, 0.6); /* User message unified color in locked mode */
+    /* Background removed - using parent's backdrop-filter */
 }
 
 .hex-with-backdrop .hex-message-user.in-locked-mode:hover {
-    background: rgba(144, 192, 255, 0.7);
+    /* Background removed - using parent's backdrop-filter */
 }
 
 /* Hexagon Message Base */
 .hex-message {
     width: 100%;
     height: 100%;
-    background: rgba(255, 255, 255, 0.4);
+    /* Background handled by separate backdrop layer, make content visible */
+    background: rgba(255, 255, 255, 0.1);
     border: none;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    /* Remove box-shadow from inner element */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -58,17 +56,19 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
+    /* Force hardware acceleration */
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 .hex-message:hover {
-    -webkit-backdrop-filter: blur(16px) saturate(200%);
-    backdrop-filter: blur(16px) saturate(200%);
-    background: rgba(255, 255, 255, 0.6);
+    /* Background removed - using parent's backdrop-filter */
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 .hex-message:not(.in-locked-mode):hover {
-    transform: scale(1.02) translateY(-3px); /* Smaller hex scale for stronger parallax */
+    transform: scale(1.02) translateY(-3px) translateZ(0); /* Combined transforms with hardware acceleration */
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
 }
 
@@ -81,7 +81,8 @@
 }
 
 .hex-message-user {
-    background: rgba(144, 192, 255, 0.5);
+    /* Transparent - color is on parent with backdrop-filter */
+    background: transparent;
     border: none;
 }
 
@@ -91,7 +92,8 @@
 }
 
 .hex-message-ai {
-    background: rgba(255, 255, 255, 0.5);
+    /* Transparent - color is on parent with backdrop-filter */
+    background: transparent;
     border: none;
 }
 
@@ -102,11 +104,9 @@
 /* Animations */
 @keyframes fade-in {
     from {
-        opacity: 0;
         transform: scale(0.8);
     }
     to {
-        opacity: 1;
         transform: scale(1);
     }
 }
@@ -125,6 +125,13 @@
 /* LoD-aware animation speed */
 .lod-hex-wrapper {
     transition-duration: calc(0.3s / var(--animation-speed, 1));
+    /* Ensure parent doesn't interfere with backdrop-filter */
+    transform-style: preserve-3d;
+}
+
+/* Message hexagons should not have mix-blend-mode */
+.lod-hex-wrapper:has(.hex-with-backdrop) {
+    mix-blend-mode: normal !important;
 }
 
 /* Enhanced content styling for DETAIL zoom level */

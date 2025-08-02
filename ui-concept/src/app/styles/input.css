@@ -14,12 +14,16 @@
     padding: 12px;
     transition: all 0.3s ease;
     gap: 6px;
+    /* Prevent backdrop-filter flickering during transforms */
+    will-change: transform, filter;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 .hex-input-message-editor:hover {
     background: rgba(144, 192, 255, 0.25);
     border: none;
-    transform: scale(1.01);
+    transform: scale(1.01) translateZ(0);
 }
 
 /* Locked mode - use user color for consistency */

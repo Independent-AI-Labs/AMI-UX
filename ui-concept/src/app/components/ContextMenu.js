@@ -246,10 +246,17 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat, 
                                 </div>
                             </div>
                             
-                            {/* Submenu */}
-                            {item.hasSubmenu && isSubmenuOpen && (
+                            {/* Submenu - Rendered with portal to avoid backdrop-filter nesting */}
+                            {item.hasSubmenu && isSubmenuOpen && createPortal(
                                 <div 
                                     className="context-submenu"
+                                    style={{
+                                        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+                                        backdropFilter: 'blur(12px) saturate(180%)',
+                                        position: 'fixed',
+                                        left: adjustedX + menuWidth + 2,
+                                        top: adjustedY + (index * 44) + 8
+                                    }}
                                     onMouseEnter={() => handleSubmenuEnter(item.id)}
                                     onMouseLeave={handleSubmenuLeave}
                                 >
@@ -273,7 +280,8 @@ const ContextMenu = ({ x, y, visible, onClose, canStartNewChat, onStartNewChat, 
                                             </div>
                                         );
                                     })}
-                                </div>
+                                </div>,
+                                document.body
                             )}
                         </div>
                     );

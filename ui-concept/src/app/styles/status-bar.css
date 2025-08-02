@@ -4,15 +4,43 @@
     top: 0;
     left: 0;
     right: 0;
+    z-index: 100;
+    pointer-events: auto; /* Allow mouse interaction for expand/collapse */
+    transition: height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    isolation: isolate; /* Create a new stacking context for blend modes */
+    mix-blend-mode: screen; /* Screen blend mode makes dark text invisible on light backgrounds */
+}
+
+/* Glass background layer */
+.status-bar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background: linear-gradient(180deg, 
-        rgba(255, 255, 255, 0.6) 0%, 
+        rgba(255, 255, 255, 0.85) 0%, 
+        rgba(255, 255, 255, 0.6) 50%,
         rgba(255, 255, 255, 0) 100%
     );
     -webkit-backdrop-filter: blur(12px) saturate(180%);
     backdrop-filter: blur(12px) saturate(180%);
-    z-index: 100;
-    pointer-events: auto; /* Allow mouse interaction for expand/collapse */
-    transition: height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    z-index: -1;
+}
+
+/* Alternative cut-out styles using pseudo-elements */
+.status-time-cutout {
+    position: relative;
+    display: inline-block;
+}
+
+.status-time-cutout::before {
+    content: '';
+    position: absolute;
+    inset: -4px -8px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    z-index: -1;
 }
 
 /* Compact state - clock height only */
@@ -44,18 +72,24 @@
 .status-time {
     font-family: 'Montserrat', sans-serif;
     font-size: 16px;
-    font-weight: 600;
-    color: #4a4a4a;
+    font-weight: 800; /* Heavier weight for better cut-out effect */
+    color: #000000; /* Black text for multiply blend mode */
+    mix-blend-mode: multiply; /* Creates cut-out effect on light backgrounds */
     line-height: 1;
+    position: relative;
+    z-index: 1;
 }
 
 .status-date {
     font-family: 'Montserrat', sans-serif;
     font-size: 11px;
-    font-weight: 400;
-    color: #3a3a3a;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.7); /* Semi-transparent black for softer cut-out */
+    mix-blend-mode: multiply;
     line-height: 1;
     animation: status-date-appear 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    position: relative;
+    z-index: 1;
 }
 
 @keyframes status-date-appear {

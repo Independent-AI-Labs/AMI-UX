@@ -1134,11 +1134,46 @@ const HexagonalMessageGrid = () => {
                 onResetView={resetView}
             />
 
+            {/* Backdrop layer - completely separate from canvas */}
+            {messages.map((message, index) => {
+                let position;
+                if (message.q !== undefined && message.r !== undefined) {
+                    position = { q: message.q, r: message.r };
+                } else {
+                    position = getMessagePosition(message, index);
+                }
+                
+                const pixelPosition = hexToPixel(position.q, position.r);
+                const transformedX = viewState.x + (pixelPosition.x - hexSize) * viewState.zoom;
+                const transformedY = viewState.y + (pixelPosition.y - hexSize) * viewState.zoom;
+                const transformedSize = hexSize * 2 * viewState.zoom;
+                
+                return (
+                    <div
+                        key={`backdrop-${message.id}`}
+                        style={{
+                            position: 'absolute',
+                            left: transformedX,
+                            top: transformedY,
+                            width: transformedSize,
+                            height: transformedSize * Math.sqrt(3) / 2,
+                            clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+                            background: message.sender === 'user' ? 'rgba(144, 192, 255, 0.4)' : 'rgba(255, 255, 255, 0.4)',
+                            backdropFilter: 'blur(12px) saturate(180%)',
+                            WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                            zIndex: 10,
+                            pointerEvents: 'none'
+                        }}
+                    />
+                );
+            })}
+
             {/* Canvas Container */}
             <div
                 ref={containerRef}
                 className="absolute inset-0 cursor-grab active:cursor-grabbing"
-                style={{ zIndex: 1 }}
+                style={{ zIndex: 20 }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -1152,7 +1187,9 @@ const HexagonalMessageGrid = () => {
                     className="absolute inset-0 transition-transform duration-75 ease-out"
                     style={{
                         transform: `translate(${viewState.x}px, ${viewState.y}px) scale(${viewState.zoom})`,
-                        transformOrigin: '0 0'
+                        transformOrigin: '0 0',
+                        willChange: 'transform',
+                        transformStyle: 'preserve-3d'
                     }}
                 >
                     {/* Grid Selection Hover Effect */}

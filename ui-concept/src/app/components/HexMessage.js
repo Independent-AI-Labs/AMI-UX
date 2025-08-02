@@ -58,8 +58,11 @@ const HexMessage = React.memo(({
                 x={x}
                 y={y}
                 hexSize={hexSize}
-                className="animate-fade-in hex-with-backdrop"
-                style={animationStyle}
+                className={`animate-fade-in hex-with-backdrop ${message.sender === 'user' ? 'hex-user' : ''}`}
+                style={{
+                    ...animationStyle
+                    // Background and backdrop now handled by separate layer outside transform
+                }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
             >
