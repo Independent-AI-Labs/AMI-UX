@@ -23,6 +23,11 @@ import VideoBackdrop from './components/VideoBackdrop';
 import ErrorToast from './components/ErrorToast';
 import AnimatedUITile from './components/AnimatedUITile';
 import StatusBar from './components/StatusBar';
+import DragGhost from './components/DragGhost';
+import GiantHexagon from './components/GiantHexagon';
+import GiantWebsite from './components/GiantWebsite';
+import GiantInput from './components/GiantInput';
+import BlendModeTest from './components/BlendModeTest';
 
 // Import CSS files
 import './styles/hexagon.css';
@@ -37,6 +42,8 @@ import './styles/ui-tile-animations.css';
 import './styles/status-bar.css';
 import './styles/iframe-modal.css';
 import './styles/hex-website.css';
+import './styles/website-content.css';
+import './styles/input-content.css';
 
 const HexagonalMessageGrid = () => {
     // Messages with coordinates and conversation IDs - this is the single source of truth
@@ -124,8 +131,68 @@ const HexagonalMessageGrid = () => {
         }
     ]);
 
-    // Websites with coordinates
-    const [websites, setWebsites] = useState([]);
+    // Websites with coordinates - positioned away from conversation area
+    const [websites, setWebsites] = useState([
+        // Cluster 1: Reference sites (far right)
+        {
+            id: 'wiki-1',
+            url: 'https://wikipedia.org',
+            q: 8,
+            r: 1
+        },
+        {
+            id: 'archive-1',
+            url: 'https://archive.org',
+            q: 9,
+            r: 1
+        },
+        {
+            id: 'example-1',
+            url: 'https://example.com',
+            q: 8,
+            r: 2
+        },
+        
+        // Cluster 2: Development tools (far left)
+        {
+            id: 'codepen-1',
+            url: 'https://codepen.io',
+            q: -8,
+            r: 2
+        },
+        {
+            id: 'jsbin-1',
+            url: 'https://jsbin.com',
+            q: -7,
+            r: 2
+        },
+        {
+            id: 'httpbin-1',
+            url: 'https://httpbin.org',
+            q: -8,
+            r: 3
+        },
+        
+        // Cluster 3: Search engines (top area)
+        {
+            id: 'duckduckgo-1',
+            url: 'https://duckduckgo.com',
+            q: -2,
+            r: -6
+        },
+        {
+            id: 'startpage-1',
+            url: 'https://startpage.com',
+            q: -1,
+            r: -6
+        },
+        {
+            id: 'searx-1',
+            url: 'https://searx.space',
+            q: -2,
+            r: -5
+        }
+    ]);
 
     // Store last right-clicked position for context menu actions
     const lastRightClickPosition = useRef({ q: 0, r: 0 });
@@ -155,6 +222,16 @@ const HexagonalMessageGrid = () => {
     
     // Error toast state
     const [errorToast, setErrorToast] = useState({ visible: false, message: '' });
+    const [expandingMessage, setExpandingMessage] = useState(null);
+    const [expandingWebsite, setExpandingWebsite] = useState(null);
+    const [expandingInput, setExpandingInput] = useState(false);
+    const [lockedWebsiteId, setLockedWebsiteId] = useState(null);
+    
+    // Global drag ghost state
+    const [dragGhost, setDragGhost] = useState({ visible: false, website: null });
+    
+    // Website hover state for external drag handles
+    const [websiteHover, setWebsiteHover] = useState({ visible: false, websiteId: null, position: null, onDragStart: null });
 
     const containerRef = useRef(null);
     const inputRef = useRef(null);
@@ -525,18 +602,28 @@ const HexagonalMessageGrid = () => {
         }
     }, [conversationState]);
 
+    // Website unlock function
+    const handleUnlockWebsite = useCallback(() => {
+        console.log('Unlocking website');
+        setLockedWebsiteId(null);
+    }, []);
+
     // Handle escape key - simplified to always unlock completely
     useEffect(() => {
         const handleKeyPress = (e) => {
             if (e.key === 'Escape') {
                 // Always force complete unlock to prevent stuck states
-                unlockConversation();
+                if (lockedWebsiteId) {
+                    handleUnlockWebsite();
+                } else {
+                    unlockConversation();
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [unlockConversation]);
+    }, [unlockConversation, lockedWebsiteId, handleUnlockWebsite]);
 
     const resetView = () => {
         // Reset to centered position instead of (0,0)
@@ -621,18 +708,31 @@ const HexagonalMessageGrid = () => {
             return;
         }
 
+        // Allow middle-click panning even when website is being dragged
+        if (e.button === 1) { // Middle mouse button
+            setIsDragging(true);
+            setLastMouse({ x: e.clientX, y: e.clientY });
+            setStartMousePos({ x: e.clientX, y: e.clientY });
+            animationManager.current.setInitialVelocity(0, 0);
+            dragRef.current = false;
+            return;
+        }
+
         // If locked and clicking outside the conversation, unlock (act as ESC)
         if (conversationState.isLocked) {
             unlockConversation();
             return;
         }
 
-        setIsDragging(true);
-        setLastMouse({ x: e.clientX, y: e.clientY });
-        setStartMousePos({ x: e.clientX, y: e.clientY });
-        animationManager.current.setInitialVelocity(0, 0);
-        dragRef.current = false;
-    }, [conversationState.isLocked, unlockConversation]);
+        // Only start panning on left-click if not dragging a website
+        if (e.button === 0 && !dragGhost.visible) { // Left mouse button and no website drag
+            setIsDragging(true);
+            setLastMouse({ x: e.clientX, y: e.clientY });
+            setStartMousePos({ x: e.clientX, y: e.clientY });
+            animationManager.current.setInitialVelocity(0, 0);
+            dragRef.current = false;
+        }
+    }, [conversationState.isLocked, unlockConversation, dragGhost.visible]);
 
     const handleMouseMove = (e) => {
         setMousePos({ x: e.clientX, y: e.clientY });
@@ -794,6 +894,12 @@ const HexagonalMessageGrid = () => {
         setWebsites(prev => prev.filter(w => w.id !== websiteId));
     }, []);
 
+    const handleUpdateWebsiteUrl = useCallback((websiteId, newUrl) => {
+        setWebsites(prev => prev.map(w => 
+            w.id === websiteId ? { ...w, url: newUrl } : w
+        ));
+    }, []);
+
     const handleMoveWebsite = useCallback((websiteId, newQ, newR) => {
         // Check if the target position is free
         const occupiedPositions = new Set([
@@ -815,6 +921,73 @@ const HexagonalMessageGrid = () => {
         setErrorToast(prev => ({ ...prev, visible: false }));
     }, []);
 
+    const handleExpandMessage = useCallback((messageId, q, r) => {
+        console.log(`Expanding message ${messageId} to full viewport`);
+        
+        // Find the message
+        const message = messages.find(m => m.id === messageId);
+        if (!message) return;
+        
+        // Start expanding animation
+        setExpandingMessage({ message });
+    }, [messages]);
+
+    const handleCloseExpanded = useCallback(() => {
+        console.log('Closing expanded view');
+        setExpandingMessage(null);
+        setExpandingWebsite(null);
+        setExpandingInput(false);
+    }, []);
+
+    const handleExpandWebsite = useCallback((websiteId, q, r) => {
+        console.log(`Expanding website ${websiteId} to full viewport`);
+        
+        // Find the website
+        const website = websites.find(w => w.id === websiteId);
+        if (!website) return;
+        
+        // Start expanding animation
+        setExpandingWebsite({ website });
+    }, [websites]);
+
+    const handleCanvasClick = useCallback((e) => {
+        // Unlock website if clicking outside of any website tile
+        if (lockedWebsiteId && e.target === e.currentTarget) {
+            handleUnlockWebsite();
+        }
+    }, [lockedWebsiteId, handleUnlockWebsite]);
+
+    const handleCanvasWheel = useCallback((e) => {
+        // Unlock website on scroll
+        if (lockedWebsiteId) {
+            handleUnlockWebsite();
+        }
+    }, [lockedWebsiteId, handleUnlockWebsite]);
+
+    const handleExpandInput = useCallback(() => {
+        console.log('Expanding input to full viewport');
+        setExpandingInput(true);
+    }, []);
+
+    const handleLockToWebsite = useCallback((websiteId, q, r) => {
+        console.log(`Locking to website ${websiteId} at (${q}, ${r})`);
+        setLockedWebsiteId(websiteId);
+        
+        // Get the pixel position of the website tile
+        const tileCenter = hexToPixel(q, r);
+        const zoom = 1.8;
+        
+        // Calculate view position to center this tile (same formula as conversation locking)
+        const newX = screenCenter.x - (tileCenter.x * zoom);
+        const newY = screenCenter.y - (tileCenter.y * zoom);
+        
+        animationManager.current.setViewState({
+            x: newX,
+            y: newY,
+            zoom: zoom
+        });
+    }, [screenCenter, hexToPixel]);
+
     // Track mouse position for drag silhouette
     useEffect(() => {
         const handleMouseMove = (e) => {
@@ -825,6 +998,28 @@ const HexagonalMessageGrid = () => {
         document.addEventListener('mousemove', handleMouseMove);
         return () => document.removeEventListener('mousemove', handleMouseMove);
     }, []);
+
+    // Hide drag handle on any click, mousedown, or scroll
+    useEffect(() => {
+        const hideDragHandle = () => {
+            if (websiteHover.visible) {
+                setWebsiteHover({ visible: false, websiteId: null, position: null, onDragStart: null });
+            }
+        };
+
+        document.addEventListener('click', hideDragHandle);
+        document.addEventListener('mousedown', hideDragHandle);
+        document.addEventListener('wheel', hideDragHandle);
+        document.addEventListener('scroll', hideDragHandle, true); // Capture phase for all scrolls
+
+        return () => {
+            document.removeEventListener('click', hideDragHandle);
+            document.removeEventListener('mousedown', hideDragHandle);
+            document.removeEventListener('wheel', hideDragHandle);
+            document.removeEventListener('scroll', hideDragHandle, true);
+        };
+    }, [websiteHover.visible]);
+
 
     // Add wheel event listener with passive: false to allow preventDefault
     useEffect(() => {
@@ -918,6 +1113,9 @@ const HexagonalMessageGrid = () => {
                 viewState={viewState}
                 screenCenter={screenCenter}
             />
+
+            {/* Blend Mode Test Hex */}
+            <BlendModeTest />
             
             <HexagonSVG />
             <ZoomSlider
@@ -927,10 +1125,12 @@ const HexagonalMessageGrid = () => {
 
             <Controls
                 isLocked={conversationState.isLocked}
+                isWebsiteLocked={!!lockedWebsiteId}
                 viewState={viewState}
                 screenCenter={screenCenter}
                 animationManager={animationManager}
                 onExitLocked={unlockConversation}
+                onExitWebsiteLocked={handleUnlockWebsite}
                 onResetView={resetView}
             />
 
@@ -944,6 +1144,8 @@ const HexagonalMessageGrid = () => {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
                 onContextMenu={handleContextMenu}
+                onClick={handleCanvasClick}
+                onWheel={handleCanvasWheel}
             >
                 {/* Hexagonal Grid */}
                 <div
@@ -985,6 +1187,8 @@ const HexagonalMessageGrid = () => {
                                 isLocked={conversationState.isLocked}
                                 dragRef={dragRef}
                                 onLockToConversation={(q, r) => lockToConversation(q, r, message.id)}
+                                onExpandMessage={handleExpandMessage}
+                                onCloseExpanded={handleCloseExpanded}
                                 onCopyMessage={handleCopyMessage}
                                 renderMarkdown={renderMarkdownMemo}
                                 index={index}
@@ -1006,10 +1210,34 @@ const HexagonalMessageGrid = () => {
                                 position={{ ...position, ...pixelPosition }}
                                 hexSize={hexSize}
                                 isLocked={conversationState.isLocked}
+                                isWebsiteLocked={lockedWebsiteId === website.id}
                                 dragRef={dragRef}
                                 onLockToConversation={() => {/* Websites don't lock to conversations */}}
+                                onLockToWebsite={handleLockToWebsite}
                                 onRemoveWebsite={handleRemoveWebsite}
+                                onUpdateWebsiteUrl={handleUpdateWebsiteUrl}
                                 onMoveWebsite={handleMoveWebsite}
+                                onExpandWebsite={handleExpandWebsite}
+                                onDragStart={(website) => setDragGhost({ visible: true, website })}
+                                onDragEnd={() => setDragGhost({ visible: false, website: null })}
+                                onHoverChange={(websiteId, isHovered, hoverData) => {
+                                    if (isHovered) {
+                                        // Convert world coordinates to screen coordinates for handle positioning (above tile)
+                                        const rect = containerRef.current?.getBoundingClientRect();
+                                        if (rect && hoverData) {
+                                            const screenX = rect.left + viewState.x + (hoverData.x + hoverData.hexSize * 0.5) * viewState.zoom;
+                                            const screenY = rect.top + viewState.y + (hoverData.y - 30) * viewState.zoom; // Position above tile
+                                            setWebsiteHover({ 
+                                                visible: true, 
+                                                websiteId, 
+                                                position: { x: screenX, y: screenY },
+                                                onDragStart: hoverData.onDragStart
+                                            });
+                                        }
+                                    } else {
+                                        setWebsiteHover({ visible: false, websiteId: null, position: null, onDragStart: null });
+                                    }
+                                }}
                                 pixelToHex={pixelToHex}
                                 viewState={viewState}
                                 containerRef={containerRef}
@@ -1058,6 +1286,7 @@ const HexagonalMessageGrid = () => {
                                     inputText={inputText}
                                     onInputChange={setInputText}
                                     onSend={handleSend}
+                                    onExpandInput={handleExpandInput}
                                     isLocked={conversationState.isLocked}
                                     zoom={viewState.zoom}
                                     lodState={lodState}
@@ -1101,6 +1330,84 @@ const HexagonalMessageGrid = () => {
                 onClose={handleCloseIframeModal}
                 onCreateWebsite={handleCreateWebsite}
             />
+            
+            {/* Global Drag Ghost */}
+            <DragGhost
+                website={dragGhost.website}
+                isVisible={dragGhost.visible}
+                hexSize={hexSize}
+            />
+            
+            {/* Giant Hexagon Expansion */}
+            {expandingMessage && (
+                <GiantHexagon
+                    message={expandingMessage.message}
+                    onClose={handleCloseExpanded}
+                    renderMarkdown={renderMarkdown}
+                />
+            )}
+            
+            {/* Giant Website Expansion */}
+            {expandingWebsite && (
+                <GiantWebsite
+                    website={expandingWebsite.website}
+                    onClose={handleCloseExpanded}
+                    onRemoveWebsite={handleRemoveWebsite}
+                />
+            )}
+            
+            {/* Giant Input Expansion */}
+            {expandingInput && (
+                <GiantInput
+                    inputText={inputText}
+                    onInputChange={setInputText}
+                    onSendMessage={handleSend}
+                    onClose={handleCloseExpanded}
+                />
+            )}
+            
+            {/* External Drag Handle */}
+            {websiteHover.visible && websiteHover.position && (
+                <div
+                    className="website-drag-handle"
+                    style={{
+                        position: 'fixed',
+                        left: websiteHover.position.x - 12,
+                        top: websiteHover.position.y - 12,
+                        zIndex: 1000,
+                        pointerEvents: 'auto'
+                    }}
+                >
+                    <button
+                        onMouseDown={websiteHover.onDragStart}
+                        onDragStart={(e) => e.preventDefault()}
+                        className="hex-website-action-button hex-website-drag"
+                        title="Drag to move"
+                        draggable={false}
+                        style={{
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            color: '#4a4a4a',
+                            border: '1px solid rgba(0, 0, 0, 0.2)',
+                            borderRadius: '4px',
+                            padding: '6px 12px',
+                            cursor: dragGhost.visible ? 'grabbing' : 'grab',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: '32px',
+                            minHeight: '20px',
+                            transition: 'all 0.2s ease',
+                            transform: 'rotate(90deg)',
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            MozUserSelect: 'none',
+                            msUserSelect: 'none'
+                        }}
+                    >
+                        ⋮⋮
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

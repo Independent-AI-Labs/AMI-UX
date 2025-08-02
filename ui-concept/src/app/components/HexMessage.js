@@ -10,6 +10,8 @@ const HexMessage = React.memo(({
     isLocked, 
     dragRef, 
     onLockToConversation,
+    onExpandMessage,
+    onCloseExpanded,
     onCopyMessage,
     renderMarkdown,
     index,
@@ -24,6 +26,13 @@ const HexMessage = React.memo(({
             onLockToConversation(position.q, position.r);
         }
     }, [isLocked, dragRef, onLockToConversation, position.q, position.r]);
+
+    const handleDoubleClick = useCallback((e) => {
+        e.stopPropagation();
+        if (isLocked && onExpandMessage) {
+            onExpandMessage(message.id, position.q, position.r);
+        }
+    }, [isLocked, onExpandMessage, message.id, position.q, position.r]);
 
     const handleCopy = useCallback((e) => {
         e.stopPropagation();
@@ -52,6 +61,7 @@ const HexMessage = React.memo(({
                 className="animate-fade-in hex-with-backdrop"
                 style={animationStyle}
                 onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
             >
                 <HexMessageTransition
                     message={message}
@@ -59,6 +69,7 @@ const HexMessage = React.memo(({
                     isLocked={isLocked}
                     renderMarkdown={renderMarkdown}
                     onCopyMessage={onCopyMessage}
+                    onCloseExpanded={onCloseExpanded}
                     lodState={lodState}
                 />
             </Hexagon>

@@ -35,11 +35,11 @@
 }
 
 .hex-with-backdrop .hex-message-user.in-locked-mode {
-    background: rgba(192, 255, 255, 0.6); /* Keep user message cyan color in locked mode */
+    background: rgba(144, 192, 255, 0.6); /* User message unified color in locked mode */
 }
 
 .hex-with-backdrop .hex-message-user.in-locked-mode:hover {
-    background: rgba(192, 255, 255, 0.7);
+    background: rgba(144, 192, 255, 0.7);
 }
 
 /* Hexagon Message Base */
@@ -81,12 +81,12 @@
 }
 
 .hex-message-user {
-    background: rgba(192, 255, 255, 0.5);
+    background: rgba(144, 192, 255, 0.5);
     border: none;
 }
 
 .hex-message-user:hover {
-    background: rgba(192, 255, 255, 0.6);
+    background: rgba(144, 192, 255, 0.6);
     border: none;
 }
 

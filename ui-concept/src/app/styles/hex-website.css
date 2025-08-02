@@ -18,7 +18,7 @@
 .hex-website:hover {
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-    border: 3px solid lime !important; /* Temporary visual indicator */
+    border: 3px solid rgba(59, 130, 246, 0.6) !important;
 }
 
 .hex-website.in-locked-mode {
@@ -38,11 +38,13 @@
 
 /* Website IFrame */
 .hex-website-iframe {
-    width: 100%;
-    height: 100%;
+    width: 200%; /* Double width for higher resolution */
+    height: 200%; /* Double height for higher resolution */
     border: none;
     border-radius: 8px;
-    background: white;
+    background: white; /* Restore white background */
+    transform-origin: top left; /* Scale from top-left corner */
+    pointer-events: none; /* Pass all mouse events to parent */
 }
 
 /* Loading State */
@@ -205,6 +207,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 4px;
     padding: 4px 0 0 0;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
     margin-top: 4px;
@@ -228,6 +231,35 @@
     overflow: hidden;
     white-space: nowrap;
     max-width: 80px;
+}
+
+/* Edit URL Button */
+.hex-website-edit-button {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    color: #9ca3af;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+}
+
+.hex-website-edit-button:hover {
+    color: #6b7280;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Website-specific blend mode for entire hexagon - apply only to outermost wrapper */
+.lod-hex-wrapper:has(.hex-website) {
+    mix-blend-mode: screen !important;
+}
+
+/* Alternative fallback for browsers without :has() support */
+.lod-hex-wrapper.website-tile {
+    mix-blend-mode: screen !important;
 }
 
 /* LoD Placeholder */

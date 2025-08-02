@@ -3,10 +3,12 @@ import { Plus, Minus, RotateCcw, X } from 'lucide-react';
 
 const Controls = ({ 
     isLocked, 
+    isWebsiteLocked,
     viewState, 
     screenCenter, 
     animationManager, 
     onExitLocked, 
+    onExitWebsiteLocked,
     onResetView 
 }) => {
     const handleZoomIn = () => {
@@ -27,7 +29,16 @@ const Controls = ({
                     <X className="w-4 h-4" />
                 </button>
             )}
-            {!isLocked && (
+            {isWebsiteLocked && (
+                <button
+                    onClick={onExitWebsiteLocked}
+                    className="glass-control-button exit-button website-locked"
+                    title="Exit website view"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+            )}
+            {!isLocked && !isWebsiteLocked && (
                 <>
                     <button
                         onClick={handleZoomIn}

@@ -11,6 +11,7 @@ const HexInput = React.memo(({
     inputText, 
     onInputChange, 
     onSend, 
+    onExpandInput,
     isLocked,
     zoom,
     lodState
@@ -31,6 +32,13 @@ const HexInput = React.memo(({
                 e.preventDefault();
                 document.execCommand('italic');
             }
+        }
+    };
+
+    const handleDoubleClick = (e) => {
+        e.stopPropagation();
+        if (isLocked && onExpandInput) {
+            onExpandInput();
         }
     };
 
@@ -86,6 +94,7 @@ const HexInput = React.memo(({
                 x={x}
                 y={y}
                 hexSize={hexSize}
+                onDoubleClick={handleDoubleClick}
             >
                 {useLoD ? (
                     <HexInputLoD />

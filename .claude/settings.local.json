@@ -4,7 +4,8 @@
     "allow": [
       "Bash(npm run build:*)",
       "Bash(grep:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   }

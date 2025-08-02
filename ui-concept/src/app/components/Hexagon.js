@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 
-const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick, style }) => {
+const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick, onDoubleClick, style }) => {
     const hexWidth = hexSize * 2;
     const hexHeight = Math.sqrt(3) * hexSize;
 
@@ -20,6 +20,7 @@ const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick,
             className={`absolute ${className || ''}`}
             style={hexStyle}
             onClick={onClick}
+            onDoubleClick={onDoubleClick}
         >
             {children}
         </div>
