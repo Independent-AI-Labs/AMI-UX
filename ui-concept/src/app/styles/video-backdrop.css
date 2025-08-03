@@ -10,7 +10,7 @@
     pointer-events: none;
     
     /* Debug visibility */
-    /* border: 2px solid red; */ /* Temporary to see if container is visible */
+    /* border: 0.125rem solid red; */ /* Temporary to see if container is visible */
     /* background: rgba(255, 0, 0, 0.1); */ /* Temporary red tint */
 }
 
@@ -30,7 +30,7 @@
     object-position: center center;
     
     /* Heavy blur effect */
-    filter: blur(20px);
+    filter: blur(1.25rem);
     
     /* Performance optimizations */
     backface-visibility: hidden;
@@ -61,40 +61,40 @@
     
     /* Initial transform handled by JavaScript parallax calculation */
     
-    /* Fade to alpha on all edges with 128px transition */
+    /* Fade to alpha on all edges with 8rem transition */
     mask: linear-gradient(
         to right, 
         transparent 0, 
-        black 128px, 
-        black calc(100% - 128px), 
+        black 8rem, 
+        black calc(100% - 8rem), 
         transparent 100%
     ),
     linear-gradient(
         to bottom, 
         transparent 0, 
-        black 128px, 
-        black calc(100% - 128px), 
+        black 8rem, 
+        black calc(100% - 8rem), 
         transparent 100%
     );
     mask-composite: intersect;
     -webkit-mask: linear-gradient(
         to right, 
         transparent 0, 
-        black 128px, 
-        black calc(100% - 128px), 
+        black 8rem, 
+        black calc(100% - 8rem), 
         transparent 100%
     ),
     linear-gradient(
         to bottom, 
         transparent 0, 
-        black 128px, 
-        black calc(100% - 128px), 
+        black 8rem, 
+        black calc(100% - 8rem), 
         transparent 100%
     );
     -webkit-mask-composite: source-in;
     
     /* Debug visibility */
-    /* border: 2px solid blue; */ /* Temporary to see video element */
+    /* border: 0.125rem solid blue; */ /* Temporary to see video element */
     /* background: rgba(0, 0, 255, 0.1); */ /* Temporary blue tint */
 }
 
@@ -148,8 +148,8 @@
     /* Force hardware acceleration */
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    perspective: 1000px;
-    -webkit-perspective: 1000px;
+    perspective: 62.5rem;
+    -webkit-perspective: 62.5rem;
     
     /* Optimize for transforms */
     transform-style: preserve-3d;

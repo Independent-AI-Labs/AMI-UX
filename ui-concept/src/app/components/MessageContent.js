@@ -22,13 +22,13 @@ const MessageContent = ({
     const sizeClasses = {
         normal: {
             avatar: 'w-3 h-3',
-            fontSize: '8px',
+            fontSize: '0.5rem',
             lineHeight: '1.4',
             actionIcon: 'w-2 h-2'
         },
         expanded: {
             avatar: 'w-8 h-8',
-            fontSize: '18px',
+            fontSize: '1.125rem',
             lineHeight: '1.6',
             actionIcon: 'w-4 h-4'
         }
@@ -65,7 +65,7 @@ const MessageContent = ({
                 <p 
                     className="hex-timestamp"
                     style={{
-                        fontSize: size === 'expanded' ? '14px' : '8px'
+                        fontSize: size === 'expanded' ? '0.875rem' : '0.5rem'
                     }}
                 >
                     {size === 'expanded' 

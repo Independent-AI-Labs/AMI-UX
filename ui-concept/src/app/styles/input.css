@@ -6,14 +6,14 @@
     backdrop-filter: blur(12px);
     background: rgba(144, 192, 255, 0.15); /* Unified user color for non-locked mode */
     border: none;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.3);
     clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 12px;
+    padding: 0.75rem;
     transition: all 0.3s ease;
-    gap: 6px;
+    gap: 0.375rem;
     /* Prevent backdrop-filter flickering during transforms */
     will-change: transform, filter;
     transform: translateZ(0);
@@ -37,19 +37,19 @@
 
 .hex-editor-toolbar {
     display: flex;
-    gap: 2px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 0.125rem;
+    padding-bottom: 0.375rem;
+    border-bottom: 0.0625rem solid rgba(255, 255, 255, 0.1);
     justify-content: center;
-    width: 160px;
+    width: 10rem;
     margin: 0 auto;
 }
 
 .hex-format-button {
     background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 0.0625rem solid rgba(255, 255, 255, 0.15);
     color: rgba(0, 0, 0, 0.6);
-    padding: 2px;
+    padding: 0.125rem;
     transition: all 0.2s ease;
     cursor: pointer;
     display: flex;
@@ -59,14 +59,14 @@
 
 .hex-format-button:hover {
     background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    border: 0.0625rem solid rgba(255, 255, 255, 0.25);
     color: rgba(0, 0, 0, 0.9);
     transform: scale(1.05);
 }
 
 .hex-format-button:active {
     background: rgba(6, 182, 212, 0.2);
-    border: 1px solid rgba(6, 182, 212, 0.4);
+    border: 0.0625rem solid rgba(6, 182, 212, 0.4);
     color: rgba(6, 182, 212, 1);
 }
 
@@ -75,18 +75,18 @@
     background: transparent;
     border: none;
     color: black;
-    padding: 6px 4px;
-    font-size: 8px;
+    padding: 0.375rem 0.25rem;
+    font-size: 0.5rem;
     font-weight: 300;
     outline: none;
-    min-height: 100px;
-    max-height: 160px;
+    min-height: 6.25rem;
+    max-height: 10rem;
     overflow-y: auto;
     line-height: 1.4;
     word-wrap: break-word;
     user-select: text;
     cursor: text;
-    width: 160px;
+    width: 10rem;
     margin: 0 auto;
 }
 
@@ -94,7 +94,7 @@
     content: attr(data-placeholder);
     color: rgba(0, 0, 0, 0.4);
     font-style: italic;
-    font-size: 7px;
+    font-size: 0.4375rem;
 }
 
 .hex-rich-input-editor:focus:empty:before {
@@ -113,9 +113,9 @@
 
 .hex-rich-input-editor code {
     background: rgba(0, 0, 0, 0.3);
-    padding: 1px 3px;
+    padding: 0.0625rem 0.1875rem;
     font-family: monospace;
-    font-size: 7px;
+    font-size: 0.4375rem;
     color: rgba(34, 197, 94, 0.9);
 }
 
@@ -124,7 +124,7 @@
 }
 
 .hex-rich-input-editor::-webkit-scrollbar {
-    width: 2px;
+    width: 0.125rem;
 }
 
 .hex-rich-input-editor::-webkit-scrollbar-track {
@@ -133,23 +133,23 @@
 
 .hex-rich-input-editor::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.4);
-    border-radius: 1px;
+    border-radius: 0.0625rem;
 }
 
 .hex-button-row {
     display: flex;
-    width: 160px;
-    margin: 4px auto 0;
-    gap: 4px;
+    width: 10rem;
+    margin: 0.25rem auto 0;
+    gap: 0.25rem;
     align-items: center;
 }
 
 .hex-send-button-editor {
     background: rgba(6, 182, 212, 0.2);
-    border: 1px solid rgba(6, 182, 212, 0.4);
+    border: 0.0625rem solid rgba(6, 182, 212, 0.4);
     color: black;
-    padding: 4px 8px;
-    font-size: 7px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.4375rem;
     font-weight: 500;
     letter-spacing: 0.5px;
     transition: all 0.2s ease;
@@ -161,24 +161,24 @@
 
 .hex-send-button-editor:hover:not(:disabled) {
     background: rgba(6, 182, 212, 0.3);
-    border: 1px solid rgba(6, 182, 212, 0.6);
+    border: 0.0625rem solid rgba(6, 182, 212, 0.6);
     transform: scale(1.02);
 }
 
 .hex-send-button-editor:disabled {
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 0.0625rem solid rgba(255, 255, 255, 0.1);
     color: rgba(0, 0, 0, 0.4);
     opacity: 0.5;
 }
 
 .hex-attach-button {
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 0.0625rem solid rgba(255, 255, 255, 0.2);
     color: rgba(0, 0, 0, 0.7);
-    padding: 4px;
+    padding: 0.25rem;
     transition: all 0.2s ease;
-    margin-right: 4px;
+    margin-right: 0.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -187,7 +187,7 @@
 
 .hex-attach-button:hover {
     background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 0.0625rem solid rgba(255, 255, 255, 0.3);
     color: black;
     transform: scale(1.05);
 }
@@ -198,12 +198,12 @@
     align-items: center;
     justify-content: center;
     background: rgba(6, 182, 212, 0.2);
-    border: 1px solid rgba(6, 182, 212, 0.4);
+    border: 0.0625rem solid rgba(6, 182, 212, 0.4);
     color: black;
     padding: 8px;
-    border-radius: 4px;
-    margin-top: 12px;
-    width: 40px;
-    height: 32px;
+    border-radius: 0.25rem;
+    margin-top: 0.75rem;
+    width: 2.5rem;
+    height: 2rem;
     align-self: center;
 }

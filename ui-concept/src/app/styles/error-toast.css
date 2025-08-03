@@ -5,50 +5,50 @@
 
 .error-toast-visible {
     opacity: 1;
-    filter: blur(0px);
-    transform: translateX(-50%) translateY(0px) scale(1);
+    filter: blur(0rem);
+    transform: translateX(-50%) translateY(0rem) scale(1);
     animation: errorToastMaterialize 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards;
 }
 
 .error-toast-hidden {
     opacity: 0;
-    filter: blur(20px);
-    transform: translateX(-50%) translateY(-10px) scale(0.95);
+    filter: blur(1.25rem);
+    transform: translateX(-50%) translateY(-0.625rem) scale(0.95);
     animation: errorToastDematerialize 0.5s cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
 @keyframes errorToastMaterialize {
     0% {
         opacity: 0;
-        filter: blur(30px);
-        transform: translateX(-50%) translateY(-20px) scale(0.9);
+        filter: blur(1.875rem);
+        transform: translateX(-50%) translateY(-1.25rem) scale(0.9);
     }
     20% {
         opacity: 0.3;
-        filter: blur(15px);
-        transform: translateX(-50%) translateY(-10px) scale(0.95);
+        filter: blur(0.9375rem);
+        transform: translateX(-50%) translateY(-0.625rem) scale(0.95);
     }
     60% {
         opacity: 0.8;
-        filter: blur(5px);
-        transform: translateX(-50%) translateY(-2px) scale(0.98);
+        filter: blur(0.3125rem);
+        transform: translateX(-50%) translateY(-0.125rem) scale(0.98);
     }
     100% {
         opacity: 1;
-        filter: blur(0px);
-        transform: translateX(-50%) translateY(0px) scale(1);
+        filter: blur(0rem);
+        transform: translateX(-50%) translateY(0rem) scale(1);
     }
 }
 
 @keyframes errorToastDematerialize {
     0% {
         opacity: 1;
-        filter: blur(0px);
-        transform: translateX(-50%) translateY(0px) scale(1);
+        filter: blur(0rem);
+        transform: translateX(-50%) translateY(0rem) scale(1);
     }
     100% {
         opacity: 0;
-        filter: blur(15px);
-        transform: translateX(-50%) translateY(-10px) scale(0.95);
+        filter: blur(0.9375rem);
+        transform: translateX(-50%) translateY(-0.625rem) scale(0.95);
     }
 }

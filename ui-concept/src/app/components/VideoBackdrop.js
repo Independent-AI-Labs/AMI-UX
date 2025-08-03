@@ -29,7 +29,7 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
         
         const bgVideoX = (x - gridCenterX) * bgParallaxX;
         const bgVideoY = (y - gridCenterY) * bgParallaxY;
-        const bgVideoZoom = 2.0 + (zoom - 1) * bgZoomFactor; // Start at 200% scale
+        const bgVideoZoom = 1.5 + (zoom - 1) * bgZoomFactor; // Start at 150% scale
         
         return {
             main: {

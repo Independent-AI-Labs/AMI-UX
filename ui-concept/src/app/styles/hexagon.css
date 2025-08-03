@@ -16,10 +16,15 @@
 }
 
 .hex-with-backdrop:hover {
-    -webkit-backdrop-filter: blur(16px) saturate(200%);
-    backdrop-filter: blur(16px) saturate(200%);
+    -webkit-backdrop-filter: blur(1rem) saturate(200%);
+    backdrop-filter: blur(1rem) saturate(200%);
     background: var(--hex-bg-hover, rgba(255, 255, 255, 0.12)); /* LoD-aware hover transparency */
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.5);
+}
+
+/* User message hover - use blue tint on backdrop */
+.hex-with-backdrop:has(.hex-message-user):hover {
+    background: rgba(144, 192, 255, 0.3);
 }
 
 /* Locked mode - higher transparency for better readability */
@@ -51,7 +56,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 1rem;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -64,12 +69,12 @@
 
 .hex-message:hover {
     /* Background removed - using parent's backdrop-filter */
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.5);
 }
 
 .hex-message:not(.in-locked-mode):hover {
-    transform: scale(1.02) translateY(-3px) translateZ(0); /* Combined transforms with hardware acceleration */
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+    transform: scale(1.02) translateY(-0.1875rem) translateZ(0); /* Combined transforms with hardware acceleration */
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6);
 }
 
 /* Parallax zoom effect - content zooms more than hex container */
@@ -84,10 +89,11 @@
     /* Transparent - color is on parent with backdrop-filter */
     background: transparent;
     border: none;
+    transition: background 0.2s ease;
 }
 
 .hex-message-user:hover {
-    background: rgba(144, 192, 255, 0.6);
+    /* Use backdrop filter on parent instead of background to avoid rectangles */
     border: none;
 }
 
@@ -118,7 +124,7 @@
 /* Grid Selection Hover Effect */
 .grid-selection {
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 0.0625rem solid rgba(255, 255, 255, 0.08);
     z-index: 5; /* Above background, below messages */
 }
 
@@ -143,7 +149,7 @@
 
 .enhanced-content strong {
     font-weight: 700;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.1);
 }
 
 .enhanced-content em {
@@ -153,8 +159,8 @@
 
 .enhanced-content code {
     background: rgba(0, 0, 0, 0.08);
-    padding: 2px 4px;
-    border-radius: 3px;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.1875rem;
     font-family: 'Monaco', 'Menlo', monospace;
     font-size: 0.9em;
 }

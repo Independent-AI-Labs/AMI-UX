@@ -12,7 +12,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 20px;
+    padding: 1.25rem;
     max-width: 95%;
     max-height: 95%;
 }
@@ -36,7 +36,7 @@
 }
 
 .website-iframe {
-    border-radius: 8px;
+    border-radius: 0.5rem;
     transition: opacity 0.3s ease;
     zoom: 0.5; /* Zoom content to 50% - simulates higher DPI */
 }
@@ -44,7 +44,7 @@
 .website-content.expanded .website-iframe {
     width: 100%;
     height: 100%;
-    border-radius: 12px;
+    border-radius: 0.75rem;
     zoom: 0.5; /* Keep 50% zoom in expanded view */
 }
 
@@ -61,15 +61,15 @@
 
 .error-text,
 .loading-text {
-    margin-bottom: 10px;
+    margin-bottom: 0.625rem;
     font-weight: 500;
 }
 
 .open-button {
     background: rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-    padding: 4px 8px;
+    border: 0.0625rem solid rgba(0, 0, 0, 0.2);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -80,7 +80,7 @@
 }
 
 .website-url {
-    margin-top: 10px;
+    margin-top: 0.625rem;
     color: rgba(0, 0, 0, 0.5);
     font-family: monospace;
     word-break: break-all;
@@ -88,29 +88,29 @@
 }
 
 .website-content.expanded .website-url {
-    font-size: 12px !important;
-    margin-top: 10px;
+    font-size: 0.75rem !important;
+    margin-top: 0.625rem;
     flex-shrink: 0;
 }
 
 .website-actions {
     display: flex;
-    gap: 8px;
+    gap: 0.5rem;
     justify-content: center;
-    margin-top: 15px;
+    margin-top: 0.9375rem;
     flex-shrink: 0;
 }
 
 .website-content.expanded .website-actions {
-    margin-top: 10px;
+    margin-top: 0.625rem;
 }
 
 .website-action-button {
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 0.0625rem solid rgba(255, 255, 255, 0.2);
     color: rgba(0, 0, 0, 0.7);
-    padding: 8px;
-    border-radius: 4px;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
@@ -148,11 +148,11 @@
 /* Website overlay actions - positioned over iframe */
 .website-overlay-actions {
     position: absolute;
-    bottom: 8px;
+    bottom: 0.5rem;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 6px;
+    gap: 0.375rem;
     opacity: 0.8;
     transition: opacity 0.2s ease;
     z-index: 10;
@@ -165,28 +165,28 @@
 /* Address Bar Styles */
 .website-address-bar {
     position: absolute;
-    bottom: 12px;
+    bottom: 0.75rem;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    padding: 6px 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(0.625rem);
+    border: 0.0625rem solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
     z-index: 20;
-    min-width: 400px;
+    min-width: 25rem;
     max-width: 80%;
 }
 
 .nav-button {
     background: transparent;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    border-radius: 4px;
-    padding: 4px;
+    border: 0.0625rem solid rgba(0, 0, 0, 0.15);
+    border-radius: 0.25rem;
+    padding: 0.25rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -210,9 +210,9 @@
     display: flex;
     align-items: center;
     background: rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-    padding: 4px 8px;
+    border: 0.0625rem solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
     min-width: 0;
 }
 
@@ -221,21 +221,21 @@
     background: transparent;
     border: none;
     outline: none;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: rgba(0, 0, 0, 0.8);
     font-family: monospace;
 }
 
 .address-display {
     width: 100%;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: rgba(0, 0, 0, 0.7);
     font-family: monospace;
     cursor: text;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding: 2px 0;
+    padding: 0.125rem 0;
 }
 
 .address-display:hover {
@@ -244,9 +244,9 @@
 
 .action-button {
     background: transparent;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    border-radius: 4px;
-    padding: 4px;
+    border: 0.0625rem solid rgba(0, 0, 0, 0.15);
+    border-radius: 0.25rem;
+    padding: 0.25rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -278,9 +278,9 @@
 
 .go-button {
     background: transparent;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    border-radius: 4px;
-    padding: 4px 8px;
+    border: 0.0625rem solid rgba(0, 0, 0, 0.15);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -288,8 +288,8 @@
     transition: all 0.2s ease;
     color: rgba(59, 130, 246, 0.8);
     border-color: rgba(59, 130, 246, 0.3);
-    font-size: 12px;
-    margin-right: 12px; /* Add spacing before action buttons */
+    font-size: 0.75rem;
+    margin-right: 0.75rem; /* Add spacing before action buttons */
 }
 
 .go-button:hover {
