@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import GridSelection from '../GridSelection';
 import HexMessage from '../HexMessage';
 import HexWebsite from '../HexWebsite';
@@ -45,15 +45,21 @@ const HexagonalGrid = ({
     handleSend,
     handleExpandInput
 }) => {
+    // Calculate JavaScript-based transform to match video backdrop system
+    const gridTransform = useMemo(() => {
+        const { x, y, zoom } = viewState;
+        return {
+            transform: `translate(${x}px, ${y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            willChange: 'transform',
+            transformStyle: 'preserve-3d'
+        };
+    }, [viewState]);
+
     return (
         <div
-            className="absolute inset-0 transition-transform duration-75 ease-out"
-            style={{
-                transform: `translate(${viewState.x}px, ${viewState.y}px) scale(${viewState.zoom})`,
-                transformOrigin: '0 0',
-                willChange: 'transform',
-                transformStyle: 'preserve-3d'
-            }}
+            className="absolute inset-0"
+            style={gridTransform}
         >
             {/* Grid Selection Hover Effect */}
             <GridSelection
