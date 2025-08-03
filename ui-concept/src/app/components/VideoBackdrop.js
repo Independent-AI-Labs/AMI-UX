@@ -4,29 +4,42 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
     const videoRef = useRef(null);
     const bgVideoRef = useRef(null);
     
-    // Calculate parallax transform based on view state
-    const parallaxStyle = useMemo(() => {
+    // Calculate parallax transforms for both video layers
+    const parallaxStyles = useMemo(() => {
         const { x, y, zoom } = viewState;
         
-        // Much smaller parallax factors for subtle movement
-        const parallaxFactorX = 0.1;
-        const parallaxFactorY = 0.04;
-        const zoomFactor = 0.2; // 20% of canvas zoom (much smaller)
+        // Grid center point (where the hexagonal grid is centered)
+        const gridCenterX = screenCenter?.x || (typeof window !== 'undefined' ? window.innerWidth / 2 : 0);
+        const gridCenterY = screenCenter?.y || (typeof window !== 'undefined' ? window.innerHeight / 2 : 0);
         
-        // Calculate video transform - account for grid being centered at screenCenter
-        // Only apply parallax to the movement from center, not the centering itself
-        const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
-        const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+        // Main video parallax factors
+        const mainParallaxX = 0.1;
+        const mainParallaxY = 0.04;
+        const mainZoomFactor = 0.2;
         
-        const videoX = (x - centerX) * parallaxFactorX;
-        const videoY = (y - centerY) * parallaxFactorY;
-        const videoZoom = 1 + (zoom - 1) * zoomFactor; // Start at 120% with smaller zoom factor
+        // Background video parallax factors (less pronounced)
+        const bgParallaxX = 0.05; // Half the main video parallax
+        const bgParallaxY = 0.02;
+        const bgZoomFactor = 0.1;
+        
+        // Calculate transforms relative to grid center
+        const mainVideoX = (x - gridCenterX) * mainParallaxX;
+        const mainVideoY = (y - gridCenterY) * mainParallaxY;
+        const mainVideoZoom = 1 + (zoom - 1) * mainZoomFactor;
+        
+        const bgVideoX = (x - gridCenterX) * bgParallaxX;
+        const bgVideoY = (y - gridCenterY) * bgParallaxY;
+        const bgVideoZoom = 2.0 + (zoom - 1) * bgZoomFactor; // Start at 200% scale
         
         return {
-            transform: `translate(-50%, -50%) translate(${videoX}px, ${videoY}px) scale(${videoZoom})`,
-            // Remove transformOrigin from inline styles - let CSS handle it
+            main: {
+                transform: `translate(-50%, -50%) translate(${mainVideoX}px, ${mainVideoY}px) scale(${mainVideoZoom})`,
+            },
+            background: {
+                transform: `translate(-50%, -50%) translate(${bgVideoX}px, ${bgVideoY}px) scale(${bgVideoZoom})`,
+            }
         };
-    }, [viewState]);
+    }, [viewState, screenCenter]);
 
     // Handle video playback for both videos
     useEffect(() => {
@@ -121,6 +134,7 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
             <video
                 ref={bgVideoRef}
                 className="video-backdrop-bg"
+                style={parallaxStyles.background}
                 muted
                 loop
                 playsInline
@@ -134,7 +148,7 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
             <video
                 ref={videoRef}
                 className="video-backdrop-element"
-                style={parallaxStyle}
+                style={parallaxStyles.main}
                 muted
                 loop
                 playsInline
