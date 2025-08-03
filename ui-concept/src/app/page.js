@@ -20,6 +20,7 @@ import HexagonalGrid from './components/grid/HexagonalGrid';
 import MessageBackdrop from './components/backdrop/MessageBackdrop';
 import ModalContainer from './components/modal/ModalContainer';
 import DragSystem from './components/drag/DragSystem';
+import GridDots from './components/GridDots';
 import { hexSize, hexToPixel, pixelToHex, renderMarkdown } from './utils/hexUtils';
 import { initialMessages, initialWebsites } from './data/initialData';
 
@@ -159,10 +160,16 @@ const HexagonalMessageGrid = () => {
             // Update LoD system when zoom changes
             lodManager.updateZoom(newViewState.zoom);
         });
+        
+        // Initialize bounds with screen center once available
+        if (screenCenter) {
+            animationManager.current.updateBounds(screenCenter);
+        }
+        
         return () => {
             animationManager.current.stop();
         };
-    }, []);
+    }, [screenCenter]);
     
     // Initialize LoD system and tile manager
     useEffect(() => {
@@ -207,14 +214,15 @@ const HexagonalMessageGrid = () => {
     useEffect(() => {
         const updateCenter = () => {
             if (typeof window !== 'undefined') {
-                setScreenCenter({
+                const newCenter = {
                     x: window.innerWidth / 2,
                     y: window.innerHeight / 2,
-                });
+                };
+                setScreenCenter(newCenter);
                 
                 // Update animation manager bounds when screen size changes
                 if (animationManager.current) {
-                    animationManager.current.updateBounds();
+                    animationManager.current.updateBounds(newCenter);
                 }
             }
         };
@@ -695,6 +703,15 @@ const HexagonalMessageGrid = () => {
             <BlendModeTest />
             
             <HexagonSVG />
+            
+            {/* Grid dots - small white dots at tile centers */}
+            <GridDots
+                viewState={viewState}
+                screenCenter={screenCenter}
+                hexToPixel={hexToPixel}
+                hexSize={hexSize}
+            />
+            
             <ZoomSlider
                 viewState={viewState}
                 onZoomSliderChange={handleZoomSlider}

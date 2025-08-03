@@ -8,13 +8,12 @@ class AnimationManager {
         this.lastFrameTime = 0;
         this.isLocked = false; // Managed by the UI, but needed for animation logic
 
-        // Viewport bounds based on 200% background video size
+        // Spring-bounce viewport bounds relative to grid center
         this.bounds = {
             enabled: true,
-            maxX: 0, // Will be calculated based on screen size
-            minX: 0,
-            maxY: 0,
-            minY: 0
+            centerX: 0, // Grid center X - will be updated
+            centerY: 0, // Grid center Y - will be updated
+            maxDistance: 0 // Maximum distance from center before spring-bounce
         };
 
         this.animate = this.animate.bind(this);
@@ -35,36 +34,62 @@ class AnimationManager {
         }
     }
 
-    updateBounds() {
+    updateBounds(gridCenter = null) {
         if (typeof window !== 'undefined') {
             const screenWidth = window.innerWidth;
             const screenHeight = window.innerHeight;
             
-            // The background video is 200% size, so we can pan up to 50% of screen size in each direction
-            // from the center position (which is where the 100% video would be centered)
-            const centerX = screenWidth / 2;
-            const centerY = screenHeight / 2;
+            // Use provided grid center or default to screen center
+            const centerX = gridCenter?.x || screenWidth / 2;
+            const centerY = gridCenter?.y || screenHeight / 2;
             
-            // Allow panning 25% of screen size in each direction (50% total range)
-            const maxPanX = screenWidth * 0.25;
-            const maxPanY = screenHeight * 0.25;
+            // Base distance of 1600px at 100% zoom, scaled by zoom level
+            const baseDistance = 1600;
+            const currentZoom = this.viewState.zoom || 1;
+            const maxDistance = baseDistance / currentZoom;
             
             this.bounds = {
                 ...this.bounds,
-                maxX: centerX + maxPanX,
-                minX: centerX - maxPanX,
-                maxY: centerY + maxPanY,
-                minY: centerY - maxPanY
+                centerX,
+                centerY,
+                maxDistance
             };
         }
     }
 
-    constrainToBounds(x, y) {
-        if (!this.bounds.enabled) return { x, y };
+    applyElasticBounds(x, y, deltaTime) {
+        if (!this.bounds.enabled) return { x, y, elasticForce: { x: 0, y: 0 } };
         
-        return {
-            x: Math.max(this.bounds.minX, Math.min(this.bounds.maxX, x)),
-            y: Math.max(this.bounds.minY, Math.min(this.bounds.maxY, y))
+        // Calculate distance from grid center
+        const dx = x - this.bounds.centerX;
+        const dy = y - this.bounds.centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        let elasticForceX = 0;
+        let elasticForceY = 0;
+        
+        // If we're outside the allowed bounds, apply elastic resistance
+        if (distance > this.bounds.maxDistance) {
+            // How far over the boundary we are
+            const overDistance = distance - this.bounds.maxDistance;
+            
+            // Elastic force grows progressively stronger the further out we go
+            // Using a gentle exponential curve for smooth feel
+            const elasticStrength = Math.min(overDistance * 0.008, 3.0); // Progressive resistance
+            
+            // Direction back toward center
+            const directionX = -dx / distance;
+            const directionY = -dy / distance;
+            
+            // Apply elastic force - stronger the further you go
+            elasticForceX = directionX * elasticStrength;
+            elasticForceY = directionY * elasticStrength;
+        }
+        
+        return { 
+            x, 
+            y, 
+            elasticForce: { x: elasticForceX, y: elasticForceY }
         };
     }
 
@@ -76,10 +101,16 @@ class AnimationManager {
         let newX = this.viewState.x + (this.isLocked ? 0 : this.velocity.x * (deltaTime / 16.66));
         let newY = this.viewState.y + (this.velocity.y * (deltaTime / 16.66));
 
-        // Apply bounds constraint
-        const constrained = this.constrainToBounds(newX, newY);
-        this.viewState.x = constrained.x;
-        this.viewState.y = constrained.y;
+        // Apply elastic bounds and get elastic forces
+        const elasticResult = this.applyElasticBounds(newX, newY, deltaTime);
+        this.viewState.x = elasticResult.x;
+        this.viewState.y = elasticResult.y;
+        
+        // Add elastic forces to velocity for smooth elastic feel
+        if (!this.isLocked) {
+            this.velocity.x += elasticResult.elasticForce.x;
+        }
+        this.velocity.y += elasticResult.elasticForce.y;
 
         // Apply decay to velocity
         const decayFactor = Math.pow(0.92, deltaTime / 16.66);
@@ -108,10 +139,9 @@ class AnimationManager {
         let newX = this.viewState.x + deltaX;
         let newY = this.viewState.y + deltaY;
         
-        // Apply bounds constraint
-        const constrained = this.constrainToBounds(newX, newY);
-        this.viewState.x = constrained.x;
-        this.viewState.y = constrained.y;
+        // Update position directly during drag - spring bounds will be applied in animation
+        this.viewState.x = newX;
+        this.viewState.y = newY;
         
         this.onUpdateCallback({ ...this.viewState });
     }
@@ -123,11 +153,9 @@ class AnimationManager {
         let newX = mouseX - worldX * newZoom;
         let newY = mouseY - worldY * newZoom;
         
-        // Apply bounds constraint
-        const constrained = this.constrainToBounds(newX, newY);
-        
-        this.viewState.x = constrained.x;
-        this.viewState.y = constrained.y;
+        // Set position directly - spring bounds will be handled in animation if needed
+        this.viewState.x = newX;
+        this.viewState.y = newY;
         this.viewState.zoom = newZoom;
         this.onUpdateCallback({ ...this.viewState });
     }
