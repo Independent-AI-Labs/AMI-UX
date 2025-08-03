@@ -51,7 +51,8 @@ const HexagonalGrid = ({
             className="absolute inset-0"
             style={{
                 // Let individual elements handle pointer events
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                zIndex: 10 // Ensure content is above background grid dots
             }}
         >
             {/* Grid Selection Hover Effect */}

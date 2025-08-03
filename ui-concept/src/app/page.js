@@ -60,20 +60,8 @@ const HexagonalMessageGrid = () => {
     // UI state (not managed by state machine)
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    // Initialize viewport to center of grid (15.5, 7.5) which is the midpoint of 32x16 grid
-    const [viewState, setViewState] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const gridCenterQ = 15.5;
-            const gridCenterR = 7.5;
-            const gridCenterPixels = hexToPixel(gridCenterQ, gridCenterR);
-            return {
-                x: window.innerWidth / 2 - gridCenterPixels.x,
-                y: window.innerHeight / 2 - gridCenterPixels.y,
-                zoom: 1
-            };
-        }
-        return { x: 0, y: 0, zoom: 1 };
-    });
+    // Initialize viewport with default values - will be updated after mount
+    const [viewState, setViewState] = useState({ x: 0, y: 0, zoom: 1 });
     const [isDragging, setIsDragging] = useState(false);
     const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
     const [startMousePos, setStartMousePos] = useState({ x: 0, y: 0 });
@@ -92,6 +80,14 @@ const HexagonalMessageGrid = () => {
     const [expandingWebsite, setExpandingWebsite] = useState(null);
     const [expandingInput, setExpandingInput] = useState(false);
     const [lockedWebsiteId, setLockedWebsiteId] = useState(null);
+    
+    // Video backdrop state
+    const [videoInfo, setVideoInfo] = useState(null);
+    const [showVideoIndicator, setShowVideoIndicator] = useState(false);
+    const videoIndicatorTimeoutRef = useRef(null);
+    
+    // Track if component has mounted (for SSR)
+    const [isMounted, setIsMounted] = useState(false);
     
     // Global drag ghost state
     const [dragGhost, setDragGhost] = useState({ visible: false, website: null });
@@ -220,6 +216,11 @@ const HexagonalMessageGrid = () => {
         };
     }, [messages]);
 
+    // Mark component as mounted for SSR
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+    
     // Screen center tracking
     useEffect(() => {
         const updateCenter = () => {
@@ -241,9 +242,10 @@ const HexagonalMessageGrid = () => {
         }
     }, []);
 
-    // Center everything when screenCenter is first calculated
+    // Center everything when component mounts on client
     useEffect(() => {
-        if (screenCenter.x > 0 && screenCenter.y > 0 && viewState.x === 0 && viewState.y === 0) {
+        // Only run on client after mount
+        if (typeof window !== 'undefined' && screenCenter.x > 0 && screenCenter.y > 0) {
             // Calculate grid center in pixels (midpoint of 32x16 grid is at 15.5, 7.5)
             const gridCenterPixels = hexToPixel(15.5, 7.5);
             
@@ -251,14 +253,20 @@ const HexagonalMessageGrid = () => {
             const offsetX = screenCenter.x - gridCenterPixels.x;
             const offsetY = screenCenter.y - gridCenterPixels.y;
             
-            setViewState(prev => ({
-                ...prev,
-                x: offsetX,
-                y: offsetY
-            }));
+            // Only update if not already centered
+            setViewState(prev => {
+                if (prev.x === 0 && prev.y === 0) {
+                    return {
+                        ...prev,
+                        x: offsetX,
+                        y: offsetY
+                    };
+                }
+                return prev;
+            });
             
             // Also update animation manager if it exists
-            if (animationManager.current) {
+            if (animationManager.current && animationManager.current.viewState.x === 0) {
                 animationManager.current.setViewState({
                     x: offsetX,
                     y: offsetY,
@@ -700,6 +708,22 @@ const HexagonalMessageGrid = () => {
     const renderMarkdownMemo = useCallback((text) => {
         return renderMarkdown(text);
     }, []);
+    
+    // Handle video backdrop changes
+    const handleVideoChange = useCallback((info) => {
+        setVideoInfo(info);
+        
+        // Show indicator if manual change
+        if (info.isManual) {
+            setShowVideoIndicator(true);
+            if (videoIndicatorTimeoutRef.current) {
+                clearTimeout(videoIndicatorTimeoutRef.current);
+            }
+            videoIndicatorTimeoutRef.current = setTimeout(() => {
+                setShowVideoIndicator(false);
+            }, 3000);
+        }
+    }, []);
 
     // No longer need backgroundHexes
 
@@ -726,7 +750,9 @@ const HexagonalMessageGrid = () => {
                         position: 'absolute',
                         width: '100%',
                         height: '100%',
-                        transform: `translateX(${viewState.x * 0.3}px) translateY(${viewState.y * 0.3}px) scale(${0.35 + (viewState.zoom - 1) * 0.08})`,
+                        transform: isMounted 
+                            ? `translateX(${viewState.x * 0.3}px) translateY(${viewState.y * 0.3}px) scale(${0.35 + (viewState.zoom - 1) * 0.08})`
+                            : 'translateX(0px) translateY(0px) scale(0.35)',
                         transformOrigin: '0 0',
                         transformStyle: 'preserve-3d',
                         willChange: 'transform',
@@ -737,6 +763,7 @@ const HexagonalMessageGrid = () => {
                     <VideoBackdrop 
                         viewState={viewState}
                         screenCenter={screenCenter}
+                        onVideoChange={handleVideoChange}
                     />
                 </div>
             </div>
@@ -764,7 +791,9 @@ const HexagonalMessageGrid = () => {
                 style={{
                     position: 'absolute',
                     inset: 0,
-                    transform: `translateX(${viewState.x}px) translateY(${viewState.y}px) scale(${viewState.zoom})`,
+                    transform: isMounted
+                        ? `translateX(${viewState.x}px) translateY(${viewState.y}px) scale(${viewState.zoom})`
+                        : 'translateX(0px) translateY(0px) scale(1)',
                     transformOrigin: '0 0',
                     willChange: 'transform',
                     pointerEvents: 'auto',
@@ -837,6 +866,47 @@ const HexagonalMessageGrid = () => {
             />
 
             <Instructions isLocked={conversationState.isLocked} />
+            
+            {/* Video Indicator - Non-scalable UI */}
+            {showVideoIndicator && videoInfo && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '80px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(0, 0, 0, 0.7)',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    zIndex: 1000,
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    backdropFilter: 'blur(10px)',
+                    transition: 'opacity 0.3s ease-out',
+                    opacity: showVideoIndicator ? 1 : 0
+                }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        {Array.from({ length: videoInfo.totalVideos }, (_, index) => (
+                            <div
+                                key={index}
+                                style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: index === videoInfo.currentIndex ? '#fff' : 'rgba(255, 255, 255, 0.3)',
+                                    transition: 'all 0.3s ease-out'
+                                }}
+                            />
+                        ))}
+                    </div>
+                    <span>{videoInfo.videoInfo.name}</span>
+                    <span style={{ fontSize: '12px', opacity: 0.7 }}>Shift + ← →</span>
+                </div>
+            )}
             
             {/* Error Toast */}
             <ErrorToast

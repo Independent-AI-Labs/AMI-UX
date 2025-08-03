@@ -53,8 +53,8 @@ const GridRenderer = ({ viewState }) => {
                 left: 0,
                 width: '100%',
                 height: '100%',
-                pointerEvents: 'none'
-                // Removed 3D transforms for better performance
+                pointerEvents: 'none',
+                zIndex: 1 // Ensure background dots are behind content
             }}
         >
             {visibleHexes.map(hex => {
