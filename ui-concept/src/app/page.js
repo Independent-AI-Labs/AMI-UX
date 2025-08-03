@@ -20,7 +20,7 @@ import HexagonalGrid from './components/grid/HexagonalGrid';
 import MessageBackdrop from './components/backdrop/MessageBackdrop';
 import ModalContainer from './components/modal/ModalContainer';
 import DragSystem from './components/drag/DragSystem';
-import GridDots from './components/GridDots';
+import GridRenderer from './components/GridRenderer';
 import { hexSize, hexToPixel, pixelToHex, renderMarkdown } from './utils/hexUtils';
 import { initialMessages, initialWebsites } from './data/initialData';
 
@@ -161,10 +161,7 @@ const HexagonalMessageGrid = () => {
             lodManager.updateZoom(newViewState.zoom);
         });
         
-        // Initialize bounds with screen center once available
-        if (screenCenter) {
-            animationManager.current.updateBounds(screenCenter);
-        }
+        // No bounds needed anymore
         
         return () => {
             animationManager.current.stop();
@@ -220,10 +217,7 @@ const HexagonalMessageGrid = () => {
                 };
                 setScreenCenter(newCenter);
                 
-                // Update animation manager bounds when screen size changes
-                if (animationManager.current) {
-                    animationManager.current.updateBounds(newCenter);
-                }
+                // Screen size changed - no bounds to update
             }
         };
 
@@ -359,11 +353,11 @@ const HexagonalMessageGrid = () => {
                 // Update current hex coords for compatibility
                 setCurrentHexCoords({ q: tile.q, r: tile.r });
                 
-                // Check if this tile is available and within reasonable bounds
-                const maxRadius = 12;
-                const distance = Math.sqrt(tile.q * tile.q + tile.r * tile.r);
+                // Check if this tile is available and within rectangular grid bounds
+                const gridCols = 32;
+                const gridRows = 16;
                 
-                if (distance <= maxRadius && !tile.occupied) {
+                if (tile.q >= 0 && tile.q < gridCols && tile.r >= 0 && tile.r < gridRows && !tile.occupied) {
                     setGridSelection({
                         visible: true,
                         x: tile.x,
@@ -704,12 +698,9 @@ const HexagonalMessageGrid = () => {
             
             <HexagonSVG />
             
-            {/* Grid dots - small white dots at tile centers */}
-            <GridDots
+            {/* Grid renderer - proper hex grid visualization */}
+            <GridRenderer
                 viewState={viewState}
-                screenCenter={screenCenter}
-                hexToPixel={hexToPixel}
-                hexSize={hexSize}
             />
             
             <ZoomSlider

@@ -9,12 +9,12 @@ const InputContent = ({
 }) => {
     const sizeClasses = {
         normal: {
-            fontSize: '8px',
+            fontSize: '0.5rem',
             iconSize: 'w-3 h-3',
             avatarSize: 'w-3 h-3'
         },
         expanded: {
-            fontSize: '16px',
+            fontSize: '1rem',
             iconSize: 'w-6 h-6',
             avatarSize: 'w-8 h-8'
         }
@@ -45,7 +45,7 @@ const InputContent = ({
                     className="input-textarea"
                     style={{
                         fontSize: currentSize.fontSize,
-                        height: size === 'expanded' ? '200px' : '60px'
+                        height: size === 'expanded' ? '12.5rem' : '3.75rem'
                     }}
                     rows={size === 'expanded' ? 8 : 3}
                 />

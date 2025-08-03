@@ -17,12 +17,12 @@ const WebsiteContent = ({
     const [urlValue, setUrlValue] = useState(website.url);
     const sizeClasses = {
         normal: {
-            fontSize: '8px',
+            fontSize: '0.5rem',
             iconSize: 'w-6 h-6',
             actionIcon: 'w-3 h-3'
         },
         expanded: {
-            fontSize: '16px',
+            fontSize: '1rem',
             iconSize: 'w-16 h-16',
             actionIcon: 'w-6 h-6'
         }

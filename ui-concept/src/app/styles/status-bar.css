@@ -35,9 +35,9 @@
 .status-time-cutout::before {
     content: '';
     position: absolute;
-    inset: -4px -8px;
+    inset: -0.25rem -0.5rem;
     background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
+    border-radius: 0.25rem;
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
     z-index: -1;
@@ -45,12 +45,12 @@
 
 /* Compact state - clock height only */
 .status-bar.compact {
-    height: 40px;
+    height: 2.5rem;
 }
 
 /* Expanded state - full height with date */
 .status-bar.expanded {
-    height: 75px;
+    height: 4.6875rem;
 }
 
 .status-bar-content {
@@ -58,20 +58,20 @@
     align-items: flex-start;
     justify-content: space-between;
     height: 100%;
-    padding: 8px 20px 0 20px;
+    padding: 0.5rem 1.25rem 0 1.25rem;
     max-width: 100%;
 }
 
 .status-left {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0.125rem;
     pointer-events: auto; /* Enable interaction for left section */
 }
 
 .status-time {
     font-family: 'Montserrat', sans-serif;
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 800; /* Heavier weight for better cut-out effect */
     color: #000000; /* Black text for multiply blend mode */
     mix-blend-mode: multiply; /* Creates cut-out effect on light backgrounds */
@@ -82,7 +82,7 @@
 
 .status-date {
     font-family: 'Montserrat', sans-serif;
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 500;
     color: rgba(0, 0, 0, 0.7); /* Semi-transparent black for softer cut-out */
     mix-blend-mode: multiply;
@@ -95,11 +95,11 @@
 @keyframes status-date-appear {
     0% {
         opacity: 0;
-        transform: translateY(-5px);
+        transform: translateY(-0.3125rem);
     }
     100% {
         opacity: 1;
-        transform: translateY(0px);
+        transform: translateY(0rem);
     }
 }
 
@@ -115,30 +115,30 @@
 .status-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0.75rem;
     pointer-events: auto; /* Enable interaction for right section */
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .status-bar.compact {
-        height: 35px;
+        height: 2.1875rem;
     }
     
     .status-bar.expanded {
-        height: 67px;
+        height: 4.1875rem;
     }
     
     .status-bar-content {
-        padding: 6px 15px 0 15px;
+        padding: 0.375rem 0.9375rem 0 0.9375rem;
     }
     
     .status-time {
-        font-size: 14px;
+        font-size: 0.875rem;
     }
     
     .status-date {
-        font-size: 10px;
+        font-size: 0.625rem;
     }
 }
 

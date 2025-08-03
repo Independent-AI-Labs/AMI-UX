@@ -37,7 +37,7 @@ const MessageBackdrop = ({
                             background: message.sender === 'user' ? 'rgba(144, 192, 255, 0.4)' : 'rgba(255, 255, 255, 0.4)',
                             backdropFilter: 'blur(12px) saturate(180%)',
                             WebkitBackdropFilter: 'blur(12px) saturate(180%)',
-                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                            boxShadow: '0 0.5rem 2rem rgba(0, 0, 0, 0.4)',
                             zIndex: 10,
                             pointerEvents: 'none'
                         }}

@@ -13,11 +13,11 @@
 @keyframes ui-tile-enter {
     0% {
         opacity: 0;
-        filter: blur(15px);
+        filter: blur(0.9375rem);
     }
     100% {
         opacity: 1;
-        filter: blur(0px);
+        filter: blur(0rem);
     }
 }
 
@@ -25,11 +25,11 @@
 @keyframes ui-tile-exit {
     0% {
         opacity: 1;
-        filter: blur(0px);
+        filter: blur(0rem);
     }
     100% {
         opacity: 0;
-        filter: blur(10px);
+        filter: blur(0.625rem);
     }
 }
 
@@ -45,22 +45,22 @@
 @keyframes input-tile-enter {
     0% {
         opacity: 0;
-        filter: blur(15px);
+        filter: blur(0.9375rem);
     }
     100% {
         opacity: 1;
-        filter: blur(0px);
+        filter: blur(0rem);
     }
 }
 
 @keyframes input-tile-exit {
     0% {
         opacity: 1;
-        filter: blur(0px);
+        filter: blur(0rem);
     }
     100% {
         opacity: 0;
-        filter: blur(10px);
+        filter: blur(0.625rem);
     }
 }
 
@@ -76,22 +76,22 @@
 @keyframes typing-tile-enter {
     0% {
         opacity: 0;
-        filter: blur(15px);
+        filter: blur(0.9375rem);
     }
     100% {
         opacity: 1;
-        filter: blur(0px);
+        filter: blur(0rem);
     }
 }
 
 @keyframes typing-tile-exit {
     0% {
         opacity: 1;
-        filter: blur(0px);
+        filter: blur(0rem);
     }
     100% {
         opacity: 0;
-        filter: blur(10px);
+        filter: blur(0.625rem);
     }
 }
 

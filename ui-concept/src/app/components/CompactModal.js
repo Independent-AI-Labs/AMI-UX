@@ -109,10 +109,10 @@ const CompactModal = ({
                     transform: 'translate(-50%, -50%)',
                     background: styles.background,
                     backdropFilter: 'blur(20px)',
-                    borderRadius: '12px',
-                    padding: '24px',
-                    minWidth: '300px',
-                    maxWidth: '400px',
+                    borderRadius: '0.75rem',
+                    padding: '1.5rem',
+                    minWidth: '18.75rem',
+                    maxWidth: '25rem',
                     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
                     zIndex: 10000,
                     opacity: isVisible && !isClosing ? 1 : 0,
@@ -128,8 +128,8 @@ const CompactModal = ({
                 {/* Message or custom content */}
                 {children || (
                     <div style={{ 
-                        marginBottom: '20px',
-                        fontSize: '16px',
+                        marginBottom: '1.25rem',
+                        fontSize: '1rem',
                         lineHeight: '1.5',
                         textAlign: 'center'
                     }}>
@@ -140,7 +140,7 @@ const CompactModal = ({
                 {/* Buttons */}
                 <div style={{
                     display: 'flex',
-                    gap: '8px',
+                    gap: '0.5rem',
                     justifyContent: 'center'
                 }}>
                     {showCancel && (
@@ -150,9 +150,9 @@ const CompactModal = ({
                             style={{
                                 background: 'rgba(0, 0, 0, 0.1)',
                                 border: 'none',
-                                borderRadius: '8px',
-                                padding: '8px 16px',
-                                fontSize: '14px',
+                                borderRadius: '0.5rem',
+                                padding: '0.5rem 1rem',
+                                fontSize: '0.875rem',
                                 fontWeight: '500',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s ease',
@@ -176,9 +176,9 @@ const CompactModal = ({
                         style={{
                             background: styles.buttonColor,
                             border: 'none',
-                            borderRadius: '8px',
-                            padding: '8px 16px',
-                            fontSize: '14px',
+                            borderRadius: '0.5rem',
+                            padding: '0.5rem 1rem',
+                            fontSize: '0.875rem',
                             fontWeight: '600',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',

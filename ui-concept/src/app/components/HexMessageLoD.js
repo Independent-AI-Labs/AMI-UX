@@ -7,7 +7,7 @@ const HexMessageLoD = React.memo(({ message }) => {
              style={{ alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
             {/* Bigger Avatar */}
             <div className={`hex-avatar ${message.sender === 'user' ? 'hex-avatar-user' : 'hex-avatar-ai'}`}
-                 style={{ padding: '12px', marginBottom: '12px' }}>
+                 style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
                 {message.sender === 'user' ?
                     <User className="w-12 h-12 text-gray-800" /> :
                     <Bot className="w-12 h-12 text-gray-900" />

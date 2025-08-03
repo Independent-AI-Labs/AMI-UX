@@ -34,12 +34,12 @@ const DragGhost = ({ website, isVisible, hexSize }) => {
                         height: '100%',
                         background: 'rgba(255, 255, 255, 0.95)',
                         border: '2px dashed rgba(59, 130, 246, 0.8)',
-                        borderRadius: '12px',
+                        borderRadius: '0.75rem',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '8px',
+                        gap: '0.5rem',
                         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
                         fontFamily: 'Montserrat, sans-serif'
                     }}

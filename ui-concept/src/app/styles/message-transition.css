@@ -43,8 +43,8 @@
 }
 
 .hex-message-content.inactive .hex-message {
-    filter: blur(4px);
-    transform: translateY(2px);
+    filter: blur(0.25rem);
+    transform: translateY(0.125rem);
 }
 
 /* Transitioning out - fading with blur */
@@ -55,8 +55,8 @@
 }
 
 .hex-message-content.transitioning-out .hex-message {
-    filter: blur(6px);
-    transform: translateY(-2px);
+    filter: blur(0.375rem);
+    transform: translateY(-0.125rem);
 }
 
 /* LoD specific transitions */
@@ -70,23 +70,23 @@
 
 @keyframes lodEnter {
     0% {
-        filter: blur(8px);
-        transform: translateY(4px);
+        filter: blur(0.5rem);
+        transform: translateY(0.25rem);
     }
     100% {
-        filter: blur(0px);
+        filter: blur(0rem);
         transform: translateY(0);
     }
 }
 
 @keyframes lodExit {
     0% {
-        filter: blur(0px);
+        filter: blur(0rem);
         transform: translateY(0);
     }
     100% {
-        filter: blur(8px);
-        transform: translateY(-4px);
+        filter: blur(0.5rem);
+        transform: translateY(-0.25rem);
     }
 }
 
@@ -101,23 +101,23 @@
 
 @keyframes fullEnter {
     0% {
-        filter: blur(6px);
-        transform: translateY(-4px);
+        filter: blur(0.375rem);
+        transform: translateY(-0.25rem);
     }
     100% {
-        filter: blur(0px);
+        filter: blur(0rem);
         transform: translateY(0);
     }
 }
 
 @keyframes fullExit {
     0% {
-        filter: blur(0px);
+        filter: blur(0rem);
         transform: translateY(0);
     }
     100% {
-        filter: blur(8px);
-        transform: translateY(4px);
+        filter: blur(0.5rem);
+        transform: translateY(0.25rem);
     }
 }
 
@@ -135,7 +135,7 @@
 }
 
 .hex-message-content.transitioning-out .hex-content {
-    transform: translateY(-2px);
+    transform: translateY(-0.125rem);
     opacity: 0.8;
 }
 

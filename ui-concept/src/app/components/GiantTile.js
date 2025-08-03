@@ -104,7 +104,7 @@ const GiantTile = ({
         alignItems: 'center',
         justifyContent: 'center',
         boxSizing: 'border-box',
-        padding: tileType === 'website' ? '20px' : '0' // Add padding for websites
+        padding: tileType === 'website' ? '1.25rem' : '0' // Add padding for websites
     };
 
     return (

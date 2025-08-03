@@ -2,6 +2,8 @@
  * Tile Manager - Manages hexagonal grid tiles with unique IDs
  */
 
+import gridSystem from './core/GridSystem';
+
 export class TileManager {
     constructor(hexSize = 180) {
         this.hexSize = hexSize;
@@ -25,22 +27,14 @@ export class TileManager {
         };
     }
 
-    // Convert hex coordinates to pixel coordinates
+    // Convert hex coordinates to pixel coordinates - use unified grid system
     hexToPixel(q, r) {
-        const x = this.hexSize * (3 / 2 * q);
-        const y = this.hexSize * (Math.sqrt(3) / 2 * q + Math.sqrt(3) * r);
-        return { x, y };
+        return gridSystem.gridToWorld(q, r);
     }
 
-    // Convert pixel coordinates to hex coordinates
+    // Convert pixel coordinates to hex coordinates - use unified grid system
     pixelToHex(x, y) {
-        const hexX = x / this.hexSize;
-        const hexY = y / this.hexSize;
-        
-        const q = Math.round((2 / 3) * hexX);
-        const r = Math.round((-1 / 3) * hexX + (Math.sqrt(3) / 3) * hexY);
-        
-        return { q, r };
+        return gridSystem.worldToGrid(x, y);
     }
 
     // Get or create a tile object

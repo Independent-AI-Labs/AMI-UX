@@ -489,11 +489,11 @@ const HexWebsite = React.memo(({
                 cancelText="Cancel"
                 onConfirm={handleSaveUrl}
             >
-                <div style={{ marginBottom: '20px' }}>
+                <div style={{ marginBottom: '1.25rem' }}>
                     <label style={{ 
                         display: 'block', 
-                        marginBottom: '8px',
-                        fontSize: '14px',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.875rem',
                         fontWeight: '500'
                     }}>
                         Website URL:
@@ -509,10 +509,10 @@ const HexWebsite = React.memo(({
                         }}
                         style={{
                             width: '100%',
-                            padding: '8px 12px',
-                            fontSize: '14px',
+                            padding: '0.5rem 0.75rem',
+                            fontSize: '0.875rem',
                             border: '1px solid rgba(0, 0, 0, 0.2)',
-                            borderRadius: '6px',
+                            borderRadius: '0.375rem',
                             outline: 'none',
                             transition: 'border-color 0.2s ease'
                         }}
