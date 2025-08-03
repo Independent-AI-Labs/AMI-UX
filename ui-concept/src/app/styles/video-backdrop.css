@@ -14,6 +14,30 @@
     /* background: rgba(255, 0, 0, 0.1); */ /* Temporary red tint */
 }
 
+/* Background blurred video at 200% size */
+.video-backdrop-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200%; /* 200% size as requested */
+    height: 200%;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
+    z-index: -2; /* Behind the main video */
+    
+    /* Ensure video covers the entire area */
+    object-fit: cover;
+    object-position: center center;
+    
+    /* Heavy blur effect */
+    filter: blur(20px);
+    
+    /* Performance optimizations */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
+}
+
 .video-backdrop-element {
     position: absolute;
     top: 50%;
@@ -25,6 +49,7 @@
     transform-origin: center center;
     transition: transform 100ms ease-out;
     will-change: transform;
+    z-index: -1; /* Above background video but behind content */
     
     /* Ensure video covers the entire area */
     object-fit: cover;

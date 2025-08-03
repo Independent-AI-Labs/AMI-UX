@@ -58,7 +58,7 @@
     align-items: flex-start;
     justify-content: space-between;
     height: 100%;
-    padding: 12px 20px 0 20px;
+    padding: 8px 20px 0 20px;
     max-width: 100%;
 }
 
@@ -130,7 +130,7 @@
     }
     
     .status-bar-content {
-        padding: 10px 15px 0 15px;
+        padding: 6px 15px 0 15px;
     }
     
     .status-time {

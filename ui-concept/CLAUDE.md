@@ -36,15 +36,26 @@ src/app/
 ```
 
 ### 4. Server Management
-Use the provided scripts for development server control:
-- **Start server**: `node start-server.js` (runs in background, doesn't block)
-- **Stop server**: `node stop-server.js` (kills port 3000 processes)
+Use the improved scripts for development server control with full debugging:
+- **Start server**: `node start-server.js`
+  - Runs in background without blocking terminal
+  - Creates PID file for process tracking
+  - Logs output to `dev-server.log` and errors to `dev-server-error.log`
+  - Provides clear status and debugging information
+- **Stop server**: `node stop-server.js`
+  - First attempts to kill using stored PID
+  - Falls back to port-based killing (port 3000)
+  - Shows recent server logs and errors for debugging
+  - Cleans up all temporary files (PID, logs)
+- **Emergency cleanup**: `npx kill-port 3000` (direct port kill)
 
 ### 5. Testing and Verification
 Before committing changes:
 1. **Build Test**: Run `npm run build` to ensure no syntax/import errors
-2. **Runtime Test**: Start dev server and verify functionality in browser
-3. **Chrome MCP Testing**: Use Chrome MCP server to navigate to `http://localhost:3000` and verify content loads correctly
+2. **Server Management Test**: Test `node start-server.js` and `node stop-server.js` multiple times
+3. **Runtime Test**: Navigate to `http://localhost:3000` and verify functionality
+4. **Chrome MCP Testing**: Use Chrome MCP tools to verify application loads and works correctly
+5. **Log Verification**: Check `dev-server.log` and `dev-server-error.log` for any issues
 
 ### 6. Git Workflow
 - Always stage all changes with `git add .`
@@ -81,22 +92,11 @@ Before committing changes:
 - `git commit -m "message"` - Commit with message
 - `npx kill-port 3000` - Emergency port cleanup
 
-### File Management
-- Always use absolute paths in tools
-- Prefer editing existing files over creating new ones
-- Use MultiEdit for multiple changes to same file
-- Use TodoWrite for task tracking on complex refactoring
+# NEVER EVER EVER:
 
-## Success Metrics
-A successful refactoring should achieve:
-- ✅ **Size Reduction**: Significant line count reduction in main file
-- ✅ **Build Success**: `npm run build` passes without errors
-- ✅ **Runtime Verification**: Application loads and functions correctly
-- ✅ **Modular Structure**: Clear separation of concerns
-- ✅ **Maintainability**: Code is easier to understand and modify
+- PUT CO-AUTHORING BULLSHIT IN THE COMMIT MESSAGES
+- SCREENSHOT ANYTHING IN THE BROWSER
 
-## Example: page.js Refactoring Results
-- **Before**: 1,452 lines (monolithic)
-- **After**: 810 lines (44% reduction)
-- **New Modules**: 8 focused components/hooks created
-- **Status**: ✅ Build passes, ✅ Runtime verified, ✅ All functionality preserved
+# REMEMBER TO:
+
+- GET CONTENT FROM THE BROWSER OFTEN TO VALIDATE YOUR WORK!!!
