@@ -48,13 +48,13 @@ const GridRenderer = ({ viewState }) => {
         <div 
             className="grid-renderer"
             style={{
-                position: 'fixed',
+                position: 'absolute',
                 top: 0,
                 left: 0,
                 width: '100%',
                 height: '100%',
-                pointerEvents: 'none',
-                zIndex: 100 // High visibility for debugging
+                pointerEvents: 'none'
+                // Removed 3D transforms for better performance
             }}
         >
             {visibleHexes.map(hex => {

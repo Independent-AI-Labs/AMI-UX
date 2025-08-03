@@ -45,21 +45,14 @@ const HexagonalGrid = ({
     handleSend,
     handleExpandInput
 }) => {
-    // Calculate JavaScript-based transform to match video backdrop system
-    const gridTransform = useMemo(() => {
-        const { x, y, zoom } = viewState;
-        return {
-            transform: `translate(${x}px, ${y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
-            willChange: 'transform',
-            transformStyle: 'preserve-3d'
-        };
-    }, [viewState]);
-
+    // Content layer - handles its own interactions
     return (
         <div
             className="absolute inset-0"
-            style={gridTransform}
+            style={{
+                // Let individual elements handle pointer events
+                pointerEvents: 'none'
+            }}
         >
             {/* Grid Selection Hover Effect */}
             <GridSelection

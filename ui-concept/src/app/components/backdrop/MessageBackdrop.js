@@ -10,7 +10,12 @@ const MessageBackdrop = ({
     getMessagePosition 
 }) => {
     return (
-        <>
+        <div style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 5 // Behind content but above video
+        }}>
             {messages.map((message, index) => {
                 let position;
                 if (message.q !== undefined && message.r !== undefined) {
@@ -20,9 +25,10 @@ const MessageBackdrop = ({
                 }
                 
                 const pixelPosition = hexToPixel(position.q, position.r);
-                const transformedX = viewState.x + (pixelPosition.x - hexSize) * viewState.zoom;
-                const transformedY = viewState.y + (pixelPosition.y - hexSize) * viewState.zoom;
-                const transformedSize = hexSize * 2 * viewState.zoom;
+                // In 3D space, positions are relative to the transform container
+                const transformedX = pixelPosition.x - hexSize;
+                const transformedY = pixelPosition.y - hexSize;
+                const transformedSize = hexSize * 2;
                 
                 return (
                     <div
@@ -44,7 +50,7 @@ const MessageBackdrop = ({
                     />
                 );
             })}
-        </>
+        </div>
     );
 };
 

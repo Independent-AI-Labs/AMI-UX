@@ -1,12 +1,7 @@
 /* Video Backdrop Styles */
 .video-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -10; /* Way behind everything */
-    overflow: hidden;
+    /* Container styles now handled in JS for 3D transform */
+    overflow: visible !important; /* Don't clip videos */
     pointer-events: none;
     
     /* Debug visibility */
@@ -14,16 +9,9 @@
     /* background: rgba(255, 0, 0, 0.1); */ /* Temporary red tint */
 }
 
-/* Background blurred video at 200% size */
+/* Background blurred video pushed back in Z space */
 .video-backdrop-bg {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100%; /* Size handled by transform scale */
-    height: 100%;
-    transform: translate(-50%, -50%);
-    transform-origin: center center;
-    z-index: -2; /* Behind main video */
+    /* Position and transform handled in JS for 3D */
     
     /* Ensure video covers the entire area */
     object-fit: cover;
@@ -43,21 +31,14 @@
 }
 
 .video-backdrop-element {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    min-width: 120%; /* Larger than viewport to allow for parallax movement */
-    min-height: 120%;
-    width: auto;
-    height: auto;
-    transform-origin: center center;
-    transition: transform 100ms ease-out;
-    will-change: transform;
-    z-index: -1; /* Above background video but behind content */
+    /* Position and transform handled in JS for 3D */
     
     /* Ensure video covers the entire area */
     object-fit: cover;
     object-position: center center;
+    
+    /* Performance */
+    will-change: transform;
     
     /* Initial transform handled by JavaScript parallax calculation */
     

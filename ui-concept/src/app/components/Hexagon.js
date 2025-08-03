@@ -13,6 +13,8 @@ const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick,
         clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
         zIndex: 1000,
         willChange: 'transform',
+        pointerEvents: 'auto', // Ensure hex can be clicked
+        cursor: 'pointer',
         // No background or backdrop-filter here - only clip-path
         ...style
     }), [x, y, hexSize, hexWidth, hexHeight, style]);

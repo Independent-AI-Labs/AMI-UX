@@ -60,7 +60,20 @@ const HexagonalMessageGrid = () => {
     // UI state (not managed by state machine)
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [viewState, setViewState] = useState({ x: 0, y: 0, zoom: 1 });
+    // Initialize viewport to center of grid (15.5, 7.5) which is the midpoint of 32x16 grid
+    const [viewState, setViewState] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const gridCenterQ = 15.5;
+            const gridCenterR = 7.5;
+            const gridCenterPixels = hexToPixel(gridCenterQ, gridCenterR);
+            return {
+                x: window.innerWidth / 2 - gridCenterPixels.x,
+                y: window.innerHeight / 2 - gridCenterPixels.y,
+                zoom: 1
+            };
+        }
+        return { x: 0, y: 0, zoom: 1 };
+    });
     const [isDragging, setIsDragging] = useState(false);
     const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
     const [startMousePos, setStartMousePos] = useState({ x: 0, y: 0 });
@@ -228,26 +241,32 @@ const HexagonalMessageGrid = () => {
         }
     }, []);
 
-    // Center the grid when screenCenter is first calculated
+    // Center everything when screenCenter is first calculated
     useEffect(() => {
         if (screenCenter.x > 0 && screenCenter.y > 0 && viewState.x === 0 && viewState.y === 0) {
-            // Center the grid by placing the origin (0,0) hex at screen center
+            // Calculate grid center in pixels (midpoint of 32x16 grid is at 15.5, 7.5)
+            const gridCenterPixels = hexToPixel(15.5, 7.5);
+            
+            // Offset viewport so grid center appears at screen center
+            const offsetX = screenCenter.x - gridCenterPixels.x;
+            const offsetY = screenCenter.y - gridCenterPixels.y;
+            
             setViewState(prev => ({
                 ...prev,
-                x: screenCenter.x,
-                y: screenCenter.y
+                x: offsetX,
+                y: offsetY
             }));
             
             // Also update animation manager if it exists
             if (animationManager.current) {
                 animationManager.current.setViewState({
-                    x: screenCenter.x,
-                    y: screenCenter.y,
+                    x: offsetX,
+                    y: offsetY,
                     zoom: 1
                 });
             }
         }
-    }, [screenCenter]);
+    }, [screenCenter, hexToPixel]);
 
     // Centralized unlock function - force clear all states
     const unlockConversation = useCallback(() => {
@@ -303,10 +322,11 @@ const HexagonalMessageGrid = () => {
     }, [unlockConversation, lockedWebsiteId, handleUnlockWebsite]);
 
     const resetView = () => {
-        // Reset to centered position instead of (0,0)
+        // Reset to grid center positioned at screen center
+        const gridCenterPixels = hexToPixel(15.5, 7.5);
         const centeredViewState = {
-            x: screenCenter.x,
-            y: screenCenter.y,
+            x: screenCenter.x - gridCenterPixels.x,
+            y: screenCenter.y - gridCenterPixels.y,
             zoom: 1
         };
         animationManager.current.setViewState(centeredViewState);
@@ -342,7 +362,7 @@ const HexagonalMessageGrid = () => {
         if (typeof window !== 'undefined' && !isDragging && !conversationState.isLocked) {
             const rect = containerRef.current?.getBoundingClientRect();
             if (rect) {
-                // Convert screen coordinates to world coordinates
+                // Convert screen coordinates to world coordinates in 3D space
                 const worldX = (e.clientX - rect.left - viewState.x) / viewState.zoom;
                 const worldY = (e.clientY - rect.top - viewState.y) / viewState.zoom;
                 
@@ -403,6 +423,7 @@ const HexagonalMessageGrid = () => {
         let worldX = 0, worldY = 0, tile = { q: 0, r: 0 };
         
         if (rect) {
+            // Convert mouse coordinates in 3D space
             worldX = (e.clientX - rect.left - viewState.x) / viewState.zoom;
             worldY = (e.clientY - rect.top - viewState.y) / viewState.zoom;
             
@@ -687,52 +708,48 @@ const HexagonalMessageGrid = () => {
             {/* Status Bar */}
             <StatusBar hasActiveToast={errorToast.visible} />
             
-            {/* Video Backdrop with Parallax */}
-            <VideoBackdrop 
-                viewState={viewState}
-                screenCenter={screenCenter}
-            />
-
-            {/* Blend Mode Test Hex */}
-            <BlendModeTest />
+            {/* 3D Background Container - Videos ONLY with parallax */}
+            <div 
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    perspective: '1000px',
+                    perspectiveOrigin: '50% 50%',
+                    transformStyle: 'preserve-3d',
+                    overflow: 'visible',
+                    pointerEvents: 'none'
+                }}
+            >
+                {/* Transform for video backgrounds - minimal zoom effect */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        transform: `translateX(${viewState.x * 0.3}px) translateY(${viewState.y * 0.3}px) scale(${0.35 + (viewState.zoom - 1) * 0.08})`,
+                        transformOrigin: '0 0',
+                        transformStyle: 'preserve-3d',
+                        willChange: 'transform',
+                        overflow: 'visible'
+                    }}
+                >
+                    {/* Video Backdrop with 3D parallax */}
+                    <VideoBackdrop 
+                        viewState={viewState}
+                        screenCenter={screenCenter}
+                    />
+                </div>
+            </div>
             
-            <HexagonSVG />
-            
-            {/* Grid renderer - proper hex grid visualization */}
-            <GridRenderer
-                viewState={viewState}
-            />
-            
-            <ZoomSlider
-                viewState={viewState}
-                onZoomSliderChange={handleZoomSlider}
-            />
-
-            <Controls
-                isLocked={conversationState.isLocked}
-                isWebsiteLocked={!!lockedWebsiteId}
-                viewState={viewState}
-                screenCenter={screenCenter}
-                animationManager={animationManager}
-                onExitLocked={unlockConversation}
-                onExitWebsiteLocked={handleUnlockWebsite}
-                onResetView={resetView}
-            />
-
-            {/* Backdrop layer - completely separate from canvas */}
-            <MessageBackdrop
-                messages={messages}
-                viewState={viewState}
-                hexSize={hexSize}
-                hexToPixel={hexToPixel}
-                getMessagePosition={getMessagePosition}
-            />
-
-            {/* Canvas Container */}
+            {/* Dim overlay for pan interaction - covers viewport */}
             <div
                 ref={containerRef}
                 className="absolute inset-0 cursor-grab active:cursor-grabbing"
-                style={{ zIndex: 20 }}
+                style={{ 
+                    background: 'rgba(0, 0, 0, 0.25)',
+                    pointerEvents: 'auto',
+                    zIndex: 9 // Just below content layer
+                }} 
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -740,8 +757,30 @@ const HexagonalMessageGrid = () => {
                 onContextMenu={handleContextMenu}
                 onClick={handleCanvasClick}
                 onWheel={handleCanvasWheel}
+            />
+            
+            {/* Main Interactive Grid Canvas Layer - All grid elements together */}
+            <div
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    transform: `translateX(${viewState.x}px) translateY(${viewState.y}px) scale(${viewState.zoom})`,
+                    transformOrigin: '0 0',
+                    willChange: 'transform',
+                    pointerEvents: 'auto',
+                    zIndex: 10
+                }}
             >
-                {/* Hexagonal Grid */}
+                <BlendModeTest />
+                <HexagonSVG />
+                <GridRenderer viewState={viewState} />
+                <MessageBackdrop
+                    messages={messages}
+                    viewState={viewState}
+                    hexSize={hexSize}
+                    hexToPixel={hexToPixel}
+                    getMessagePosition={getMessagePosition}
+                />
                 <HexagonalGrid
                     messages={messages}
                     websites={websites}
@@ -780,6 +819,22 @@ const HexagonalMessageGrid = () => {
                     handleExpandInput={handleExpandInput}
                 />
             </div>
+
+            <ZoomSlider
+                viewState={viewState}
+                onZoomSliderChange={handleZoomSlider}
+            />
+
+            <Controls
+                isLocked={conversationState.isLocked}
+                isWebsiteLocked={!!lockedWebsiteId}
+                viewState={viewState}
+                screenCenter={screenCenter}
+                animationManager={animationManager}
+                onExitLocked={unlockConversation}
+                onExitWebsiteLocked={handleUnlockWebsite}
+                onResetView={resetView}
+            />
 
             <Instructions isLocked={conversationState.isLocked} />
             
