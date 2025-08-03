@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useMemo } from 'react';
 
 const VideoBackdrop = ({ viewState, screenCenter }) => {
     const videoRef = useRef(null);
+    const bgVideoRef = useRef(null);
     
     // Calculate parallax transform based on view state
     const parallaxStyle = useMemo(() => {
@@ -27,62 +28,75 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
         };
     }, [viewState]);
 
-    // Handle video playback
+    // Handle video playback for both videos
     useEffect(() => {
         const video = videoRef.current;
-        if (video) {
-            console.log('Video element found, attempting to play...');
-            console.log('Video src:', video.src || video.currentSrc);
+        const bgVideo = bgVideoRef.current;
+        
+        const setupVideo = (videoElement, name) => {
+            if (!videoElement) return null;
+            
+            console.log(`${name} video element found, attempting to play...`);
+            console.log(`${name} video src:`, videoElement.src || videoElement.currentSrc);
             
             // Set video properties for better autoplay compatibility
-            video.muted = true;
-            video.playsInline = true;
-            video.loop = true;
-            video.playbackRate = 0.75; // Slow down to 50% speed
+            videoElement.muted = true;
+            videoElement.playsInline = true;
+            videoElement.loop = true;
+            videoElement.playbackRate = 0.75; // Slow down to 75% speed
             
+            return videoElement;
+        };
+        
+        const videos = [
+            { element: setupVideo(video, 'Main'), name: 'Main' },
+            { element: setupVideo(bgVideo, 'Background'), name: 'Background' }
+        ].filter(v => v.element);
+        
+        videos.forEach(({ element: videoElement, name }) => {
             // Add event listeners for debugging and auto-play
             const handleVideoEvent = (eventName) => (e) => {
-                console.log(`Video ${eventName}:`, e);
+                console.log(`${name} video ${eventName}:`, e);
                 if (eventName === 'loadedmetadata') {
-                    console.log('Video duration:', video.duration);
-                    console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+                    console.log(`${name} video duration:`, videoElement.duration);
+                    console.log(`${name} video dimensions:`, videoElement.videoWidth, 'x', videoElement.videoHeight);
                 }
                 if (eventName === 'canplay' || eventName === 'canplaythrough') {
                     // Force play when video is ready
-                    if (video.paused) {
-                        console.log('Video is ready, forcing play...');
-                        video.play().then(() => {
-                            console.log('Video forced to play successfully');
+                    if (videoElement.paused) {
+                        console.log(`${name} video is ready, forcing play...`);
+                        videoElement.play().then(() => {
+                            console.log(`${name} video forced to play successfully`);
                         }).catch(err => {
-                            console.error('Failed to force play:', err);
+                            console.error(`Failed to force play ${name} video:`, err);
                         });
                     }
                 }
             };
             
             ['loadstart', 'loadedmetadata', 'canplay', 'canplaythrough', 'play', 'pause', 'ended', 'error'].forEach(event => {
-                video.addEventListener(event, handleVideoEvent(event));
+                videoElement.addEventListener(event, handleVideoEvent(event));
             });
             
             // Try to play after a short delay
-            const timer = setTimeout(() => {
-                const playPromise = video.play();
+            setTimeout(() => {
+                const playPromise = videoElement.play();
                 
                 if (playPromise !== undefined) {
                     playPromise
                         .then(() => {
-                            console.log('Video is playing successfully');
+                            console.log(`${name} video is playing successfully`);
                         })
                         .catch(error => {
-                            console.error('Video autoplay failed:', error);
+                            console.error(`${name} video autoplay failed:`, error);
                             
                             // Fallback: try to play on user interaction
                             const tryPlayOnInteraction = () => {
-                                video.play().then(() => {
-                                    console.log('Video started playing after user interaction');
+                                videoElement.play().then(() => {
+                                    console.log(`${name} video started playing after user interaction`);
                                     document.removeEventListener('click', tryPlayOnInteraction);
                                     document.removeEventListener('touchstart', tryPlayOnInteraction);
-                                }).catch(e => console.error('Still failed to play:', e));
+                                }).catch(e => console.error(`Still failed to play ${name} video:`, e));
                             };
                             
                             document.addEventListener('click', tryPlayOnInteraction);
@@ -90,20 +104,33 @@ const VideoBackdrop = ({ viewState, screenCenter }) => {
                         });
                 }
             }, 100);
-            
-            return () => {
-                clearTimeout(timer);
+        });
+        
+        return () => {
+            videos.forEach(({ element: videoElement, name }) => {
                 ['loadstart', 'loadedmetadata', 'canplay', 'canplaythrough', 'play', 'pause', 'ended', 'error'].forEach(event => {
-                    video.removeEventListener(event, handleVideoEvent(event));
+                    videoElement.removeEventListener(event, () => {});
                 });
-            };
-        } else {
-            console.error('Video element not found');
-        }
+            });
+        };
     }, []);
 
     return (
         <div className="video-backdrop">
+            {/* Background blurred video at 200% size */}
+            <video
+                ref={bgVideoRef}
+                className="video-backdrop-bg"
+                muted
+                loop
+                playsInline
+                preload="auto"
+            >
+                <source src="/backdrop.mp4" type="video/mp4" />
+                <div className="video-fallback" />
+            </video>
+            
+            {/* Main parallax video */}
             <video
                 ref={videoRef}
                 className="video-backdrop-element"

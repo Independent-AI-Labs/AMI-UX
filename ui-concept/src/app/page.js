@@ -211,6 +211,11 @@ const HexagonalMessageGrid = () => {
                     x: window.innerWidth / 2,
                     y: window.innerHeight / 2,
                 });
+                
+                // Update animation manager bounds when screen size changes
+                if (animationManager.current) {
+                    animationManager.current.updateBounds();
+                }
             }
         };
 

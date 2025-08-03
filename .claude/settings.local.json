@@ -5,7 +5,22 @@
       "Bash(npm run build:*)",
       "Bash(grep:*)",
       "Bash(git add:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(git rm:*)",
+      "Bash(timeout 10 npm run dev)",
+      "mcp__chrome-mcp-server__chrome_navigate",
+      "mcp__chrome-mcp-server__chrome_get_web_content",
+      "Bash(taskkill:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(start /B npm run dev)",
+      "Bash(start /b cmd /c \"npm run dev\")",
+      "Bash(npx concurrently:*)",
+      "Bash(node:*)",
+      "Bash(timeout:*)",
+      "mcp__chrome-mcp-server__chrome_get_interactive_elements",
+      "mcp__chrome-mcp-server__chrome_close_tabs",
+      "Bash(git commit:*)",
+      "mcp__chrome-mcp-server__chrome_screenshot"
     ],
     "deny": []
   }

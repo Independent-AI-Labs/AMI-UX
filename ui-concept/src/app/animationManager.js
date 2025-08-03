@@ -8,7 +8,17 @@ class AnimationManager {
         this.lastFrameTime = 0;
         this.isLocked = false; // Managed by the UI, but needed for animation logic
 
+        // Viewport bounds based on 200% background video size
+        this.bounds = {
+            enabled: true,
+            maxX: 0, // Will be calculated based on screen size
+            minX: 0,
+            maxY: 0,
+            minY: 0
+        };
+
         this.animate = this.animate.bind(this);
+        this.updateBounds();
     }
 
     start() {
@@ -25,13 +35,51 @@ class AnimationManager {
         }
     }
 
+    updateBounds() {
+        if (typeof window !== 'undefined') {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            
+            // The background video is 200% size, so we can pan up to 50% of screen size in each direction
+            // from the center position (which is where the 100% video would be centered)
+            const centerX = screenWidth / 2;
+            const centerY = screenHeight / 2;
+            
+            // Allow panning 25% of screen size in each direction (50% total range)
+            const maxPanX = screenWidth * 0.25;
+            const maxPanY = screenHeight * 0.25;
+            
+            this.bounds = {
+                ...this.bounds,
+                maxX: centerX + maxPanX,
+                minX: centerX - maxPanX,
+                maxY: centerY + maxPanY,
+                minY: centerY - maxPanY
+            };
+        }
+    }
+
+    constrainToBounds(x, y) {
+        if (!this.bounds.enabled) return { x, y };
+        
+        return {
+            x: Math.max(this.bounds.minX, Math.min(this.bounds.maxX, x)),
+            y: Math.max(this.bounds.minY, Math.min(this.bounds.maxY, y))
+        };
+    }
+
     animate(currentTime) {
         const deltaTime = currentTime - this.lastFrameTime;
         this.lastFrameTime = currentTime;
 
         // Apply velocity to viewState
-        this.viewState.x += this.isLocked ? 0 : this.velocity.x * (deltaTime / 16.66);
-        this.viewState.y += this.velocity.y * (deltaTime / 16.66);
+        let newX = this.viewState.x + (this.isLocked ? 0 : this.velocity.x * (deltaTime / 16.66));
+        let newY = this.viewState.y + (this.velocity.y * (deltaTime / 16.66));
+
+        // Apply bounds constraint
+        const constrained = this.constrainToBounds(newX, newY);
+        this.viewState.x = constrained.x;
+        this.viewState.y = constrained.y;
 
         // Apply decay to velocity
         const decayFactor = Math.pow(0.92, deltaTime / 16.66);
@@ -57,8 +105,14 @@ class AnimationManager {
     }
 
     updatePosition(deltaX, deltaY) {
-        this.viewState.x += deltaX;
-        this.viewState.y += deltaY;
+        let newX = this.viewState.x + deltaX;
+        let newY = this.viewState.y + deltaY;
+        
+        // Apply bounds constraint
+        const constrained = this.constrainToBounds(newX, newY);
+        this.viewState.x = constrained.x;
+        this.viewState.y = constrained.y;
+        
         this.onUpdateCallback({ ...this.viewState });
     }
 
@@ -66,8 +120,14 @@ class AnimationManager {
         const worldX = (mouseX - this.viewState.x) / this.viewState.zoom;
         const worldY = (mouseY - this.viewState.y) / this.viewState.zoom;
 
-        this.viewState.x = mouseX - worldX * newZoom;
-        this.viewState.y = mouseY - worldY * newZoom;
+        let newX = mouseX - worldX * newZoom;
+        let newY = mouseY - worldY * newZoom;
+        
+        // Apply bounds constraint
+        const constrained = this.constrainToBounds(newX, newY);
+        
+        this.viewState.x = constrained.x;
+        this.viewState.y = constrained.y;
         this.viewState.zoom = newZoom;
         this.onUpdateCallback({ ...this.viewState });
     }
