@@ -594,12 +594,19 @@ const HexagonalMessageGrid = () => {
     }, [websiteHover.visible]);
 
 
-    // Add wheel event listener with passive: false to allow preventDefault
+    // Add wheel event listener at window level to catch all wheel events
     useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-
         const handleWheelEvent = (e) => {
+            // Check if wheel is over our app (not some other overlay or modal)
+            const container = containerRef.current;
+            if (!container) return;
+            
+            const rect = container.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right || 
+                e.clientY < rect.top || e.clientY > rect.bottom) {
+                return; // Wheel event outside our app
+            }
+
             e.preventDefault();
 
             if (lockManager.isLocked) {
@@ -608,15 +615,15 @@ const HexagonalMessageGrid = () => {
             } else {
                 const zoomFactor = e.deltaY > 0 ? 0.85 : 1.18;
                 const newZoom = Math.max(0.2, Math.min(3.0, viewState.zoom * zoomFactor));
-                const mouseX = mousePos.x;
-                const mouseY = mousePos.y;
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
                 animationManager.current.setZoom(newZoom, mouseX, mouseY, screenCenter);
             }
         };
 
-        container.addEventListener('wheel', handleWheelEvent, { passive: false });
-        return () => container.removeEventListener('wheel', handleWheelEvent);
-    }, [lockManager.isLocked, viewState.zoom, mousePos.x, mousePos.y, screenCenter]);
+        window.addEventListener('wheel', handleWheelEvent, { passive: false });
+        return () => window.removeEventListener('wheel', handleWheelEvent);
+    }, [lockManager.isLocked, viewState.zoom, screenCenter]);
 
 
     const handleZoomSlider = (e) => {
@@ -752,7 +759,7 @@ const HexagonalMessageGrid = () => {
                         : 'translateX(0px) translateY(0px) scale(1)',
                     transformOrigin: '0 0',
                     willChange: 'transform',
-                    pointerEvents: 'auto',
+                    pointerEvents: 'none', // Let events pass through to container
                     zIndex: 10
                 }}
             >
