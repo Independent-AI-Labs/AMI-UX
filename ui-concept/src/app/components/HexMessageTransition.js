@@ -34,25 +34,6 @@ const HexMessageTransition = ({
         <div
             className={`hex-message ${message.sender === 'user' ? 'hex-message-user' : 'hex-message-ai'} ${isLocked ? 'in-locked-mode' : ''}`}
             style={lodStyles}
-            onWheel={(e) => {
-                if (isLocked) {
-                    const element = e.currentTarget.querySelector('.hex-content');
-                    if (element) {
-                        const hasScrollbar = element.scrollHeight > element.clientHeight;
-
-                        if (hasScrollbar) {
-                            const isAtTop = element.scrollTop === 0;
-                            const isAtBottom = element.scrollTop >= element.scrollHeight - element.clientHeight;
-                            const scrollingUp = e.deltaY < 0;
-                            const scrollingDown = e.deltaY > 0;
-
-                            if ((scrollingUp && !isAtTop) || (scrollingDown && !isAtBottom)) {
-                                e.stopPropagation();
-                            }
-                        }
-                    }
-                }
-            }}
         >
             <MessageContent
                 message={message}
