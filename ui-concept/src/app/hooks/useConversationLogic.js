@@ -160,15 +160,27 @@ export const useConversationLogic = ({
             const zoom = 1.8;
             const clickedHexCenter = hexToPixel(q, r);
             
-            // Find the conversation column (even number) that this message belongs to
-            const conversationQ = Math.floor(q / 2) * 2;
+            // Find the left column of the conversation pair (must handle both odd and even q values)
+            // For a conversation at columns 15,16: both should map to 15
+            const conversationQ = q % 2 === 0 ? q - 1 : q;
             
             // Lock conversation using state manager
             conversationState.lock(conversationId, messageId);
             
-            // Center the conversation horizontally, keep clicked row vertically centered
-            const conversationCenterX = hexToPixel(conversationQ + 0.5, 0).x; // Center between the two columns
-            const clickedCenterY = hexToPixel(0, r).y; // Keep the clicked row's Y position
+            // Center the conversation horizontally at midpoint between the two columns
+            const leftColumnX = hexToPixel(conversationQ, r).x;
+            const rightColumnX = hexToPixel(conversationQ + 1, r).x;
+            const conversationCenterX = (leftColumnX + rightColumnX) / 2; // True midpoint between columns
+            const clickedCenterY = hexToPixel(conversationQ, r).y; // Keep the clicked row's Y position
+            
+            console.log('Centering conversation:', {
+                clickedQ: q,
+                conversationQ,
+                leftColumnX,
+                rightColumnX,
+                conversationCenterX,
+                clickedCenterY
+            });
             
             const newX = screenCenter.x - (conversationCenterX * zoom);
             const newY = screenCenter.y - (clickedCenterY * zoom);
