@@ -124,7 +124,6 @@
 /* Grid Selection Hover Effect */
 .grid-selection {
     background: rgba(255, 255, 255, 0.04);
-    border: 0.0625rem solid rgba(255, 255, 255, 0.08);
     z-index: 5; /* Above background, below messages */
 }
 
