@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 const StatusBar = ({ hasActiveToast = false }) => {
-    const [currentTime, setCurrentTime] = useState(new Date());
+    const [currentTime, setCurrentTime] = useState(null);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        setIsMounted(true);
+        setCurrentTime(new Date());
+        
         const timer = setInterval(() => {
             setCurrentTime(new Date());
         }, 1000);
@@ -57,8 +61,10 @@ const StatusBar = ({ hasActiveToast = false }) => {
             <div className="status-bar-content">
                 {/* Left: Clock and Date */}
                 <div className="status-left">
-                    <div className="status-time">{formatTime(currentTime)}</div>
-                    {isExpanded && (
+                    <div className="status-time">
+                        {isMounted && currentTime ? formatTime(currentTime) : '00:00:00'}
+                    </div>
+                    {isExpanded && isMounted && currentTime && (
                         <div className="status-date">{formatDate(currentTime)}</div>
                     )}
                 </div>

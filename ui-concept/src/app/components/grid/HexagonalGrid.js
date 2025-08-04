@@ -80,7 +80,7 @@ const HexagonalGrid = ({
                         message={message}
                         position={{ ...position, ...pixelPosition }}
                         hexSize={hexSize}
-                        isLocked={conversationState.isLocked}
+                        isLocked={conversationState.isConversationMode}
                         dragRef={dragRef}
                         onLockToConversation={(q, r) => lockToConversation(q, r, message.id)}
                         onExpandMessage={handleExpandMessage}
@@ -105,8 +105,8 @@ const HexagonalGrid = ({
                         website={website}
                         position={{ ...position, ...pixelPosition }}
                         hexSize={hexSize}
-                        isLocked={conversationState.isLocked}
-                        isWebsiteLocked={lockedWebsiteId === website.id}
+                        isLocked={conversationState.isConversationMode}
+                        isWebsiteLocked={conversationState.isWebsiteMode && conversationState.lockedTarget === website.id}
                         dragRef={dragRef}
                         onLockToConversation={() => {/* Websites don't lock to conversations */}}
                         onLockToWebsite={handleLockToWebsite}
@@ -162,11 +162,11 @@ const HexagonalGrid = ({
 
             {/* Input Hex - animated based on conversation lock state */}
             <AnimatedUITile 
-                isVisible={!isTyping && conversationState.isLocked}
+                isVisible={!isTyping && conversationState.isConversationMode}
                 tileType="input"
                 delay={100}
             >
-                {!isTyping && conversationState.isLocked && (() => {
+                {!isTyping && conversationState.isConversationMode && (() => {
                     const inputPos = getInputPosition();
                     const inputPixelPos = hexToPixel(inputPos.q, inputPos.r);
                     
@@ -182,7 +182,7 @@ const HexagonalGrid = ({
                             onInputChange={setInputText}
                             onSend={handleSend}
                             onExpandInput={handleExpandInput}
-                            isLocked={conversationState.isLocked}
+                            isLocked={conversationState.isConversationMode}
                             zoom={viewState.zoom}
                             lodState={lodState}
                         />

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { User, Bot, Copy, RotateCw, GitBranch } from 'lucide-react';
 
 const MessageContent = ({ 
@@ -11,6 +11,11 @@ const MessageContent = ({
     onCopyMessage,
     size = 'normal' // normal, expanded
 }) => {
+    const [isMounted, setIsMounted] = useState(false);
+    
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
     const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text]);
 
     const handleCopy = () => {
@@ -68,13 +73,16 @@ const MessageContent = ({
                         fontSize: size === 'expanded' ? '0.875rem' : '0.5rem'
                     }}
                 >
-                    {size === 'expanded' 
-                        ? message.timestamp.toLocaleString()
-                        : message.timestamp.toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        })
-                    }
+                    {isMounted ? (
+                        size === 'expanded' 
+                            ? message.timestamp.toLocaleString()
+                            : message.timestamp.toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })
+                    ) : (
+                        '00:00'
+                    )}
                 </p>
             )}
 

@@ -8,6 +8,7 @@ import tileGrid, { DataTile, UITile } from './tileSystem';
 import { useAppState, useConversationState, useContextMenuState, useInputState } from './hooks/useAppState';
 import { useMouseInteraction } from './hooks/useMouseInteraction';
 import { useConversationLogic } from './hooks/useConversationLogic';
+import { useLockManager } from './hooks/useLockManager';
 import Controls from './components/Controls';
 import ZoomSlider from './components/ZoomSlider';
 import Instructions from './components/Instructions';
@@ -79,7 +80,6 @@ const HexagonalMessageGrid = () => {
     const [expandingMessage, setExpandingMessage] = useState(null);
     const [expandingWebsite, setExpandingWebsite] = useState(null);
     const [expandingInput, setExpandingInput] = useState(false);
-    const [lockedWebsiteId, setLockedWebsiteId] = useState(null);
     
     // Video backdrop state
     const [videoInfo, setVideoInfo] = useState(null);
@@ -104,7 +104,7 @@ const HexagonalMessageGrid = () => {
     const conversationLogic = useConversationLogic({
         messages,
         websites,
-        conversationState,
+        conversationState: conversationState,
         screenCenter,
         hexToPixel,
         pixelToHex,
@@ -120,7 +120,7 @@ const HexagonalMessageGrid = () => {
         getAvailableColumnsNearMouse,
         canStartNewChat,
         startNewChat,
-        lockToConversation,
+        lockToConversation: originalLockToConversation,
         getMessagePosition
     } = conversationLogic;
 
@@ -128,29 +128,6 @@ const HexagonalMessageGrid = () => {
     const isHexOccupied = useCallback((q, r) => {
         return tileManager.isTileOccupied(q, r);
     }, []);
-
-    // UI Tile Management: Handle input tile display
-    useEffect(() => {
-        // Remove existing input UI tile
-        const existingInput = Array.from(tileGrid.uiTiles.values()).find(tile => tile.type === 'input');
-        if (existingInput) {
-            tileGrid.removeTile(existingInput.id);
-        }
-        
-        // Add input UI tile if conversation is locked
-        if (conversationState.isLocked && conversationState.conversationId) {
-            const inputPosition = tileGrid.getNextConversationPosition(conversationState.conversationId);
-            if (inputPosition) {
-                const inputTile = new UITile(
-                    'input_' + conversationState.conversationId,
-                    'input',
-                    inputPosition,
-                    { conversationId: conversationState.conversationId }
-                );
-                tileGrid.addUITile(inputTile);
-            }
-        }
-    }, [conversationState.isLocked, conversationState.conversationId]);
 
     // Get input position for rendering
     const getInputPosition = useCallback(() => {
@@ -221,6 +198,40 @@ const HexagonalMessageGrid = () => {
         setIsMounted(true);
     }, []);
     
+    // Initialize lock manager after managers are set up
+    const lockManager = useLockManager(animationManager, lodManager, screenCenter, hexToPixel);
+    
+    // Override lockToConversation to use lock manager
+    const lockToConversation = useCallback((q, r, messageId) => {
+        // Find the message to get its conversationId
+        const message = messages.find(m => m.id === messageId);
+        const conversationId = message ? message.conversationId : `conv_${Math.floor(q / 2)}`;
+        lockManager.lockToConversation(conversationId, messageId, q, r);
+    }, [messages, lockManager]);
+    
+    // UI Tile Management: Handle input tile display
+    useEffect(() => {
+        // Remove existing input UI tile
+        const existingInput = Array.from(tileGrid.uiTiles.values()).find(tile => tile.type === 'input');
+        if (existingInput) {
+            tileGrid.removeTile(existingInput.id);
+        }
+        
+        // Add input UI tile if conversation is locked
+        if (lockManager.isConversationMode && lockManager.lockedTarget) {
+            const inputPosition = tileGrid.getNextConversationPosition(lockManager.lockedTarget);
+            if (inputPosition) {
+                const inputTile = new UITile(
+                    'input_' + lockManager.lockedTarget,
+                    'input',
+                    inputPosition,
+                    { conversationId: lockManager.lockedTarget }
+                );
+                tileGrid.addUITile(inputTile);
+            }
+        }
+    }, [lockManager.isConversationMode, lockManager.lockedTarget]);
+    
     // Screen center tracking
     useEffect(() => {
         const updateCenter = () => {
@@ -276,58 +287,21 @@ const HexagonalMessageGrid = () => {
         }
     }, [screenCenter, hexToPixel]);
 
-    // Centralized unlock function - force clear all states
-    const unlockConversation = useCallback(() => {
-        // Force unlock all systems to prevent stuck states
-        try {
-            // 1. Force unlock conversation state
-            if (conversationState && typeof conversationState.unlock === 'function') {
-                conversationState.unlock();
-            }
-            
-            // 2. Force clear LoD manager
-            lodManager.unlock();
-            lodManager.returnToWorkspace();
-            
-            // 3. Force clear animation manager
-            if (animationManager.current) {
-                animationManager.current.setLocked(false);
-            }
-            
-            // 4. Force reset view to workspace if needed
-            const currentState = lodManager.getCurrentState();
-            if (currentState.context.level !== 'workspace') {
-                lodManager.returnToWorkspace();
-            }
-        } catch (error) {
-            console.error('Error during unlock, forcing reset:', error);
-            // If anything fails, force reset everything
-            lodManager.returnToWorkspace();
-        }
-    }, [conversationState]);
-
-    // Website unlock function
-    const handleUnlockWebsite = useCallback(() => {
-        console.log('Unlocking website');
-        setLockedWebsiteId(null);
-    }, []);
+    // Use unified unlock from lockManager
+    const unlockConversation = lockManager.unlock;
+    const handleUnlockWebsite = lockManager.unlock;
 
     // Handle escape key - simplified to always unlock completely
     useEffect(() => {
         const handleKeyPress = (e) => {
             if (e.key === 'Escape') {
-                // Always force complete unlock to prevent stuck states
-                if (lockedWebsiteId) {
-                    handleUnlockWebsite();
-                } else {
-                    unlockConversation();
-                }
+                lockManager.unlock();
             }
         };
 
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [unlockConversation, lockedWebsiteId, handleUnlockWebsite]);
+    }, [lockManager]);
 
     const resetView = () => {
         // Reset to grid center positioned at screen center
@@ -338,36 +312,30 @@ const HexagonalMessageGrid = () => {
             zoom: 1
         };
         animationManager.current.setViewState(centeredViewState);
-        // Clear locked conversation with error handling
-        try {
-            if (conversationState && typeof conversationState.unlock === 'function') {
-                conversationState.unlock();
-            }
-        } catch (error) {
-            console.error('Error during unlock in resetView:', error);
-        }
+        // Clear locked state
+        lockManager.unlock();
     };
 
 
     // Initialize mouse interaction handlers
     const { handleMouseDown, handleCanvasClick, handleCanvasWheel } = useMouseInteraction({
-        conversationState,
+        conversationState: lockManager,
         dragGhost,
         animationManager,
-        unlockConversation,
+        unlockConversation: lockManager.unlock,
         setIsDragging,
         setLastMouse,
         setStartMousePos,
         dragRef,
-        lockedWebsiteId,
-        handleUnlockWebsite
+        lockedWebsiteId: lockManager.isWebsiteMode ? lockManager.lockedTarget : null,
+        handleUnlockWebsite: lockManager.unlock
     });
 
     const handleMouseMove = (e) => {
         setMousePos({ x: e.clientX, y: e.clientY });
 
         // Calculate grid selection position using tile manager
-        if (typeof window !== 'undefined' && !isDragging && !conversationState.isLocked) {
+        if (typeof window !== 'undefined' && !isDragging && !lockManager.isLocked) {
             const rect = containerRef.current?.getBoundingClientRect();
             if (rect) {
                 // Convert screen coordinates to world coordinates in 3D space
@@ -404,11 +372,12 @@ const HexagonalMessageGrid = () => {
         const deltaX = e.clientX - lastMouse.x;
         const deltaY = e.clientY - lastMouse.y;
 
-        if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+        // Only mark as drag if actively dragging AND moved significantly
+        if (isDragging && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
             dragRef.current = true;
         }
 
-        if (conversationState.isLocked) {
+        if (lockManager.isLocked) {
             animationManager.current.updatePosition(0, deltaY);
             animationManager.current.setInitialVelocity(0, deltaY * 0.3);
         } else {
@@ -421,6 +390,8 @@ const HexagonalMessageGrid = () => {
 
     const handleMouseUp = (e) => {
         setIsDragging(false);
+        // CRITICAL: Reset dragRef so tiles can be clicked again
+        dragRef.current = false;
     };
 
     const handleContextMenu = useCallback((e) => {
@@ -587,23 +558,8 @@ const HexagonalMessageGrid = () => {
     }, []);
 
     const handleLockToWebsite = useCallback((websiteId, q, r) => {
-        console.log(`Locking to website ${websiteId} at (${q}, ${r})`);
-        setLockedWebsiteId(websiteId);
-        
-        // Get the pixel position of the website tile
-        const tileCenter = hexToPixel(q, r);
-        const zoom = 1.8;
-        
-        // Calculate view position to center this tile (same formula as conversation locking)
-        const newX = screenCenter.x - (tileCenter.x * zoom);
-        const newY = screenCenter.y - (tileCenter.y * zoom);
-        
-        animationManager.current.setViewState({
-            x: newX,
-            y: newY,
-            zoom: zoom
-        });
-    }, [screenCenter, hexToPixel]);
+        lockManager.lockToWebsite(websiteId, q, r);
+    }, [lockManager]);
 
     // Track mouse position for drag silhouette
     useEffect(() => {
@@ -646,7 +602,7 @@ const HexagonalMessageGrid = () => {
         const handleWheelEvent = (e) => {
             e.preventDefault();
 
-            if (conversationState.isLocked) {
+            if (lockManager.isLocked) {
                 const deltaY = e.deltaY * 2;
                 animationManager.current.updatePosition(0, -deltaY);
             } else {
@@ -660,7 +616,7 @@ const HexagonalMessageGrid = () => {
 
         container.addEventListener('wheel', handleWheelEvent, { passive: false });
         return () => container.removeEventListener('wheel', handleWheelEvent);
-    }, [conversationState.isLocked, viewState.zoom, mousePos.x, mousePos.y, screenCenter]);
+    }, [lockManager.isLocked, viewState.zoom, mousePos.x, mousePos.y, screenCenter]);
 
 
     const handleZoomSlider = (e) => {
@@ -817,9 +773,9 @@ const HexagonalMessageGrid = () => {
                     viewState={viewState}
                     hexSize={hexSize}
                     gridSelection={gridSelection}
-                    conversationState={conversationState}
+                    conversationState={lockManager}
                     inputState={inputState}
-                    lockedWebsiteId={lockedWebsiteId}
+                    lockedWebsiteId={lockManager.isWebsiteMode ? lockManager.lockedTarget : null}
                     dragRef={dragRef}
                     dragGhost={dragGhost}
                     websiteHover={websiteHover}
@@ -855,8 +811,8 @@ const HexagonalMessageGrid = () => {
             />
 
             <Controls
-                isLocked={conversationState.isLocked}
-                isWebsiteLocked={!!lockedWebsiteId}
+                isLocked={lockManager.isConversationMode}
+                isWebsiteLocked={lockManager.isWebsiteMode}
                 viewState={viewState}
                 screenCenter={screenCenter}
                 animationManager={animationManager}
@@ -865,7 +821,7 @@ const HexagonalMessageGrid = () => {
                 onResetView={resetView}
             />
 
-            <Instructions isLocked={conversationState.isLocked} />
+            <Instructions isLocked={lockManager.isLocked} />
             
             {/* Video Indicator - Non-scalable UI */}
             {showVideoIndicator && videoInfo && (

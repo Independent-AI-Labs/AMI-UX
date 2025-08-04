@@ -46,12 +46,25 @@ const HexWebsite = React.memo(({
 
     const handleClick = useCallback((e) => {
         e.stopPropagation();
-        console.log('Website tile clicked:', website.id);
-        if (!isLocked && !isWebsiteLocked && !dragRef.current) {
-            // Lock to this specific website
-            onLockToWebsite(website.id, position.q, position.r);
+        console.log('Website tile clicked:', website.id, 'dragRef:', dragRef.current, 'isWebsiteLocked:', isWebsiteLocked);
+        
+        // Don't do anything if dragging
+        if (dragRef.current) {
+            console.log('Click blocked by dragRef');
+            // Force reset dragRef on click to prevent stuck state
+            dragRef.current = false;
+            return;
         }
-    }, [isLocked, isWebsiteLocked, dragRef, onLockToWebsite, website.id, position.q, position.r]);
+        
+        // Lock to this website if not already locked
+        // The unified lock state will handle unlocking conversations automatically
+        if (!isWebsiteLocked) {
+            console.log('Calling onLockToWebsite for:', website.id);
+            onLockToWebsite(website.id, position.q, position.r);
+        } else {
+            console.log('Website already locked');
+        }
+    }, [isWebsiteLocked, dragRef, onLockToWebsite, website.id, position.q, position.r]);
 
     const handleDoubleClick = useCallback((e) => {
         e.stopPropagation();
@@ -369,16 +382,6 @@ const HexWebsite = React.memo(({
                             {/* Website Content */}
                             <div 
                                 className="hex-website-content"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    // In locked mode, single click expands
-                                    if (isWebsiteLocked) {
-                                        handleDoubleClick(e);
-                                    } else {
-                                        // Otherwise, lock to this website first
-                                        handleClick(e);
-                                    }
-                                }}
                                 style={{ cursor: 'pointer' }}
                             >
                                 {isLoading && (

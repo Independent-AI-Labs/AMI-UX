@@ -72,9 +72,9 @@ export function useWorkspaceState() {
     return {
         isFree: isWorkspaceFree,
         isDragging,
-        enterWorkspace: () => dispatch(StateActions.enterWorkspace),
+        enterWorkspace: () => dispatch(StateActions.enterWorkspace()),
         startDragging: (pos) => dispatch(StateActions.startDragging(pos)),
-        stopDragging: () => dispatch(StateActions.stopDragging)
+        stopDragging: () => dispatch(StateActions.stopDragging())
     };
 }
 
@@ -85,7 +85,7 @@ export function useConversationState() {
         isLocked: isConversationLocked,
         conversationId,
         lock: (convId, msgId) => dispatch(StateActions.lockToConversation(convId, msgId)),
-        unlock: () => dispatch(StateActions.unlockConversation),
+        unlock: () => dispatch(StateActions.unlockConversation()),
         startTransition: (convId, pos) => dispatch(StateActions.startConversationTransition(convId, pos))
     };
 }
@@ -109,7 +109,7 @@ export function useContextMenuState() {
         position: stateData.position,
         options: stateData.options,
         open: (pos, opts) => dispatch(StateActions.openContextMenu(pos, opts)),
-        close: () => dispatch(StateActions.closeContextMenu)
+        close: () => dispatch(StateActions.closeContextMenu())
     };
 }
 

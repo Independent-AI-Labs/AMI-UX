@@ -162,15 +162,16 @@ export const useConversationLogic = ({
             
             // Find the conversation column (even number) that this message belongs to
             const conversationQ = Math.floor(q / 2) * 2;
-            const conversationCenter = hexToPixel(conversationQ + 0.5, r); // Center between the two columns
             
             // Lock conversation using state manager
             conversationState.lock(conversationId, messageId);
             
-            const worldTargetX = conversationCenter.x;
-            const worldTargetY = clickedHexCenter.y;
-            const newX = screenCenter.x - (worldTargetX * zoom);
-            const newY = screenCenter.y - (worldTargetY * zoom);
+            // Center the conversation horizontally, keep clicked row vertically centered
+            const conversationCenterX = hexToPixel(conversationQ + 0.5, 0).x; // Center between the two columns
+            const clickedCenterY = hexToPixel(0, r).y; // Keep the clicked row's Y position
+            
+            const newX = screenCenter.x - (conversationCenterX * zoom);
+            const newY = screenCenter.y - (clickedCenterY * zoom);
 
             animationManager.current.setViewState({
                 x: newX,
