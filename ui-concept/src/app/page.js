@@ -10,7 +10,7 @@ import { useMouseInteraction } from './hooks/useMouseInteraction';
 import { useConversationLogic } from './hooks/useConversationLogic';
 import { useLockManager } from './hooks/useLockManager';
 import Controls from './components/Controls';
-import ZoomSlider from './components/ZoomSlider';
+import BottomBar from './components/BottomBar';
 import Instructions from './components/Instructions';
 import HexagonSVG from './components/HexagonSVG';
 import VideoBackdrop from './components/VideoBackdrop';
@@ -637,12 +637,6 @@ const HexagonalMessageGrid = () => {
     }, [lockManager.isLocked, viewState.zoom, screenCenter]);
 
 
-    const handleZoomSlider = (e) => {
-        const newZoom = parseFloat(e.target.value);
-        const centerX = screenCenter.x;
-        const centerY = screenCenter.y;
-        animationManager.current.setZoom(newZoom, centerX, centerY, screenCenter);
-    };
 
     const handleSend = () => {
         if (!inputText.trim()) return;
@@ -825,9 +819,9 @@ const HexagonalMessageGrid = () => {
                 />
             </div>
 
-            <ZoomSlider
-                viewState={viewState}
-                onZoomSliderChange={handleZoomSlider}
+            <BottomBar
+                isLocked={lockManager.isLocked}
+                isWebsiteLocked={lockManager.isWebsiteMode}
             />
 
             <Controls
