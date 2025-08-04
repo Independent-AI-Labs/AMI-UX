@@ -94,6 +94,7 @@ const HexInput = React.memo(({
                 x={x}
                 y={y}
                 hexSize={hexSize}
+                className="animate-fade-in hex-with-backdrop"
                 onDoubleClick={handleDoubleClick}
             >
                 {useLoD ? (

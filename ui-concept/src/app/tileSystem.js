@@ -130,25 +130,44 @@ export class TileGrid {
         return !occupiedPairs.has(startQ);
     }
 
-    // Calculate next position in conversation for new data tile
+    // Calculate next position in conversation for new data tile (or input)
     getNextConversationPosition(conversationId) {
         const tiles = this.getConversationTiles(conversationId);
-        if (tiles.length === 0) return null;
+        console.log('getNextConversationPosition - tiles for conversation', conversationId, ':', tiles);
+        if (tiles.length === 0) {
+            console.log('No tiles found for conversation');
+            return null;
+        }
         
-        // Get conversation start position
-        const firstTile = tiles[0];
-        const startQ = Math.floor(firstTile.position.q / 2) * 2;
-        const startR = firstTile.position.r;
+        // Sort tiles by position (r first, then q) to find the actual last message
+        const sortedTiles = tiles.sort((a, b) => {
+            if (a.position.r !== b.position.r) return a.position.r - b.position.r;
+            return a.position.q - b.position.q;
+        });
         
-        // Calculate next position based on tile count
-        const tileCount = tiles.length;
-        const isLeft = tileCount % 2 === 0;
-        const rowOffset = Math.floor(tileCount / 2);
+        // Get the last tile's position
+        const lastTile = sortedTiles[sortedTiles.length - 1];
+        const firstTile = sortedTiles[0];
         
-        return {
-            q: startQ + (isLeft ? 0 : 1),
-            r: startR + rowOffset
+        // Find the actual left and right columns being used
+        const qValues = [...new Set(tiles.map(t => t.position.q))].sort((a, b) => a - b);
+        const leftQ = qValues[0];  // The actual left column
+        const rightQ = qValues.length > 1 ? qValues[1] : leftQ + 1;  // The actual right column
+        
+        console.log('Last tile:', lastTile.position, 'First tile:', firstTile.position, 'Columns:', leftQ, rightQ);
+        
+        // Input should be placed at the NEXT position after all messages
+        // Following the same alternating left-right pattern
+        const nextIndex = tiles.length;  // This is the index for the next tile
+        const isLeft = nextIndex % 2 === 0;  // Even index goes on left
+        const rowOffset = Math.floor(nextIndex / 2);  // Row increases every 2 tiles
+        
+        let result = {
+            q: isLeft ? leftQ : rightQ,
+            r: firstTile.position.r + rowOffset
         };
+        console.log('Calculated input position:', result);
+        return result;
     }
 
     // Get all tiles for rendering

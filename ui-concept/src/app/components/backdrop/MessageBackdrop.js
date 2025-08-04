@@ -7,7 +7,9 @@ const MessageBackdrop = ({
     viewState, 
     hexSize, 
     hexToPixel, 
-    getMessagePosition 
+    getMessagePosition,
+    showInput = false,
+    inputPosition = null
 }) => {
     return (
         <div style={{
@@ -50,6 +52,26 @@ const MessageBackdrop = ({
                     />
                 );
             })}
+            
+            {/* Input tile backdrop */}
+            {showInput && inputPosition && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        left: hexToPixel(inputPosition.q, inputPosition.r).x - hexSize,
+                        top: hexToPixel(inputPosition.q, inputPosition.r).y - hexSize,
+                        width: hexSize * 2,
+                        height: hexSize * 2 * Math.sqrt(3) / 2,
+                        clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+                        background: 'rgba(200, 230, 255, 0.4)',
+                        backdropFilter: 'blur(12px) saturate(180%)',
+                        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+                        boxShadow: '0 0.5rem 2rem rgba(0, 0, 0, 0.4)',
+                        zIndex: 10,
+                        pointerEvents: 'none'
+                    }}
+                />
+            )}
         </div>
     );
 };

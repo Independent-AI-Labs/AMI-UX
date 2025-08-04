@@ -214,12 +214,15 @@ const HexagonalMessageGrid = () => {
         // Remove existing input UI tile
         const existingInput = Array.from(tileGrid.uiTiles.values()).find(tile => tile.type === 'input');
         if (existingInput) {
+            console.log('Removing existing input tile:', existingInput.id);
             tileGrid.removeTile(existingInput.id);
         }
         
         // Add input UI tile if conversation is locked
         if (lockManager.isConversationMode && lockManager.lockedTarget) {
+            console.log('Adding input tile for conversation:', lockManager.lockedTarget);
             const inputPosition = tileGrid.getNextConversationPosition(lockManager.lockedTarget);
+            console.log('Calculated input position:', inputPosition);
             if (inputPosition) {
                 const inputTile = new UITile(
                     'input_' + lockManager.lockedTarget,
@@ -228,7 +231,15 @@ const HexagonalMessageGrid = () => {
                     { conversationId: lockManager.lockedTarget }
                 );
                 tileGrid.addUITile(inputTile);
+                console.log('Added input tile:', inputTile);
+            } else {
+                console.log('No input position calculated!');
             }
+        } else {
+            console.log('Not in conversation mode or no locked target:', {
+                isConversationMode: lockManager.isConversationMode,
+                lockedTarget: lockManager.lockedTarget
+            });
         }
     }, [lockManager.isConversationMode, lockManager.lockedTarget]);
     
@@ -772,6 +783,8 @@ const HexagonalMessageGrid = () => {
                     hexSize={hexSize}
                     hexToPixel={hexToPixel}
                     getMessagePosition={getMessagePosition}
+                    showInput={lockManager.isConversationMode && !isTyping}
+                    inputPosition={lockManager.isConversationMode && !isTyping ? getInputPosition() : null}
                 />
                 <HexagonalGrid
                     messages={messages}
