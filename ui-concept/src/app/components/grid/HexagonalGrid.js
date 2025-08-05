@@ -43,7 +43,9 @@ const HexagonalGrid = ({
     inputText,
     setInputText,
     handleSend,
-    handleExpandInput
+    handleExpandInput,
+    setHoveredMessageId,
+    markdownRenderKey
 }) => {
     // Content layer - handles its own interactions
     return (
@@ -90,6 +92,9 @@ const HexagonalGrid = ({
                         index={index}
                         zoom={viewState.zoom}
                         lodState={lodState}
+                        onMouseEnter={() => setHoveredMessageId(message.id)}
+                        onMouseLeave={() => setHoveredMessageId(null)}
+                        markdownRenderKey={markdownRenderKey}
                     />
                 );
             })}

@@ -1,13 +1,18 @@
 /* Hexagon Background - Optimized */
+/* Apply hover to the hexagon wrapper itself for background tiles */
 .hex-background {
     background: rgba(255, 255, 255, 0.02);
     border: none;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
     /* No box-shadow for empty hexes */
+    /* Force hardware acceleration */
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .hex-background:hover {
     background: rgba(255, 255, 255, 0.03);
+    transform: scale(1.05) translateZ(0);
 }
 
 /* Hexagon with backdrop filter - remove CSS rules, use only inline styles */
@@ -69,12 +74,10 @@
 
 .hex-message:hover {
     /* Background removed - using parent's backdrop-filter */
-    box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.5);
 }
 
 .hex-message:not(.in-locked-mode):hover {
-    transform: scale(1.02) translateY(-0.1875rem) translateZ(0); /* Combined transforms with hardware acceleration */
-    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6);
+    /* Removed transform - let parent handle it */
 }
 
 /* Parallax zoom effect - content zooms more than hex container */
@@ -125,6 +128,24 @@
 .grid-selection {
     background: rgba(255, 255, 255, 0.04);
     z-index: 5; /* Above background, below messages */
+    transition: transform 0.2s ease;
+    transform: scale(1) translateZ(0);
+}
+
+/* Since grid-selection appears on hover, it should scale up immediately */
+.grid-selection {
+    transform: scale(1.05) translateZ(0);
+}
+
+/* Message backdrop hexagons should scale when message is hovered */
+/* Since backdrops have pointer-events: none, we need a different approach */
+.message-backdrop-hex {
+    will-change: transform;
+}
+
+/* When a hex message is hovered, scale its corresponding backdrop */
+.hex-message:hover ~ .message-backdrop-hex {
+    transform: scale(1.05) !important;
 }
 
 /* LoD-aware animation speed */
@@ -138,6 +159,7 @@
 .lod-hex-wrapper:has(.hex-with-backdrop) {
     mix-blend-mode: normal !important;
 }
+
 
 /* Enhanced content styling for DETAIL zoom level */
 .enhanced-content {

@@ -9,7 +9,8 @@ const MessageContent = ({
     showTimestamps = true,
     showAvatars = true,
     onCopyMessage,
-    size = 'normal' // normal, expanded
+    size = 'normal', // normal, expanded
+    markdownRenderKey = 0
 }) => {
     const [isMounted, setIsMounted] = useState(false);
     const [hasScrollbar, setHasScrollbar] = useState(false);
@@ -23,7 +24,8 @@ const MessageContent = ({
         setIsMounted(true);
     }, []);
     
-    const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text]);
+    // Re-render markdown when markdownRenderKey changes (forces re-render after zoom)
+    const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text, markdownRenderKey]);
     
     // Check for scrollbar after content renders
     useEffect(() => {
@@ -39,8 +41,11 @@ const MessageContent = ({
         return () => clearTimeout(timeout);
     }, [renderedText, isLocked, size]);
 
-    // Touch/mouse drag scrolling for markdown content
+    // Touch/mouse drag scrolling for markdown content - DISABLED when locked
     const handlePointerDown = (e) => {
+        // Disable drag scrolling entirely when locked
+        return;
+        
         if (!isLocked || size !== 'normal') return;
         
         const content = contentRef.current;
@@ -168,10 +173,8 @@ const MessageContent = ({
                 className="hex-content"
                 onPointerDown={handlePointerDown}
                 style={{
-                    cursor: isLocked && size === 'normal' && hasScrollbar 
-                        ? (isDragging ? 'grabbing' : 'grab') 
-                        : 'default',
-                    userSelect: isDragging ? 'none' : 'text'
+                    cursor: 'auto', // Let child elements control cursor
+                    userSelect: 'text'
                 }}
             >
                 <div

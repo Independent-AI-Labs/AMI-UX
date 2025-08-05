@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 
-const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick, onDoubleClick, onWheel, style }) => {
+const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick, onDoubleClick, onWheel, onMouseEnter, onMouseLeave, style }) => {
     const hexWidth = hexSize * 2;
     const hexHeight = Math.sqrt(3) * hexSize;
 
@@ -35,6 +35,8 @@ const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick,
             onClick={onClick}
             onDoubleClick={onDoubleClick}
             onWheel={handleWheel}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
         >
             {children}
         </div>

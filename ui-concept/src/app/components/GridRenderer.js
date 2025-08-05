@@ -37,7 +37,7 @@ const GridRenderer = ({ viewState }) => {
         }
         
         return allPositions;
-    }, [viewState.zoom]); // Only recalculate when zoom changes (for occupied tiles)
+    }, []); // Grid positions don't change, only their rendering does
     
     return (
         <div 
@@ -59,13 +59,13 @@ const GridRenderer = ({ viewState }) => {
                         className="grid-hex"
                         style={{
                             position: 'absolute',
-                            left: hex.worldX - 1,
-                            top: hex.worldY - 1,
-                            width: 2,
-                            height: 2,
+                            left: hex.worldX,
+                            top: hex.worldY,
+                            width: 2 / viewState.zoom,
+                            height: 2 / viewState.zoom,
                             backgroundColor: 'rgba(255, 255, 255, 0.25)',
                             borderRadius: '50%',
-                            transform: 'translateZ(0)', // Force hardware acceleration
+                            transform: `translate(-${1 / viewState.zoom}px, -${1 / viewState.zoom}px) translateZ(0)`,
                             willChange: 'transform'
                         }}
                     />
