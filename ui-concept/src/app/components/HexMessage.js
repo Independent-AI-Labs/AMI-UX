@@ -16,7 +16,10 @@ const HexMessage = React.memo(({
     renderMarkdown,
     index,
     zoom,
-    lodState
+    lodState,
+    onMouseEnter,
+    onMouseLeave,
+    markdownRenderKey
 }) => {
     const { x, y } = position;
 
@@ -43,7 +46,8 @@ const HexMessage = React.memo(({
         animationDelay: `${index * 200}ms` 
     }), [index]);
 
-    const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text]);
+    // Remove memoization to allow re-rendering on zoom complete
+    // const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text]);
     
     // Use LoD system to determine detail level
     const useLoD = lodState?.zoom.config.showContent === 'placeholder';
@@ -65,6 +69,8 @@ const HexMessage = React.memo(({
                 }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
+                onMouseEnter={onMouseEnter}
+                onMouseLeave={onMouseLeave}
             >
                 <HexMessageTransition
                     message={message}
@@ -74,6 +80,7 @@ const HexMessage = React.memo(({
                     onCopyMessage={onCopyMessage}
                     onCloseExpanded={onCloseExpanded}
                     lodState={lodState}
+                    markdownRenderKey={markdownRenderKey}
                 />
             </Hexagon>
         </LoDHexWrapper>

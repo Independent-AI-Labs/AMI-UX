@@ -71,6 +71,8 @@ const HexagonalMessageGrid = () => {
     const [gridSelection, setGridSelection] = useState({ visible: false, x: 0, y: 0 });
     const [currentHexCoords, setCurrentHexCoords] = useState({ q: 0, r: 0 });
     const [rightClickHexCoords, setRightClickHexCoords] = useState({ q: 0, r: 0 });
+    const [hoveredMessageId, setHoveredMessageId] = useState(null);
+    const [markdownRenderKey, setMarkdownRenderKey] = useState(0); // Force markdown re-render
     
     // LoD system state
     const [lodState, setLodState] = useState(null);
@@ -146,6 +148,12 @@ const HexagonalMessageGrid = () => {
             // Update LoD system when zoom changes
             lodManager.updateZoom(newViewState.zoom);
         });
+        
+        // Set animation completion callback to re-render markdown
+        animationManager.current.onAnimationComplete = () => {
+            // Force markdown re-render by incrementing key
+            setMarkdownRenderKey(prev => prev + 1);
+        };
         
         // No bounds needed anymore
         
@@ -680,8 +688,9 @@ const HexagonalMessageGrid = () => {
     }, []);
     
     const renderMarkdownMemo = useCallback((text) => {
+        // Include markdownRenderKey to force re-render when it changes
         return renderMarkdown(text);
-    }, []);
+    }, [markdownRenderKey]);
     
     // Handle video backdrop changes
     const handleVideoChange = useCallback((info) => {
@@ -785,11 +794,13 @@ const HexagonalMessageGrid = () => {
                     getMessagePosition={getMessagePosition}
                     showInput={lockManager.isConversationMode && !isTyping}
                     inputPosition={lockManager.isConversationMode && !isTyping ? getInputPosition() : null}
+                    hoveredMessageId={hoveredMessageId}
                 />
                 <HexagonalGrid
                     messages={messages}
                     websites={websites}
                     isTyping={isTyping}
+                    setHoveredMessageId={setHoveredMessageId}
                     viewState={viewState}
                     hexSize={hexSize}
                     gridSelection={gridSelection}
@@ -822,6 +833,7 @@ const HexagonalMessageGrid = () => {
                     setInputText={setInputText}
                     handleSend={handleSend}
                     handleExpandInput={handleExpandInput}
+                    markdownRenderKey={markdownRenderKey}
                 />
             </div>
 

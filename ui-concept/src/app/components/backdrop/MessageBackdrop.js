@@ -9,7 +9,8 @@ const MessageBackdrop = ({
     hexToPixel, 
     getMessagePosition,
     showInput = false,
-    inputPosition = null
+    inputPosition = null,
+    hoveredMessageId = null
 }) => {
     return (
         <div style={{
@@ -35,6 +36,7 @@ const MessageBackdrop = ({
                 return (
                     <div
                         key={`backdrop-${message.id}`}
+                        className="message-backdrop-hex"
                         style={{
                             position: 'absolute',
                             left: transformedX,
@@ -47,7 +49,10 @@ const MessageBackdrop = ({
                             WebkitBackdropFilter: 'blur(12px) saturate(180%)',
                             boxShadow: '0 0.5rem 2rem rgba(0, 0, 0, 0.4)',
                             zIndex: 10,
-                            pointerEvents: 'none'
+                            pointerEvents: 'none',
+                            transition: 'transform 0.2s ease',
+                            transform: hoveredMessageId === message.id ? 'scale(1.05)' : 'scale(1)',
+                            transformOrigin: 'center center'
                         }}
                     />
                 );
