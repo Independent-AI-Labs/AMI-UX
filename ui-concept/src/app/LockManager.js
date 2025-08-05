@@ -248,11 +248,10 @@ class LockManager {
             if (this.viewManagers.animation?.current && this.viewManagers.hexToPixel && this.viewManagers.screenCenter) {
                 const zoom = 1.8;
                 
-                // Find the conversation column pair based on conversationId
-                // Conversations are in pairs: (0,1), (2,3), (4,5), etc.
-                // The conversationId pattern is typically "conv_X" where X is the pair index
-                const pairIndex = parseInt(conversationId.replace('conv_', ''));
-                const leftColumnQ = pairIndex * 2;
+                // Find the conversation column pair based on the clicked position
+                // Conversations occupy pairs of columns: (0,1), (2,3), (4,5), etc.
+                // Given a column q, find which pair it belongs to
+                const leftColumnQ = Math.floor(q / 2) * 2;
                 const rightColumnQ = leftColumnQ + 1;
                 
                 // Center at midpoint between the two columns
@@ -264,12 +263,12 @@ class LockManager {
                 const clickedCenterY = this.viewManagers.hexToPixel(q, r).y;
                 
                 console.log('LockManager centering:', {
-                    conversationId,
-                    pairIndex,
+                    clickedQ: q,
+                    clickedR: r,
                     leftColumnQ,
                     rightColumnQ,
                     conversationCenterX,
-                    clickedRow: r
+                    clickedCenterY
                 });
                 
                 const newX = this.viewManagers.screenCenter.x - (conversationCenterX * zoom);
