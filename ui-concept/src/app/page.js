@@ -72,7 +72,6 @@ const HexagonalMessageGrid = () => {
     const [currentHexCoords, setCurrentHexCoords] = useState({ q: 0, r: 0 });
     const [rightClickHexCoords, setRightClickHexCoords] = useState({ q: 0, r: 0 });
     const [hoveredMessageId, setHoveredMessageId] = useState(null);
-    const [markdownRenderKey, setMarkdownRenderKey] = useState(0); // Force markdown re-render
     
     // LoD system state
     const [lodState, setLodState] = useState(null);
@@ -148,12 +147,6 @@ const HexagonalMessageGrid = () => {
             // Update LoD system when zoom changes
             lodManager.updateZoom(newViewState.zoom);
         });
-        
-        // Set animation completion callback to re-render markdown
-        animationManager.current.onAnimationComplete = () => {
-            // Force markdown re-render by incrementing key
-            setMarkdownRenderKey(prev => prev + 1);
-        };
         
         // No bounds needed anymore
         
@@ -688,9 +681,8 @@ const HexagonalMessageGrid = () => {
     }, []);
     
     const renderMarkdownMemo = useCallback((text) => {
-        // Include markdownRenderKey to force re-render when it changes
         return renderMarkdown(text);
-    }, [markdownRenderKey]);
+    }, []);
     
     // Handle video backdrop changes
     const handleVideoChange = useCallback((info) => {
@@ -833,7 +825,6 @@ const HexagonalMessageGrid = () => {
                     setInputText={setInputText}
                     handleSend={handleSend}
                     handleExpandInput={handleExpandInput}
-                    markdownRenderKey={markdownRenderKey}
                 />
             </div>
 

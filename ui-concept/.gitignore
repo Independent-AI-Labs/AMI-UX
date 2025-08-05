@@ -43,3 +43,8 @@ next-env.d.ts
 *commit_message*
 *COMMIT_MESSAGE*
 *.mp4
+
+# Server management files
+dev-server.pid
+dev-server.log
+dev-server-error.log

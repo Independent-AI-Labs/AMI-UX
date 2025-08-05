@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Hexagon from './Hexagon';
 import HexMessageTransition from './HexMessageTransition';
 import { LoDHexWrapper } from './LoD';
@@ -18,8 +18,7 @@ const HexMessage = React.memo(({
     zoom,
     lodState,
     onMouseEnter,
-    onMouseLeave,
-    markdownRenderKey
+    onMouseLeave
 }) => {
     const { x, y } = position;
 
@@ -45,6 +44,19 @@ const HexMessage = React.memo(({
     const animationStyle = useMemo(() => ({ 
         animationDelay: `${index * 200}ms` 
     }), [index]);
+    
+    // Track hover state locally to control z-index
+    const [isHovered, setIsHovered] = useState(false);
+    
+    const handleMouseEnter = useCallback(() => {
+        setIsHovered(true);
+        if (onMouseEnter) onMouseEnter();
+    }, [onMouseEnter]);
+    
+    const handleMouseLeave = useCallback(() => {
+        setIsHovered(false);
+        if (onMouseLeave) onMouseLeave();
+    }, [onMouseLeave]);
 
     // Remove memoization to allow re-rendering on zoom complete
     // const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text]);
@@ -64,13 +76,14 @@ const HexMessage = React.memo(({
                 hexSize={hexSize}
                 className={`animate-fade-in hex-with-backdrop ${message.sender === 'user' ? 'hex-user' : ''}`}
                 style={{
-                    ...animationStyle
+                    ...animationStyle,
+                    zIndex: isHovered ? 2000 : 1000
                     // Background and backdrop now handled by separate layer outside transform
                 }}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
-                onMouseEnter={onMouseEnter}
-                onMouseLeave={onMouseLeave}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
             >
                 <HexMessageTransition
                     message={message}
@@ -80,7 +93,6 @@ const HexMessage = React.memo(({
                     onCopyMessage={onCopyMessage}
                     onCloseExpanded={onCloseExpanded}
                     lodState={lodState}
-                    markdownRenderKey={markdownRenderKey}
                 />
             </Hexagon>
         </LoDHexWrapper>

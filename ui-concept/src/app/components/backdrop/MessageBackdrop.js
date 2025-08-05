@@ -48,9 +48,9 @@ const MessageBackdrop = ({
                             backdropFilter: 'blur(12px) saturate(180%)',
                             WebkitBackdropFilter: 'blur(12px) saturate(180%)',
                             boxShadow: '0 0.5rem 2rem rgba(0, 0, 0, 0.4)',
-                            zIndex: 10,
+                            zIndex: hoveredMessageId === message.id ? 1500 : 10,
                             pointerEvents: 'none',
-                            transition: 'transform 0.2s ease',
+                            transition: 'transform 0.2s ease, z-index 0s',
                             transform: hoveredMessageId === message.id ? 'scale(1.05)' : 'scale(1)',
                             transformOrigin: 'center center'
                         }}
