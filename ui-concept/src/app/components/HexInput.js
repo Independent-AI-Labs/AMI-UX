@@ -7,6 +7,7 @@ import { LoDHexWrapper } from './LoD';
 const HexInput = React.memo(({ 
     position, 
     hexSize, 
+    isDragging,
     inputRef, 
     inputText, 
     onInputChange, 
@@ -96,6 +97,9 @@ const HexInput = React.memo(({
                 hexSize={hexSize}
                 className="animate-fade-in hex-with-backdrop"
                 onDoubleClick={handleDoubleClick}
+                style={{
+                    pointerEvents: isDragging ? 'none' : 'auto'
+                }}
             >
                 {useLoD ? (
                     <HexInputLoD />

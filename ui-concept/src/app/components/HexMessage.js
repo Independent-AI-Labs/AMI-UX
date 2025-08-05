@@ -8,6 +8,7 @@ const HexMessage = React.memo(({
     position, 
     hexSize, 
     isLocked, 
+    isDragging,
     dragRef, 
     onLockToConversation,
     onExpandMessage,
@@ -77,7 +78,8 @@ const HexMessage = React.memo(({
                 className={`animate-fade-in hex-with-backdrop ${message.sender === 'user' ? 'hex-user' : ''}`}
                 style={{
                     ...animationStyle,
-                    zIndex: isHovered ? 2000 : 1000
+                    zIndex: isHovered ? 2000 : 1000,
+                    pointerEvents: isDragging ? 'none' : 'auto'
                     // Background and backdrop now handled by separate layer outside transform
                 }}
                 onClick={handleClick}

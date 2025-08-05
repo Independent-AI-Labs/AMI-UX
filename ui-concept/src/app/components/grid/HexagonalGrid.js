@@ -18,6 +18,7 @@ const HexagonalGrid = ({
     conversationState,
     inputState,
     lockedWebsiteId,
+    isDragging,
     dragRef,
     dragGhost,
     websiteHover,
@@ -51,8 +52,8 @@ const HexagonalGrid = ({
         <div
             className="absolute inset-0"
             style={{
-                // Let individual elements handle pointer events
-                pointerEvents: 'none',
+                // Let individual elements handle pointer events, but disable during drag
+                pointerEvents: isDragging ? 'none' : 'none',
                 zIndex: 10 // Ensure content is above background grid dots
             }}
         >
@@ -82,6 +83,7 @@ const HexagonalGrid = ({
                         position={{ ...position, ...pixelPosition }}
                         hexSize={hexSize}
                         isLocked={conversationState.isConversationMode}
+                        isDragging={isDragging}
                         dragRef={dragRef}
                         onLockToConversation={(q, r) => lockToConversation(q, r, message.id)}
                         onExpandMessage={handleExpandMessage}
@@ -110,6 +112,7 @@ const HexagonalGrid = ({
                         hexSize={hexSize}
                         isLocked={conversationState.isConversationMode}
                         isWebsiteLocked={conversationState.isWebsiteMode && conversationState.lockedTarget === website.id}
+                        isPanDragging={isDragging}
                         dragRef={dragRef}
                         onLockToConversation={() => {/* Websites don't lock to conversations */}}
                         onLockToWebsite={handleLockToWebsite}
@@ -180,6 +183,7 @@ const HexagonalGrid = ({
                                 ...inputPixelPos
                             }}
                             hexSize={hexSize}
+                            isDragging={isDragging}
                             inputRef={inputRef}
                             inputText={inputText}
                             onInputChange={setInputText}

@@ -799,6 +799,7 @@ const HexagonalMessageGrid = () => {
                     conversationState={lockManager}
                     inputState={inputState}
                     lockedWebsiteId={lockManager.isWebsiteMode ? lockManager.lockedTarget : null}
+                    isDragging={isDragging}
                     dragRef={dragRef}
                     dragGhost={dragGhost}
                     websiteHover={websiteHover}

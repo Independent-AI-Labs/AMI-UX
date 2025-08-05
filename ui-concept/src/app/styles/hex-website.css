@@ -8,7 +8,7 @@
     display: flex;
     flex-direction: column;
     padding: 0.5rem;
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
     position: relative;
     overflow: hidden;
     cursor: pointer;
@@ -24,18 +24,10 @@
     border: 0.1875rem solid rgba(59, 130, 246, 0.6) !important;
 }
 
-/* Apply scale to the LoDHexWrapper that contains website tiles */
-.lod-hex-wrapper:has(.hex-website):hover {
+/* Apply scale to hexagon containing website - target parent element */
+.hex-with-backdrop:has(.hex-website):hover {
     transform: scale(1.05);
-    transform-origin: center center;
-    transition: transform 0.3s ease;
-}
-
-/* Fallback for browsers without :has() */
-.lod-hex-wrapper.website-tile:hover {
-    transform: scale(1.05);
-    transform-origin: center center;
-    transition: transform 0.3s ease;
+    z-index: 1500;
 }
 
 .hex-website.in-locked-mode {
