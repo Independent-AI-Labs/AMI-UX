@@ -743,6 +743,9 @@ const HexagonalMessageGrid = () => {
                 </div>
             </div>
             
+            {/* Grid dots in screen space */}
+            <GridRenderer viewState={viewState} />
+            
             {/* Dim overlay for pan interaction - covers viewport */}
             <div
                 ref={containerRef}
@@ -777,7 +780,6 @@ const HexagonalMessageGrid = () => {
             >
                 <BlendModeTest />
                 <HexagonSVG />
-                <GridRenderer viewState={viewState} />
                 <MessageBackdrop
                     messages={messages}
                     viewState={viewState}

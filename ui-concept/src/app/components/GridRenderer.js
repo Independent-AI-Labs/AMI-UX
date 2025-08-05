@@ -4,7 +4,7 @@ import viewportSystem from '../core/ViewportSystem';
 import tileManager from '../tileManager';
 
 /**
- * GridRenderer - Renders the hex grid using unified coordinate system
+ * GridRenderer - Renders the hex grid dots in screen space for constant size
  */
 const GridRenderer = ({ viewState }) => {
     // Update viewport system with current state
@@ -15,62 +15,85 @@ const GridRenderer = ({ viewState }) => {
         }
     }, [viewState]);
     
-    // Get ALL grid positions - memoized for performance
-    const visibleHexes = useMemo(() => {
-        const allPositions = [];
+    // Calculate which grid positions are visible and their screen positions
+    const screenSpaceDots = useMemo(() => {
+        const dots = [];
         
-        // Generate all 32x16 positions
+        // Check if we're on the client side
+        if (typeof window === 'undefined') {
+            return dots;
+        }
+        
+        // Only calculate for hexes that might be visible
+        const screenBounds = {
+            left: -viewState.x / viewState.zoom,
+            top: -viewState.y / viewState.zoom,
+            right: (window.innerWidth - viewState.x) / viewState.zoom,
+            bottom: (window.innerHeight - viewState.y) / viewState.zoom
+        };
+        
+        // Add some padding to ensure smooth appearance at edges
+        const padding = 100 / viewState.zoom;
+        
         for (let q = 0; q < 32; q++) {
             for (let r = 0; r < 16; r++) {
                 if (!tileManager.isTileOccupied(q, r)) {
                     const worldPos = gridSystem.gridToWorld(q, r);
                     
-                    allPositions.push({
-                        id: `grid_hex_${q}_${r}`,
-                        q: q,
-                        r: r,
-                        worldX: worldPos.x,
-                        worldY: worldPos.y
-                    });
+                    // Check if this position is visible
+                    if (worldPos.x >= screenBounds.left - padding && 
+                        worldPos.x <= screenBounds.right + padding &&
+                        worldPos.y >= screenBounds.top - padding && 
+                        worldPos.y <= screenBounds.bottom + padding) {
+                        
+                        // Convert to screen space
+                        const screenX = worldPos.x * viewState.zoom + viewState.x;
+                        const screenY = worldPos.y * viewState.zoom + viewState.y;
+                        
+                        dots.push({
+                            id: `grid_dot_${q}_${r}`,
+                            x: screenX,
+                            y: screenY
+                        });
+                    }
                 }
             }
         }
         
-        return allPositions;
-    }, []); // Grid positions don't change, only their rendering does
+        return dots;
+    }, [viewState.x, viewState.y, viewState.zoom]);
     
     return (
         <div 
             className="grid-renderer"
             style={{
-                position: 'absolute',
+                position: 'fixed',
                 top: 0,
                 left: 0,
                 width: '100%',
                 height: '100%',
                 pointerEvents: 'none',
-                zIndex: 1 // Ensure background dots are behind content
+                zIndex: 1,
+                // Render in screen space, not affected by parent transforms
+                transform: 'none'
             }}
         >
-            {visibleHexes.map(hex => {
-                return (
-                    <div
-                        key={hex.id}
-                        className="grid-hex"
-                        style={{
-                            position: 'absolute',
-                            left: hex.worldX,
-                            top: hex.worldY,
-                            width: 2 / viewState.zoom,
-                            height: 2 / viewState.zoom,
-                            backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                            borderRadius: '50%',
-                            transform: `translate(-${1 / viewState.zoom}px, -${1 / viewState.zoom}px) translateZ(0)`,
-                            willChange: 'transform'
-                        }}
-                    />
-                );
-            })}
+            {screenSpaceDots.map(dot => (
+                <div
+                    key={dot.id}
+                    className="grid-dot"
+                    style={{
+                        position: 'absolute',
+                        left: dot.x - 1,
+                        top: dot.y - 1,
+                        width: 2,
+                        height: 2,
+                        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                        borderRadius: '50%',
+                        willChange: 'transform'
+                    }}
+                />
+            ))}
         </div>
     );
 };
