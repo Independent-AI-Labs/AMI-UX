@@ -15,9 +15,13 @@ class AnimationManager {
     }
 
     start() {
+        console.log('[AnimationManager] start() called');
         if (!this.animationFrameId) {
             this.lastFrameTime = performance.now();
             this.animationFrameId = requestAnimationFrame(this.animate);
+            console.log('[AnimationManager] Animation started');
+        } else {
+            console.log('[AnimationManager] Animation already running');
         }
     }
 
@@ -30,6 +34,7 @@ class AnimationManager {
 
 
     animate(currentTime) {
+        console.log('[AnimationManager] animate() called');
         const deltaTime = currentTime - this.lastFrameTime;
         this.lastFrameTime = currentTime;
 
@@ -40,6 +45,7 @@ class AnimationManager {
         const yDiff = this.targetPosition.y - this.viewState.y;
         
         if (Math.abs(xDiff) > 0.1 || Math.abs(yDiff) > 0.1) {
+            console.log('[AnimationManager] Animating position:', { xDiff, yDiff });
             // Exponential ease-out to target position
             this.viewState.x += xDiff * 0.12;
             this.viewState.y += yDiff * 0.12;
@@ -134,11 +140,11 @@ class AnimationManager {
     }
 
     setLocked(locked) {
+        console.log('[AnimationManager] setLocked called with:', locked);
         this.isLocked = locked;
         if (locked) {
-            this.velocity = { x: 0, y: 0, zoom: 0 }; // Stop any ongoing animation
-            this.targetZoom = this.viewState.zoom; // Stop zoom animation
-            this.stop();
+            this.velocity = { x: 0, y: 0, zoom: 0 }; // Stop any velocity-based movement
+            // Don't stop the animation or reset targets - we want to animate to the locked position
         }
     }
 
@@ -153,6 +159,10 @@ class AnimationManager {
 
     // Method for lockToConversation to animate to new viewState
     setViewState(newViewState) {
+        console.log('[AnimationManager] setViewState called with:', newViewState);
+        console.log('[AnimationManager] Current state:', this.viewState);
+        console.log('[AnimationManager] Current targets:', { x: this.targetPosition.x, y: this.targetPosition.y, zoom: this.targetZoom });
+        
         // Always update target zoom if provided
         if (newViewState.zoom !== undefined) {
             this.targetZoom = newViewState.zoom;
@@ -171,6 +181,8 @@ class AnimationManager {
         if (newViewState.y !== undefined) {
             this.targetPosition.y = newViewState.y;
         }
+        
+        console.log('[AnimationManager] New targets:', { x: this.targetPosition.x, y: this.targetPosition.y, zoom: this.targetZoom });
         
         this.start();
     }
