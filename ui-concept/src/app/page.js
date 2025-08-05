@@ -132,9 +132,6 @@ const HexagonalMessageGrid = () => {
     // Get input position for rendering
     const getInputPosition = useCallback(() => {
         const inputTile = Array.from(tileGrid.uiTiles.values()).find(tile => tile.type === 'input');
-        if (!inputTile) {
-            console.log('No input tile found in tileGrid.uiTiles');
-        }
         return inputTile ? inputTile.position : { q: 0, r: 0 };
     }, []);
 
