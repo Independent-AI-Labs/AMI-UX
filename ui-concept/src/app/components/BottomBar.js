@@ -33,6 +33,9 @@ const BottomBar = ({
                 if (id === 'grid') {
                     return new Set([id]);
                 }
+                // For any other panel, close the grid panel
+                newPanels.delete('grid');
+                
                 // For left/right panels, close panels on same side
                 const isLeftPanel = leftIcons.some(icon => icon.id === id);
                 if (isLeftPanel) {
@@ -67,43 +70,43 @@ const BottomBar = ({
         const isActive = activePanels.has(id);
         
         return (
-            <button
-                key={id}
-                onClick={() => handleClick(id)}
-                onMouseEnter={() => setHoveredButton(id)}
-                onMouseLeave={() => setHoveredButton(null)}
-                className="relative group"
-                style={{
-                    width: `${size}px`,
-                    height: `${size}px`,
-                    background: isActive ? 'rgba(255, 255, 255, 0.1)' : 'white',
-                    backdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
-                    WebkitBackdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
-                    borderRadius: primary ? '16px' : '50%',
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: activeButton === id ? 'scale(0.9)' : 
-                              isActive ? 'scale(1.1) translateY(-12px)' :
-                              hoveredButton === id ? `scale(${primary ? 1.15 : 1.1}) translateY(-${primary ? 8 : 4}px)` : 'scale(1)',
-                    boxShadow: isActive ? 
-                        '0 16px 32px rgba(0, 0, 0, 0.4), 0 0 48px rgba(255, 255, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)' :
-                        hoveredButton === id ? 
-                        '0 12px 24px rgba(0, 0, 0, 0.3), 0 0 32px rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)' : 
-                        '0 8px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-                    opacity: hoveredButton && hoveredButton !== id && !isActive ? 0.7 : 1,
-                    zIndex: isActive ? 41 : 'auto',
-                }}
+            <div key={id} style={{ mixBlendMode: isActive ? 'normal' : 'screen' }}>
+                <button
+                    onClick={() => handleClick(id)}
+                    onMouseEnter={() => setHoveredButton(id)}
+                    onMouseLeave={() => setHoveredButton(null)}
+                    className="relative group"
+                    style={{
+                        width: `${size}px`,
+                        height: `${size}px`,
+                        background: isActive ? 'rgba(255, 255, 255, 0.1)' : 'white',
+                        backdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
+                        WebkitBackdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
+                        borderRadius: primary ? '16px' : '50%',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transform: activeButton === id ? 'scale(0.9)' : 
+                                  isActive ? 'scale(1.1) translateY(-12px)' :
+                                  hoveredButton === id ? `scale(${primary ? 1.15 : 1.1}) translateY(-${primary ? 8 : 4}px)` : 'scale(1)',
+                        boxShadow: isActive ? 
+                            '0 16px 32px rgba(0, 0, 0, 0.4), 0 0 48px rgba(255, 255, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)' :
+                            hoveredButton === id ? 
+                            '0 12px 24px rgba(0, 0, 0, 0.3), 0 0 32px rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)' : 
+                            '0 8px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                        opacity: hoveredButton && hoveredButton !== id && !isActive ? 0.7 : 1,
+                        zIndex: isActive ? 41 : 'auto',
+                    }}
             >
                 <Icon 
                     size={size * 0.5} 
                     color={isActive ? 'white' : 'black'}
                     strokeWidth={primary ? 2.5 : 2}
                     style={{
-                        mixBlendMode: isActive ? 'normal' : 'multiply',
+                        opacity: isActive ? 1 : 0.9,
                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                         transform: hoveredButton === id || isActive ? 
                             (id === 'settings' ? 'rotate(180deg)' : 
@@ -148,6 +151,7 @@ const BottomBar = ({
                     />
                 )}
             </button>
+            </div>
         );
     };
 
@@ -229,29 +233,189 @@ const BottomBar = ({
                 </div>
             </Panel>
             
-            {/* Bottom Bar */}
-            <div 
-                className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50"
-                style={{
-                    isolation: 'isolate',
-                    mixBlendMode: 'screen'
-                }}
-            >
-                <div className="flex items-center gap-4">
-                    {/* Left group */}
-                    <div className="flex items-center gap-3">
-                        {leftIcons.map(icon => renderIcon(icon))}
+            {/* Render each button as a root element */}
+            {leftIcons.map((icon, index) => {
+                const isActive = activePanels.has(icon.id);
+                const leftOffset = -180 + (index * 60); // Position calculation for left group
+                
+                return (
+                    <div 
+                        key={icon.id} 
+                        style={{ 
+                            mixBlendMode: isActive ? 'normal' : 'screen',
+                            position: 'fixed',
+                            bottom: '32px',
+                            left: '50%',
+                            transform: `translateX(${leftOffset}px)`,
+                            zIndex: isActive ? 60 : 50
+                        }}
+                    >
+                        <button
+                            onClick={() => handleClick(icon.id)}
+                            onMouseEnter={() => setHoveredButton(icon.id)}
+                            onMouseLeave={() => setHoveredButton(null)}
+                            className="relative group"
+                            style={{
+                                width: `${icon.size}px`,
+                                height: `${icon.size}px`,
+                                background: isActive ? 'rgba(255, 255, 255, 0.1)' : 'white',
+                                backdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
+                                WebkitBackdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
+                                borderRadius: '50%',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                transform: activeButton === icon.id ? 'scale(0.9)' : 
+                                          isActive ? 'scale(1.1) translateY(-12px)' :
+                                          hoveredButton === icon.id ? `scale(1.1) translateY(-4px)` : 'scale(1)',
+                                boxShadow: isActive ? 
+                                    '0 16px 32px rgba(0, 0, 0, 0.4), 0 0 48px rgba(255, 255, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)' :
+                                    hoveredButton === icon.id ? 
+                                    '0 12px 24px rgba(0, 0, 0, 0.3), 0 0 32px rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)' : 
+                                    '0 8px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                                opacity: hoveredButton && hoveredButton !== icon.id && !isActive ? 0.7 : 1,
+                            }}
+                        >
+                            <icon.Icon 
+                                size={icon.size * 0.5} 
+                                color={isActive ? 'white' : 'black'}
+                                strokeWidth={2}
+                                style={{
+                                    opacity: isActive ? 1 : 0.9,
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    transform: hoveredButton === icon.id || isActive ? 
+                                        (icon.id === 'settings' ? 'rotate(180deg)' : 'scale(1.1)') : 'scale(1)',
+                                }}
+                            />
+                        </button>
                     </div>
-                    
-                    {/* Center icon */}
-                    {renderIcon(centerIcon)}
-                    
-                    {/* Right group */}
-                    <div className="flex items-center gap-3">
-                        {rightIcons.map(icon => renderIcon(icon))}
+                );
+            })}
+            
+            {/* Center icon */}
+            {(() => {
+                const isActive = activePanels.has(centerIcon.id);
+                
+                return (
+                    <div 
+                        key={centerIcon.id} 
+                        style={{ 
+                            mixBlendMode: isActive ? 'normal' : 'screen',
+                            position: 'fixed',
+                            bottom: '32px',
+                            left: '50%',
+                            transform: 'translateX(0px)', // Center is at 0
+                            zIndex: isActive ? 60 : 50
+                        }}
+                    >
+                        <button
+                            onClick={() => handleClick(centerIcon.id)}
+                            onMouseEnter={() => setHoveredButton(centerIcon.id)}
+                            onMouseLeave={() => setHoveredButton(null)}
+                            className="relative group"
+                            style={{
+                                width: `${centerIcon.size}px`,
+                                height: `${centerIcon.size}px`,
+                                background: isActive ? 'rgba(255, 255, 255, 0.1)' : 'white',
+                                backdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
+                                WebkitBackdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
+                                borderRadius: '16px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                transform: activeButton === centerIcon.id ? 'scale(0.9)' : 
+                                          isActive ? 'scale(1.1) translateY(-12px)' :
+                                          hoveredButton === centerIcon.id ? `scale(1.15) translateY(-8px)` : 'scale(1)',
+                                boxShadow: isActive ? 
+                                    '0 16px 32px rgba(0, 0, 0, 0.4), 0 0 48px rgba(255, 255, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)' :
+                                    hoveredButton === centerIcon.id ? 
+                                    '0 12px 24px rgba(0, 0, 0, 0.3), 0 0 32px rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)' : 
+                                    '0 8px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                                opacity: hoveredButton && hoveredButton !== centerIcon.id && !isActive ? 0.7 : 1,
+                            }}
+                        >
+                            <centerIcon.Icon 
+                                size={centerIcon.size * 0.5} 
+                                color={isActive ? 'white' : 'black'}
+                                strokeWidth={2.5}
+                                style={{
+                                    opacity: isActive ? 1 : 0.9,
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    transform: hoveredButton === centerIcon.id || isActive ? 'rotate(45deg) scale(1.1)' : 'scale(1)',
+                                }}
+                            />
+                        </button>
                     </div>
-                </div>
-            </div>
+                );
+            })()}
+            
+            {/* Right icons */}
+            {rightIcons.map((icon, index) => {
+                const isActive = activePanels.has(icon.id);
+                const rightOffset = 60 + (index * 60); // Position calculation for right group
+                
+                return (
+                    <div 
+                        key={icon.id} 
+                        style={{ 
+                            mixBlendMode: isActive ? 'normal' : 'screen',
+                            position: 'fixed',
+                            bottom: '32px',
+                            left: '50%',
+                            transform: `translateX(${rightOffset}px)`,
+                            zIndex: isActive ? 60 : 50
+                        }}
+                    >
+                        <button
+                            onClick={() => handleClick(icon.id)}
+                            onMouseEnter={() => setHoveredButton(icon.id)}
+                            onMouseLeave={() => setHoveredButton(null)}
+                            className="relative group"
+                            style={{
+                                width: `${icon.size}px`,
+                                height: `${icon.size}px`,
+                                background: isActive ? 'rgba(255, 255, 255, 0.1)' : 'white',
+                                backdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
+                                WebkitBackdropFilter: isActive ? 'blur(20px) saturate(180%)' : 'none',
+                                borderRadius: '50%',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                transform: activeButton === icon.id ? 'scale(0.9)' : 
+                                          isActive ? 'scale(1.1) translateY(-12px)' :
+                                          hoveredButton === icon.id ? `scale(1.1) translateY(-4px)` : 'scale(1)',
+                                boxShadow: isActive ? 
+                                    '0 16px 32px rgba(0, 0, 0, 0.4), 0 0 48px rgba(255, 255, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2)' :
+                                    hoveredButton === icon.id ? 
+                                    '0 12px 24px rgba(0, 0, 0, 0.3), 0 0 32px rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)' : 
+                                    '0 8px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                                opacity: hoveredButton && hoveredButton !== icon.id && !isActive ? 0.7 : 1,
+                            }}
+                        >
+                            <icon.Icon 
+                                size={icon.size * 0.5} 
+                                color={isActive ? 'white' : 'black'}
+                                strokeWidth={2}
+                                style={{
+                                    opacity: isActive ? 1 : 0.9,
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    transform: hoveredButton === icon.id || isActive ? 
+                                        (icon.id === 'settings' ? 'rotate(180deg)' : 'scale(1.1)') : 'scale(1)',
+                                }}
+                            />
+                        </button>
+                    </div>
+                );
+            })}
 
             <style jsx>{`
                 @keyframes ripple {
