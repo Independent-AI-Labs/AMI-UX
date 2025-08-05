@@ -31,16 +31,18 @@ class LockManager {
     /**
      * Initialize the lock manager with required dependencies
      */
-    initialize(animationManager, lodManager, hexToPixel, screenCenter) {
+    initialize(animationManager, lodManager, hexToPixel, screenCenter, tileGrid) {
         this.viewManagers.animation = animationManager;
         this.viewManagers.lod = lodManager;
         this.viewManagers.hexToPixel = hexToPixel;
         this.viewManagers.screenCenter = screenCenter;
+        this.viewManagers.tileGrid = tileGrid;
         console.log('[LockManager] Initialized with:', {
             hasAnimation: !!animationManager,
             hasLod: !!lodManager,
             hasHexToPixel: !!hexToPixel,
-            screenCenter
+            screenCenter,
+            hasTileGrid: !!tileGrid
         });
     }
     
@@ -248,31 +250,38 @@ class LockManager {
             if (this.viewManagers.animation?.current && this.viewManagers.hexToPixel && this.viewManagers.screenCenter) {
                 const zoom = 1.8;
                 
-                // Find the conversation column pair based on the clicked position
-                // Conversations occupy pairs of columns: (0,1), (2,3), (4,5), etc.
-                // Given a column q, find which pair it belongs to
-                const leftColumnQ = Math.floor(q / 2) * 2;
-                const rightColumnQ = leftColumnQ + 1;
+                // Get ALL tiles for this conversation to find the actual columns used
+                const conversationTiles = this.viewManagers.tileGrid?.getConversationTiles(conversationId) || [];
                 
-                // Center at midpoint between the two columns
-                const leftColumnX = this.viewManagers.hexToPixel(leftColumnQ, r).x;
-                const rightColumnX = this.viewManagers.hexToPixel(rightColumnQ, r).x;
-                const conversationCenterX = (leftColumnX + rightColumnX) / 2;
+                // Find the min and max Q values to determine the column pair
+                let minQ = q;
+                let maxQ = q;
                 
-                // Use the same row as the clicked message
-                const clickedCenterY = this.viewManagers.hexToPixel(q, r).y;
+                if (conversationTiles.length > 0) {
+                    conversationTiles.forEach(tile => {
+                        if (tile.position.q < minQ) minQ = tile.position.q;
+                        if (tile.position.q > maxQ) maxQ = tile.position.q;
+                    });
+                } else {
+                    // Fallback: assume standard column pair
+                    minQ = Math.floor(q / 2) * 2;
+                    maxQ = minQ + 1;
+                }
                 
-                console.log('LockManager centering:', {
-                    clickedQ: q,
-                    clickedR: r,
-                    leftColumnQ,
-                    rightColumnQ,
-                    conversationCenterX,
-                    clickedCenterY
-                });
+                console.log('[LockManager] Conversation columns:', { conversationId, minQ, maxQ, tileCount: conversationTiles.length });
+                
+                // Get positions using row 0 for consistent X (no hex offset)
+                const leftPos = this.viewManagers.hexToPixel(minQ, 0);
+                const rightPos = this.viewManagers.hexToPixel(maxQ, 0);
+                
+                // Center X between the actual columns
+                const conversationCenterX = (leftPos.x + rightPos.x) / 2;
+                
+                // For Y, use the clicked row
+                const conversationCenterY = this.viewManagers.hexToPixel(minQ, r).y;
                 
                 const newX = this.viewManagers.screenCenter.x - (conversationCenterX * zoom);
-                const newY = this.viewManagers.screenCenter.y - (clickedCenterY * zoom);
+                const newY = this.viewManagers.screenCenter.y - (conversationCenterY * zoom);
                 
                 this.viewManagers.animation.current.setViewState({
                     x: newX,

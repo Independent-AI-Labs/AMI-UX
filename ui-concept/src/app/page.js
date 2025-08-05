@@ -629,7 +629,9 @@ const HexagonalMessageGrid = () => {
                 animationManager.current.updatePosition(0, -deltaY);
             } else {
                 const zoomFactor = e.deltaY > 0 ? 0.85 : 1.18;
-                const newZoom = Math.max(0.2, Math.min(3.0, viewState.zoom * zoomFactor));
+                // Use the animation manager's target zoom to ensure smooth accumulation
+                const currentZoom = animationManager.current.targetZoom;
+                const newZoom = Math.max(0.2, Math.min(3.0, currentZoom * zoomFactor));
                 const mouseX = e.clientX;
                 const mouseY = e.clientY;
                 animationManager.current.setZoom(newZoom, mouseX, mouseY, screenCenter);

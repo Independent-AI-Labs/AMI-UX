@@ -5,13 +5,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import lockManager from '../LockManager';
+import tileGrid from '../tileSystem';
 
 export function useLockManager(animationManager, lodManager, screenCenter, hexToPixel) {
     const [lockState, setLockState] = useState(lockManager.getState());
     
     // Initialize lock manager with dependencies
     useEffect(() => {
-        lockManager.initialize(animationManager, lodManager, hexToPixel, screenCenter);
+        lockManager.initialize(animationManager, lodManager, hexToPixel, screenCenter, tileGrid);
     }, [animationManager, lodManager, hexToPixel, screenCenter]);
     
     // Subscribe to state changes

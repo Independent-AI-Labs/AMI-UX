@@ -90,7 +90,6 @@ Before committing changes:
 - `git status` - Check file changes
 - `git add .` - Stage all changes
 - `git commit -m "message"` - Commit with message
-- `npx kill-port 3000` - Emergency port cleanup
 
 # NEVER EVER EVER:
 
