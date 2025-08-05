@@ -100,6 +100,12 @@
     transition: none; /* Disable other transitions during animation */
 }
 
+/* Hidden state - before animation starts */
+.ui-tile-hidden {
+    opacity: 0;
+    filter: blur(0.9375rem);
+}
+
 /* Prevent interaction during animation */
 .ui-tile-animate * {
     pointer-events: none;

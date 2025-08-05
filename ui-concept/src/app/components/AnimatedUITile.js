@@ -109,8 +109,10 @@ const AnimatedUITile = ({
                 return animationClasses.exiting;
             case 'visible':
                 return 'ui-tile-animate animation-complete';
+            case 'hidden':
+                return 'ui-tile-animate ui-tile-hidden';
             default:
-                return '';
+                return 'ui-tile-animate';
         }
     };
 
@@ -119,7 +121,8 @@ const AnimatedUITile = ({
             ref={elementRef}
             className={getCurrentClass()}
             style={{
-                opacity: animationState === 'hidden' ? 0 : undefined
+                // Don't set opacity inline - let CSS animations handle it
+                opacity: undefined
             }}
         >
             {children}
