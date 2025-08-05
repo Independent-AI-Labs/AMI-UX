@@ -79,6 +79,110 @@ const HexWebsite = React.memo(({
         }
     }, [isWebsiteLocked, onExpandWebsite, website.id, position.q, position.r]);
 
+    // Forward declare handleDragMove and handleDragEnd for use in handleDragStart
+    const handleDragMove = useCallback((e) => {
+        // Update CSS custom properties for mouse tracking
+        document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+        document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+        
+        // Allow middle-click events to bubble up for panning while dragging
+        if (e.button === 1) { // Middle mouse button
+            e.stopPropagation = () => {}; // Disable stopPropagation for middle-click
+        }
+    }, []);
+
+    const handleDragEnd = useCallback((e) => {
+        // Only end drag on left mouse button up (button 0)
+        if (e.button !== 0) {
+            return;
+        }
+        
+        console.log('Drag ended for website:', website.id);
+        setIsDragging(false);
+        document.removeEventListener('mousemove', handleDragMove);
+        document.removeEventListener('mouseup', handleDragEnd);
+        
+        // Clear mouse tracking CSS properties
+        document.documentElement.style.removeProperty('--mouse-x');
+        document.documentElement.style.removeProperty('--mouse-y');
+        
+        // Hide global drag ghost
+        if (onDragEnd) {
+            onDragEnd();
+        }
+        
+        // Convert mouse position to hex coordinates and move tile if valid
+        console.log('Checking move conditions:', {
+            onMoveWebsite: !!onMoveWebsite,
+            pixelToHex: !!pixelToHex,
+            containerRef: !!containerRef.current
+        });
+        
+        if (onMoveWebsite && pixelToHex && containerRef.current) {
+            // containerRef points to the overlay
+            const overlayContainer = containerRef.current;
+            
+            // The transformed container is the next sibling after the overlay
+            // It's the div that contains the hexagonal grid
+            const transformedContainer = overlayContainer.nextElementSibling;
+            
+            if (!transformedContainer) {
+                console.error('Could not find main container with transform');
+                return;
+            }
+            
+            const rect = overlayContainer.getBoundingClientRect();
+            const containerX = e.clientX - rect.left;
+            const containerY = e.clientY - rect.top;
+            
+            console.log('Container coordinates:', { containerX, containerY, rect });
+            
+            const computedStyle = window.getComputedStyle(transformedContainer);
+            const matrix = new DOMMatrix(computedStyle.transform);
+            
+            // Extract current zoom and translation
+            const currentZoom = matrix.a; // scale x
+            const currentX = matrix.e; // translate x  
+            const currentY = matrix.f; // translate y
+            
+            // Convert container position to world coordinates using current transform
+            const worldX = (containerX - currentX) / currentZoom;
+            const worldY = (containerY - currentY) / currentZoom;
+            
+            console.log('Drop position (current transform):', { 
+                screenX: e.clientX, 
+                screenY: e.clientY, 
+                containerX, 
+                containerY, 
+                currentZoom,
+                currentX,
+                currentY,
+                worldX, 
+                worldY 
+            });
+            
+            // Use the proper pixelToHex function from the parent
+            const hexCoords = pixelToHex(worldX, worldY);
+            
+            console.log('Calculated hex position:', hexCoords);
+            onMoveWebsite(website.id, hexCoords.q, hexCoords.r);
+        }
+    }, [website.id, onMoveWebsite, onDragEnd, pixelToHex, containerRef]);
+
+    const handleDragStart = useCallback((e) => {
+        e.stopPropagation();
+        console.log('Drag started for website:', website.id);
+        setIsDragging(true);
+        
+        // Notify parent to show global drag ghost
+        if (onDragStart) {
+            onDragStart(website);
+        }
+        
+        document.addEventListener('mousemove', handleDragMove);
+        document.addEventListener('mouseup', handleDragEnd);
+    }, [website, onDragStart, handleDragMove, handleDragEnd]);
+
     // Smooth animation function
     const animateParallax = useCallback(() => {
         if (!iframeRef.current) {
@@ -126,6 +230,11 @@ const HexWebsite = React.memo(({
         }
     }, [isHovered, animateParallax]);
 
+    // Expose drag start for external handle - define before using in handleMouseEnter
+    const exposedHandleDragStart = useCallback((e) => {
+        handleDragStart(e);
+    }, [handleDragStart]);
+
     const handleMouseEnter = useCallback(() => {
         // Clear any pending hide timeout
         if (hoverTimeoutRef.current) {
@@ -136,7 +245,7 @@ const HexWebsite = React.memo(({
         if (onHoverChange) {
             onHoverChange(website.id, true, { x, y, hexSize, onDragStart: exposedHandleDragStart });
         }
-    }, [onHoverChange, website.id, x, y, hexSize]);
+    }, [onHoverChange, website.id, x, y, hexSize, exposedHandleDragStart]);
 
     const handleMouseLeave = useCallback(() => {
         // Clear any existing timeout
@@ -202,100 +311,6 @@ const HexWebsite = React.memo(({
         e.stopPropagation();
         window.open(website.url, '_blank', 'noopener,noreferrer');
     }, [website.url]);
-
-    const handleDragStart = useCallback((e) => {
-        e.stopPropagation();
-        console.log('Drag started for website:', website.id);
-        setIsDragging(true);
-        
-        // Notify parent to show global drag ghost
-        if (onDragStart) {
-            onDragStart(website);
-        }
-        
-        document.addEventListener('mousemove', handleDragMove);
-        document.addEventListener('mouseup', handleDragEnd);
-    }, [website, onDragStart]);
-
-    // Expose drag start for external handle
-    const exposedHandleDragStart = useCallback((e) => {
-        handleDragStart(e);
-    }, [handleDragStart]);
-
-    const handleDragMove = useCallback((e) => {
-        // Update CSS custom properties for mouse tracking
-        document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
-        document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
-        
-        // Allow middle-click events to bubble up for panning while dragging
-        if (e.button === 1) { // Middle mouse button
-            e.stopPropagation = () => {}; // Disable stopPropagation for middle-click
-        }
-    }, []);
-
-    const handleDragEnd = useCallback((e) => {
-        // Only end drag on left mouse button up (button 0)
-        if (e.button !== 0) {
-            return;
-        }
-        
-        console.log('Drag ended for website:', website.id);
-        setIsDragging(false);
-        document.removeEventListener('mousemove', handleDragMove);
-        document.removeEventListener('mouseup', handleDragEnd);
-        
-        // Clear mouse tracking CSS properties
-        document.documentElement.style.removeProperty('--mouse-x');
-        document.documentElement.style.removeProperty('--mouse-y');
-        
-        // Hide global drag ghost
-        if (onDragEnd) {
-            onDragEnd();
-        }
-        
-        // Convert mouse position to hex coordinates and move tile if valid
-        if (onMoveWebsite && pixelToHex && containerRef.current) {
-            // Get the CURRENT viewState at drop time, not the one from when drag started
-            const currentContainer = containerRef.current;
-            const rect = currentContainer.getBoundingClientRect();
-            const containerX = e.clientX - rect.left;
-            const containerY = e.clientY - rect.top;
-            
-            // Get current transform from the container's style
-            const transformedContainer = currentContainer.querySelector('.absolute.inset-0');
-            if (transformedContainer) {
-                const computedStyle = window.getComputedStyle(transformedContainer);
-                const matrix = new DOMMatrix(computedStyle.transform);
-                
-                // Extract current zoom and translation
-                const currentZoom = matrix.a; // scale x
-                const currentX = matrix.e; // translate x  
-                const currentY = matrix.f; // translate y
-                
-                // Convert container position to world coordinates using current transform
-                const worldX = (containerX - currentX) / currentZoom;
-                const worldY = (containerY - currentY) / currentZoom;
-                
-                console.log('Drop position (current transform):', { 
-                    screenX: e.clientX, 
-                    screenY: e.clientY, 
-                    containerX, 
-                    containerY, 
-                    currentZoom,
-                    currentX,
-                    currentY,
-                    worldX, 
-                    worldY 
-                });
-                
-                // Use the proper pixelToHex function from the parent
-                const hexCoords = pixelToHex(worldX, worldY);
-                
-                console.log('Calculated hex position:', hexCoords);
-                onMoveWebsite(website.id, hexCoords.q, hexCoords.r);
-            }
-        }
-    }, [website.id, onMoveWebsite, onDragEnd, handleDragMove, pixelToHex, containerRef]);
 
     const handleIframeLoad = useCallback(() => {
         setIsLoading(false);
