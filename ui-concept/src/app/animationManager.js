@@ -4,6 +4,7 @@ class AnimationManager {
         this.viewState = { ...initialViewState };
         this.velocity = { x: 0, y: 0, zoom: 0 };
         this.targetZoom = initialViewState.zoom || 1;
+        this.targetPosition = { x: initialViewState.x || 0, y: initialViewState.y || 0 };
         this.zoomOrigin = { x: 0, y: 0 };
         this.onUpdateCallback = onUpdateCallback;
         this.animationFrameId = null;
@@ -32,9 +33,38 @@ class AnimationManager {
         const deltaTime = currentTime - this.lastFrameTime;
         this.lastFrameTime = currentTime;
 
-        // Apply velocity to viewState
-        this.viewState.x += this.isLocked ? 0 : this.velocity.x * (deltaTime / 16.66);
-        this.viewState.y += this.velocity.y * (deltaTime / 16.66);
+        let hasChanges = false;
+
+        // Handle position animation to target
+        const xDiff = this.targetPosition.x - this.viewState.x;
+        const yDiff = this.targetPosition.y - this.viewState.y;
+        
+        if (Math.abs(xDiff) > 0.1 || Math.abs(yDiff) > 0.1) {
+            // Exponential ease-out to target position
+            this.viewState.x += xDiff * 0.12;
+            this.viewState.y += yDiff * 0.12;
+            hasChanges = true;
+            
+            // Snap if very close
+            if (Math.abs(xDiff) < 1) this.viewState.x = this.targetPosition.x;
+            if (Math.abs(yDiff) < 1) this.viewState.y = this.targetPosition.y;
+        }
+
+        // Also apply any velocity (for dragging)
+        if (!this.isLocked && (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.y) > 0.01)) {
+            this.viewState.x += this.velocity.x * (deltaTime / 16.66);
+            this.viewState.y += this.velocity.y * (deltaTime / 16.66);
+            
+            // Update target to match drag
+            this.targetPosition.x = this.viewState.x;
+            this.targetPosition.y = this.viewState.y;
+            
+            // Apply decay
+            const decayFactor = Math.pow(0.92, deltaTime / 16.66);
+            this.velocity.x *= decayFactor;
+            this.velocity.y *= decayFactor;
+            hasChanges = true;
+        }
 
         // Handle zoom animation
         const zoomDiff = this.targetZoom - this.viewState.zoom;
@@ -55,21 +85,15 @@ class AnimationManager {
             const scale = this.viewState.zoom / oldZoom;
             this.viewState.x = this.zoomOrigin.x - (this.zoomOrigin.x - this.viewState.x) * scale;
             this.viewState.y = this.zoomOrigin.y - (this.zoomOrigin.y - this.viewState.y) * scale;
+            
+            // Update target position to match zoom adjustment
+            this.targetPosition.x = this.viewState.x;
+            this.targetPosition.y = this.viewState.y;
+            hasChanges = true;
         }
 
-        // Apply decay to velocity
-        const decayFactor = Math.pow(0.92, deltaTime / 16.66);
-        this.velocity.x = this.isLocked ? 0 : this.velocity.x * decayFactor;
-        this.velocity.y = this.velocity.y * decayFactor;
-
-        // Stop animation if all velocities are very small
-        const shouldStop = Math.abs(this.velocity.x) < 0.05 && 
-                          Math.abs(this.velocity.y) < 0.05 && 
-                          Math.abs(this.targetZoom - this.viewState.zoom) < 0.0001;
-                          
-        if (shouldStop) {
-            this.velocity = { x: 0, y: 0, zoom: 0 };
-            // Don't snap - we already handled this above
+        // Stop animation if no changes
+        if (!hasChanges) {
             this.stop();
         } else {
             this.animationFrameId = requestAnimationFrame(this.animate);
@@ -90,9 +114,13 @@ class AnimationManager {
         let newX = this.viewState.x + deltaX;
         let newY = this.viewState.y + deltaY;
         
-        // Update position directly during drag - spring bounds will be applied in animation
+        // Update position directly during drag
         this.viewState.x = newX;
         this.viewState.y = newY;
+        
+        // Also update target to prevent animation back
+        this.targetPosition.x = newX;
+        this.targetPosition.y = newY;
         
         this.onUpdateCallback({ ...this.viewState });
     }
@@ -116,6 +144,7 @@ class AnimationManager {
 
     reset() {
         this.viewState = { x: 0, y: 0, zoom: 1 };
+        this.targetPosition = { x: 0, y: 0 };
         this.velocity = { x: 0, y: 0, zoom: 0 };
         this.targetZoom = 1;
         this.stop();
@@ -134,16 +163,13 @@ class AnimationManager {
             };
         }
         
-        // Always update target position if provided
+        // Update target position if provided
         if (newViewState.x !== undefined) {
-            // For position, we'll use velocity-based animation
-            const dx = (newViewState.x - this.viewState.x) * 0.15;
-            this.velocity.x = dx;
+            this.targetPosition.x = newViewState.x;
         }
         
         if (newViewState.y !== undefined) {
-            const dy = (newViewState.y - this.viewState.y) * 0.15;
-            this.velocity.y = dy;
+            this.targetPosition.y = newViewState.y;
         }
         
         this.start();
