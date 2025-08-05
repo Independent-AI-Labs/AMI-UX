@@ -9,8 +9,7 @@ const MessageContent = ({
     showTimestamps = true,
     showAvatars = true,
     onCopyMessage,
-    size = 'normal', // normal, expanded
-    markdownRenderKey = 0
+    size = 'normal' // normal, expanded
 }) => {
     const [isMounted, setIsMounted] = useState(false);
     const [hasScrollbar, setHasScrollbar] = useState(false);
@@ -24,8 +23,7 @@ const MessageContent = ({
         setIsMounted(true);
     }, []);
     
-    // Re-render markdown when markdownRenderKey changes (forces re-render after zoom)
-    const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text, markdownRenderKey]);
+    const renderedText = useMemo(() => renderMarkdown(message.text), [renderMarkdown, message.text]);
     
     // Check for scrollbar after content renders
     useEffect(() => {

@@ -6,11 +6,9 @@ class AnimationManager {
         this.targetZoom = initialViewState.zoom || 1;
         this.targetPosition = { x: initialViewState.x || 0, y: initialViewState.y || 0 };
         this.onUpdateCallback = onUpdateCallback;
-        this.onAnimationComplete = null; // Callback for when animation finishes
         this.animationFrameId = null;
         this.lastFrameTime = 0;
         this.isLocked = false; // Managed by the UI, but needed for animation logic
-        this.wasAnimating = false; // Track animation state
 
         this.animate = this.animate.bind(this);
     }
@@ -82,14 +80,8 @@ class AnimationManager {
         // Stop animation if no changes
         if (!hasChanges) {
             this.stop();
-            // If we were animating and now stopped, trigger completion callback
-            if (this.wasAnimating && this.onAnimationComplete) {
-                this.onAnimationComplete();
-            }
-            this.wasAnimating = false;
         } else {
             this.animationFrameId = requestAnimationFrame(this.animate);
-            this.wasAnimating = true;
         }
 
         // Only notify UI if there were actual changes

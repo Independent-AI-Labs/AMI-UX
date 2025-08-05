@@ -10,8 +10,7 @@ const HexMessageTransition = ({
     renderMarkdown,
     onCopyMessage,
     onCloseExpanded,
-    lodState,
-    markdownRenderKey
+    lodState
 }) => {
 
     // Use LoD system to determine capabilities and styling
@@ -45,7 +44,6 @@ const HexMessageTransition = ({
                 showAvatars={showAvatars}
                 onCopyMessage={onCopyMessage}
                 size="normal"
-                markdownRenderKey={markdownRenderKey}
             />
         </div>
     );
