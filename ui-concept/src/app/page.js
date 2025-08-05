@@ -292,11 +292,15 @@ const HexagonalMessageGrid = () => {
             
             // Also update animation manager if it exists
             if (animationManager.current && animationManager.current.viewState.x === 0) {
-                animationManager.current.setViewState({
+                // Directly set the state without animation for initial positioning
+                animationManager.current.viewState = {
                     x: offsetX,
                     y: offsetY,
                     zoom: 1
-                });
+                };
+                animationManager.current.targetPosition = { x: offsetX, y: offsetY };
+                animationManager.current.targetZoom = 1;
+                animationManager.current.onUpdateCallback({ x: offsetX, y: offsetY, zoom: 1 });
             }
         }
     }, [screenCenter, hexToPixel]);
