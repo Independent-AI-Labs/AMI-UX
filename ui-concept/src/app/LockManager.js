@@ -247,22 +247,29 @@ class LockManager {
             // Calculate and set view position
             if (this.viewManagers.animation?.current && this.viewManagers.hexToPixel && this.viewManagers.screenCenter) {
                 const zoom = 1.8;
-                // Find the left column of the conversation pair (must handle both odd and even q values)
-                // For a conversation at columns 15,16: both should map to 15
-                const conversationQ = q % 2 === 0 ? q - 1 : q;
+                
+                // Find the conversation column pair based on conversationId
+                // Conversations are in pairs: (0,1), (2,3), (4,5), etc.
+                // The conversationId pattern is typically "conv_X" where X is the pair index
+                const pairIndex = parseInt(conversationId.replace('conv_', ''));
+                const leftColumnQ = pairIndex * 2;
+                const rightColumnQ = leftColumnQ + 1;
+                
                 // Center at midpoint between the two columns
-                const leftColumnX = this.viewManagers.hexToPixel(conversationQ, r).x;
-                const rightColumnX = this.viewManagers.hexToPixel(conversationQ + 1, r).x;
+                const leftColumnX = this.viewManagers.hexToPixel(leftColumnQ, r).x;
+                const rightColumnX = this.viewManagers.hexToPixel(rightColumnQ, r).x;
                 const conversationCenterX = (leftColumnX + rightColumnX) / 2;
-                const clickedCenterY = this.viewManagers.hexToPixel(conversationQ, r).y;
+                
+                // Use the same row as the clicked message
+                const clickedCenterY = this.viewManagers.hexToPixel(q, r).y;
                 
                 console.log('LockManager centering:', {
-                    q,
-                    r,
-                    conversationQ,
-                    leftColumnX,
-                    rightColumnX,
-                    conversationCenterX
+                    conversationId,
+                    pairIndex,
+                    leftColumnQ,
+                    rightColumnQ,
+                    conversationCenterX,
+                    clickedRow: r
                 });
                 
                 const newX = this.viewManagers.screenCenter.x - (conversationCenterX * zoom);
