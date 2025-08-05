@@ -80,14 +80,14 @@
 
 .context-menu-item:hover {
     background: rgba(255, 255, 255, 0.12);
-    transform: translateX(0.125rem) scale(1.01);
+    transform: scale(1.02);
     box-shadow: 
         0 0.25rem 1rem rgba(0, 0, 0, 0.08),
         inset 0 0.0625rem 0 rgba(255, 255, 255, 0.2);
 }
 
 .context-menu-item:active {
-    transform: translateX(0.125rem) scale(0.98);
+    transform: scale(0.98);
     background: rgba(255, 255, 255, 0.12);
 }
 
@@ -170,7 +170,6 @@
 
 .context-menu-item:hover .context-menu-chevron {
     color: rgba(255, 255, 255, 0.7);
-    transform: translateX(0.125rem);
 }
 
 .context-menu-chevron.rotated {
@@ -231,7 +230,7 @@
 
 .context-submenu-item:hover {
     background: rgba(255, 255, 255, 0.1);
-    transform: translateX(0.125rem);
+    transform: scale(1.02);
 }
 
 .context-submenu-item .context-menu-icon {
@@ -316,19 +315,4 @@
     opacity: 1;
 }
 
-/* Micro interactions */
-.context-menu-item:hover {
-    animation: itemHover 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-@keyframes itemHover {
-    0% {
-        transform: translateX(0) scale(1);
-    }
-    50% {
-        transform: translateX(0.0625rem) scale(1.005);
-    }
-    100% {
-        transform: translateX(0.125rem) scale(1.01);
-    }
-}
+/* Micro interactions - removed duplicate hover animation */

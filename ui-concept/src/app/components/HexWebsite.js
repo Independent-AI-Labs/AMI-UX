@@ -10,6 +10,7 @@ const HexWebsite = React.memo(({
     hexSize, 
     isLocked, 
     isWebsiteLocked,
+    isPanDragging,
     dragRef, 
     onLockToConversation,
     onLockToWebsite,
@@ -361,6 +362,9 @@ const HexWebsite = React.memo(({
                 hexId={website.id}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
+                style={{
+                    pointerEvents: isPanDragging ? 'none' : 'auto'
+                }}
             >
                 <div 
                     ref={hexRef}
