@@ -15,9 +15,8 @@ const GridRenderer = ({ viewState }) => {
         }
     }, [viewState]);
     
-    // Get ALL grid positions for debugging - no viewport culling
+    // Get ALL grid positions - memoized for performance
     const visibleHexes = useMemo(() => {
-        console.log('GridRenderer: Rendering ALL positions for debugging');
         const allPositions = [];
         
         // Generate all 32x16 positions
@@ -25,24 +24,20 @@ const GridRenderer = ({ viewState }) => {
             for (let r = 0; r < 16; r++) {
                 if (!tileManager.isTileOccupied(q, r)) {
                     const worldPos = gridSystem.gridToWorld(q, r);
-                    const screenX = viewState.x + worldPos.x * viewState.zoom;
-                    const screenY = viewState.y + worldPos.y * viewState.zoom;
                     
                     allPositions.push({
                         id: `grid_hex_${q}_${r}`,
                         q: q,
                         r: r,
-                        screenX: screenX,
-                        screenY: screenY,
-                        size: gridSystem.hexSize * viewState.zoom
+                        worldX: worldPos.x,
+                        worldY: worldPos.y
                     });
                 }
             }
         }
         
-        console.log('GridRenderer: Generated positions count:', allPositions.length);
         return allPositions;
-    }, [viewState]);
+    }, [viewState.zoom]); // Only recalculate when zoom changes (for occupied tiles)
     
     return (
         <div 
@@ -58,17 +53,14 @@ const GridRenderer = ({ viewState }) => {
             }}
         >
             {visibleHexes.map(hex => {
-                const hexWidth = hex.size * 2;
-                const hexHeight = Math.sqrt(3) * hex.size;
-                
                 return (
                     <div
                         key={hex.id}
                         className="grid-hex"
                         style={{
                             position: 'absolute',
-                            left: hex.screenX - 1,
-                            top: hex.screenY - 1,
+                            left: hex.worldX - 1,
+                            top: hex.worldY - 1,
                             width: 2,
                             height: 2,
                             backgroundColor: 'rgba(255, 255, 255, 0.25)',
