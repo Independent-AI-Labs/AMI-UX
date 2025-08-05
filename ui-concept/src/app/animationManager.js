@@ -5,7 +5,6 @@ class AnimationManager {
         this.velocity = { x: 0, y: 0, zoom: 0 };
         this.targetZoom = initialViewState.zoom || 1;
         this.targetPosition = { x: initialViewState.x || 0, y: initialViewState.y || 0 };
-        this.zoomOrigin = { x: 0, y: 0 };
         this.onUpdateCallback = onUpdateCallback;
         this.animationFrameId = null;
         this.lastFrameTime = 0;
@@ -31,31 +30,43 @@ class AnimationManager {
 
     animate(currentTime) {
         const deltaTime = currentTime - this.lastFrameTime;
+        
+        // Throttle to ~60fps to prevent excessive updates
+        if (deltaTime < 16) {
+            this.animationFrameId = requestAnimationFrame(this.animate);
+            return;
+        }
+        
         this.lastFrameTime = currentTime;
 
         let hasChanges = false;
+        const easing = 0.25; // Much faster animation
 
-        // Handle position animation to target
+        // Simple interpolation to target camera state
         const xDiff = this.targetPosition.x - this.viewState.x;
         const yDiff = this.targetPosition.y - this.viewState.y;
+        const zoomDiff = this.targetZoom - this.viewState.zoom;
         
-        if (Math.abs(xDiff) > 0.1 || Math.abs(yDiff) > 0.1) {
-            // Exponential ease-out to target position
-            this.viewState.x += xDiff * 0.12;
-            this.viewState.y += yDiff * 0.12;
+        // Animate all properties together for smooth motion
+        if (Math.abs(xDiff) > 0.1 || Math.abs(yDiff) > 0.1 || Math.abs(zoomDiff) > 0.0005) {
+            this.viewState.x += xDiff * easing;
+            this.viewState.y += yDiff * easing;
+            this.viewState.zoom += zoomDiff * easing;
             hasChanges = true;
-            
-            // Snap if very close
-            if (Math.abs(xDiff) < 1) this.viewState.x = this.targetPosition.x;
-            if (Math.abs(yDiff) < 1) this.viewState.y = this.targetPosition.y;
+        } else {
+            // Snap when very close
+            if (xDiff !== 0) this.viewState.x = this.targetPosition.x;
+            if (yDiff !== 0) this.viewState.y = this.targetPosition.y;
+            if (zoomDiff !== 0) this.viewState.zoom = this.targetZoom;
+            if (xDiff !== 0 || yDiff !== 0 || zoomDiff !== 0) hasChanges = true;
         }
 
-        // Also apply any velocity (for dragging)
+        // Apply velocity for smooth dragging
         if (!this.isLocked && (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.y) > 0.01)) {
             this.viewState.x += this.velocity.x * (deltaTime / 16.66);
             this.viewState.y += this.velocity.y * (deltaTime / 16.66);
             
-            // Update target to match drag
+            // Update target to follow drag
             this.targetPosition.x = this.viewState.x;
             this.targetPosition.y = this.viewState.y;
             
@@ -66,32 +77,6 @@ class AnimationManager {
             hasChanges = true;
         }
 
-        // Handle zoom animation
-        const zoomDiff = this.targetZoom - this.viewState.zoom;
-        if (Math.abs(zoomDiff) > 0.0001) {
-            const oldZoom = this.viewState.zoom;
-            
-            // Simple exponential ease-out
-            const zoomDelta = zoomDiff * 0.12;
-            
-            // If we're very close, just set it to avoid micro-movements
-            if (Math.abs(zoomDiff) < 0.005) {
-                this.viewState.zoom = this.targetZoom;
-            } else {
-                this.viewState.zoom += zoomDelta;
-            }
-            
-            // Adjust position to keep zoom origin point fixed
-            const scale = this.viewState.zoom / oldZoom;
-            this.viewState.x = this.zoomOrigin.x - (this.zoomOrigin.x - this.viewState.x) * scale;
-            this.viewState.y = this.zoomOrigin.y - (this.zoomOrigin.y - this.viewState.y) * scale;
-            
-            // Update target position to match zoom adjustment
-            this.targetPosition.x = this.viewState.x;
-            this.targetPosition.y = this.viewState.y;
-            hasChanges = true;
-        }
-
         // Stop animation if no changes
         if (!hasChanges) {
             this.stop();
@@ -99,8 +84,10 @@ class AnimationManager {
             this.animationFrameId = requestAnimationFrame(this.animate);
         }
 
-        // Notify UI of update
-        this.onUpdateCallback({ ...this.viewState });
+        // Only notify UI if there were actual changes
+        if (hasChanges || this.animationFrameId) {
+            this.onUpdateCallback({ ...this.viewState });
+        }
     }
 
     // Public methods to be called by UI event handlers
@@ -126,9 +113,30 @@ class AnimationManager {
     }
 
     setZoom(newZoom, mouseX, mouseY, screenCenter) {
-        // Set target zoom and origin for smooth animation
+        // Clamp zoom
+        newZoom = Math.max(0.125, Math.min(8, newZoom));
+        
+        // If zoom hasn't changed, don't do anything
+        if (Math.abs(newZoom - this.targetZoom) < 0.0001) {
+            return;
+        }
+        
+        // Stop any velocity-based movement immediately
+        this.velocity = { x: 0, y: 0, zoom: 0 };
+        
+        // Calculate the world point under the mouse using CURRENT actual state
+        // Don't snap to target - just use where we actually are right now
+        const worldX = (mouseX - this.viewState.x) / this.viewState.zoom;
+        const worldY = (mouseY - this.viewState.y) / this.viewState.zoom;
+        
+        // Calculate new target position to keep the world point fixed
+        const targetX = mouseX - (worldX * newZoom);
+        const targetY = mouseY - (worldY * newZoom);
+        
+        // Update targets
+        this.targetPosition.x = targetX;
+        this.targetPosition.y = targetY;
         this.targetZoom = newZoom;
-        this.zoomOrigin = { x: mouseX, y: mouseY };
         
         this.start();
     }
@@ -142,33 +150,30 @@ class AnimationManager {
     }
 
     reset() {
-        this.viewState = { x: 0, y: 0, zoom: 1 };
-        this.targetPosition = { x: 0, y: 0 };
+        // Reset velocity immediately
         this.velocity = { x: 0, y: 0, zoom: 0 };
-        this.targetZoom = 1;
-        this.stop();
-        this.onUpdateCallback({ ...this.viewState });
+        
+        // Use setViewState for animated reset
+        this.setViewState({
+            x: 0,
+            y: 0,
+            zoom: 1
+        });
     }
 
-    // Method for lockToConversation to animate to new viewState
+    // Set target camera state
     setViewState(newViewState) {
-        // Always update target zoom if provided
-        if (newViewState.zoom !== undefined) {
-            this.targetZoom = newViewState.zoom;
-            // Calculate zoom origin as the center of the screen
-            this.zoomOrigin = { 
-                x: (typeof window !== 'undefined' ? window.innerWidth / 2 : 0), 
-                y: (typeof window !== 'undefined' ? window.innerHeight / 2 : 0) 
-            };
-        }
-        
-        // Update target position if provided
+        // Update any provided components of the camera state
         if (newViewState.x !== undefined) {
             this.targetPosition.x = newViewState.x;
         }
         
         if (newViewState.y !== undefined) {
             this.targetPosition.y = newViewState.y;
+        }
+        
+        if (newViewState.zoom !== undefined) {
+            this.targetZoom = newViewState.zoom;
         }
         
         this.start();
