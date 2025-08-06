@@ -19,6 +19,7 @@ import StatusBar from './components/StatusBar';
 import BlendModeTest from './components/BlendModeTest';
 import HexagonalGrid from './components/grid/HexagonalGrid';
 import MessageBackdrop from './components/backdrop/MessageBackdrop';
+import WebsiteBackdrop from './components/backdrop/WebsiteBackdrop';
 import ModalContainer from './components/modal/ModalContainer';
 import DragSystem from './components/drag/DragSystem';
 import GridRenderer from './components/GridRenderer';
@@ -39,6 +40,7 @@ import './styles/ui-tile-animations.css';
 import './styles/status-bar.css';
 import './styles/iframe-modal.css';
 import './styles/hex-website.css';
+import './styles/website-backdrop.css';
 import './styles/website-content.css';
 import './styles/input-content.css';
 
@@ -759,7 +761,7 @@ const HexagonalMessageGrid = () => {
                         transform: isMounted 
                             ? `translateX(${viewState.x * 0.3}px) translateY(${viewState.y * 0.3}px) scale(${0.35 + (viewState.zoom - 1) * 0.08})`
                             : 'translateX(0px) translateY(0px) scale(0.35)',
-                        transformOrigin: '0 0',
+                        transformOrigin: '50% 50%',
                         transformStyle: 'preserve-3d',
                         willChange: 'transform',
                         overflow: 'visible'
@@ -820,6 +822,12 @@ const HexagonalMessageGrid = () => {
                     showInput={lockManager.isConversationMode && !isTyping}
                     inputPosition={lockManager.isConversationMode && !isTyping ? getInputPosition() : null}
                     hoveredMessageId={hoveredMessageId}
+                />
+                <WebsiteBackdrop
+                    websites={websites}
+                    viewState={viewState}
+                    hexSize={hexSize}
+                    hexToPixel={hexToPixel}
                 />
                 <HexagonalGrid
                     messages={messages}
