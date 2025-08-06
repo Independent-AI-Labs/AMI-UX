@@ -661,11 +661,24 @@ const HexagonalMessageGrid = () => {
     const handleSend = () => {
         if (!inputText.trim()) return;
 
+        const conversationId = lockManager.lockedTarget;
+        if (!conversationId) {
+            console.error('No active conversation!');
+            return;
+        }
+        
+        // Get the current input position - this is where the user types
+        const inputPos = getInputPosition();
+        
+        // User message goes where the input tile is
         const newMessage = {
             id: Date.now(),
             text: inputText,
             sender: 'user',
-            timestamp: new Date()
+            timestamp: new Date(),
+            q: inputPos.q,
+            r: inputPos.r,
+            conversationId: conversationId
         };
 
         setMessages(prev => [...prev, newMessage]);
@@ -678,11 +691,16 @@ const HexagonalMessageGrid = () => {
         setIsTyping(true);
 
         setTimeout(() => {
+            // AI response goes to the left of the user message (same row)
+            // In the pattern, user is on right (even q like 16), AI is on left (odd q like 15)
             const aiResponse = {
                 id: Date.now() + 1,
                 text: "**Great question!** Let me elaborate on that topic with some detailed insights:\n\n**Key Points:**\n• Advanced implementation strategies\n• Real-world performance metrics\n• Future development roadmaps\n\nThis represents the *current state* of the field with promising developments ahead.",
                 sender: "ai",
-                timestamp: new Date()
+                timestamp: new Date(),
+                q: inputPos.q - 1,  // Left column (AI side)
+                r: inputPos.r + 1,  // Next row down
+                conversationId: conversationId
             };
             setMessages(prev => [...prev, aiResponse]);
             setIsTyping(false);
