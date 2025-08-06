@@ -21,8 +21,7 @@
 }
 
 .hex-with-backdrop:hover {
-    -webkit-backdrop-filter: blur(1rem) saturate(200%);
-    backdrop-filter: blur(1rem) saturate(200%);
+    /* IMPORTANT: Do not use backdrop-filter on hover - it breaks clip-path on hover end */
     background: var(--hex-bg-hover, rgba(255, 255, 255, 0.12)); /* LoD-aware hover transparency */
     box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.5);
 }

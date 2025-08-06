@@ -11,10 +11,12 @@ const Hexagon = React.memo(({ q, r, x, y, hexSize, children, className, onClick,
         width: hexWidth,
         height: hexHeight,
         clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+        WebkitClipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', // Safari support
         zIndex: 1000,
         willChange: 'transform',
         pointerEvents: 'auto', // Ensure hex can be clicked
         cursor: 'pointer',
+        overflow: 'hidden', // Ensure content is clipped
         // No background or backdrop-filter here - only clip-path
         ...style
     }), [x, y, hexSize, hexWidth, hexHeight, style]);

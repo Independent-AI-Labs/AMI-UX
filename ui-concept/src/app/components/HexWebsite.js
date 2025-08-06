@@ -351,7 +351,7 @@ const HexWebsite = React.memo(({
 
     return (
         <>
-        <LoDHexWrapper lodState={lodState} hexType="website" className="website-tile">
+        <LoDHexWrapper lodState={lodState} hexType="website" className="website-tile" useScreenBlend={true}>
                 <Hexagon
                 key={website.id}
                 q={position.q}
