@@ -31,32 +31,28 @@ const GridRenderer = ({ viewState }) => {
             return dots;
         }
         
-        // Only calculate for hexes that might be visible
-        const screenBounds = {
-            left: -viewState.x / viewState.zoom,
-            top: -viewState.y / viewState.zoom,
-            right: (window.innerWidth - viewState.x) / viewState.zoom,
-            bottom: (window.innerHeight - viewState.y) / viewState.zoom
-        };
+        const hexSize = 65; // Same as tiles
+        const padding = hexSize * 2; // Same padding as tiles
         
-        // Add some padding to ensure smooth appearance at edges
-        const padding = 100 / viewState.zoom;
-        
+        // Check all grid positions but only render visible ones
         for (let q = 0; q < 32; q++) {
             for (let r = 0; r < 16; r++) {
                 if (!tileManager.isTileOccupied(q, r)) {
                     const worldPos = gridSystem.gridToWorld(q, r);
                     
-                    // Check if this position is visible
-                    if (worldPos.x >= screenBounds.left - padding && 
-                        worldPos.x <= screenBounds.right + padding &&
-                        worldPos.y >= screenBounds.top - padding && 
-                        worldPos.y <= screenBounds.bottom + padding) {
-                        
-                        // Convert to screen space
-                        const screenX = worldPos.x * viewState.zoom + viewState.x;
-                        const screenY = worldPos.y * viewState.zoom + viewState.y;
-                        
+                    // Convert to screen space - EXACT same calculation as BaseTile
+                    const screenX = worldPos.x * viewState.zoom + viewState.x;
+                    const screenY = worldPos.y * viewState.zoom + viewState.y;
+                    
+                    // Check if within viewport with same padding as tiles
+                    const isVisible = (
+                        screenX >= -padding &&
+                        screenX <= window.innerWidth + padding &&
+                        screenY >= -padding &&
+                        screenY <= window.innerHeight + padding
+                    );
+                    
+                    if (isVisible) {
                         dots.push({
                             id: `grid_dot_${q}_${r}`,
                             x: screenX,
@@ -124,4 +120,4 @@ const GridRenderer = ({ viewState }) => {
     );
 };
 
-export default GridRenderer;
+export default React.memo(GridRenderer);

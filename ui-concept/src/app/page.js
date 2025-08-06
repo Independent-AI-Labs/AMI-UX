@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import AnimationManager from './animationManager';
 import lodManager from './lodManager';
 import tileManager from './tileManager';
@@ -24,6 +24,7 @@ import DragSystem from './components/drag/DragSystem';
 import GridRenderer from './components/GridRenderer';
 import { hexSize, hexToPixel, pixelToHex, renderMarkdown } from './utils/hexUtils';
 import { initialMessages, initialWebsites } from './data/initialData';
+import { throttleRAF } from './utils/throttle';
 
 // Import CSS files
 import './styles/hexagon.css';
@@ -347,11 +348,38 @@ const HexagonalMessageGrid = () => {
         handleUnlockWebsite: lockManager.unlock
     });
 
-    const handleMouseMove = (e) => {
+    // Split mouse move into two handlers - one for immediate updates, one throttled
+    const handleMouseMoveImmediate = useCallback((e) => {
         setMousePos({ x: e.clientX, y: e.clientY });
+        
+        if (!isDragging) return;
 
+        const deltaX = e.clientX - lastMouse.x;
+        const deltaY = e.clientY - lastMouse.y;
+
+        // Only mark as drag if actively dragging AND moved significantly
+        if (isDragging && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+            dragRef.current = true;
+        }
+
+        if (lockManager.isLocked) {
+            animationManager.current.updatePosition(0, deltaY);
+            animationManager.current.setInitialVelocity(0, deltaY * 0.3);
+        } else {
+            animationManager.current.updatePosition(deltaX, deltaY);
+            animationManager.current.setInitialVelocity(deltaX * 0.3, deltaY * 0.3);
+        }
+
+        setLastMouse({ x: e.clientX, y: e.clientY });
+    }, [isDragging, lastMouse.x, lastMouse.y, lockManager.isLocked]);
+    
+    // Throttled handler for expensive hover calculations
+    const handleMouseMoveThrottled = useMemo(() => throttleRAF((e) => {
+        // Skip hover calculations during drag
+        if (isDragging || dragRef.current) return;
+        
         // Calculate grid selection position using tile manager
-        if (typeof window !== 'undefined' && !isDragging && !lockManager.isLocked) {
+        if (typeof window !== 'undefined' && !lockManager.isLocked) {
             const rect = containerRef.current?.getBoundingClientRect();
             if (rect) {
                 // Convert screen coordinates to world coordinates in 3D space
@@ -382,26 +410,11 @@ const HexagonalMessageGrid = () => {
         } else {
             setGridSelection(prev => ({ ...prev, visible: false }));
         }
-
-        if (!isDragging) return;
-
-        const deltaX = e.clientX - lastMouse.x;
-        const deltaY = e.clientY - lastMouse.y;
-
-        // Only mark as drag if actively dragging AND moved significantly
-        if (isDragging && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
-            dragRef.current = true;
-        }
-
-        if (lockManager.isLocked) {
-            animationManager.current.updatePosition(0, deltaY);
-            animationManager.current.setInitialVelocity(0, deltaY * 0.3);
-        } else {
-            animationManager.current.updatePosition(deltaX, deltaY);
-            animationManager.current.setInitialVelocity(deltaX * 0.3, deltaY * 0.3);
-        }
-
-        setLastMouse({ x: e.clientX, y: e.clientY });
+    }), [viewState, lockManager.isLocked]);
+    
+    const handleMouseMove = (e) => {
+        handleMouseMoveImmediate(e);
+        handleMouseMoveThrottled(e);
     };
 
     const handleMouseUp = (e) => {
