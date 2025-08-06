@@ -113,10 +113,12 @@
 /* Animations */
 @keyframes fade-in {
     from {
-        transform: scale(0.8);
+        opacity: 0;
+        filter: blur(10px);
     }
     to {
-        transform: scale(1);
+        opacity: 1;
+        filter: blur(0px);
     }
 }
 

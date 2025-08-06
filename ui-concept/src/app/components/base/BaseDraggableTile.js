@@ -199,12 +199,13 @@ class BaseDraggableTile extends Component {
             this.props.onDrop(this.getDragData(), dropPosition);
         }
         
-        // Notify parent
+        // Call subclass hook first
+        this.onDragEnd();
+        
+        // Then notify parent if needed
         if (this.props.onDragEnd) {
             this.props.onDragEnd();
         }
-        
-        this.onDragEnd();
     };
     
     /**
@@ -215,11 +216,13 @@ class BaseDraggableTile extends Component {
         const overlayContainer = containerRef?.current;
         if (!overlayContainer) return null;
         
-        // Find transformed container
-        const transformedContainer = overlayContainer.querySelector('.main-content') || 
-                                    overlayContainer.querySelector('[style*="transform"]');
+        // The transformed container is the next sibling after the overlay
+        const transformedContainer = overlayContainer.nextElementSibling;
         
-        if (!transformedContainer) return null;
+        if (!transformedContainer) {
+            console.error('Could not find main container with transform');
+            return null;
+        }
         
         const rect = overlayContainer.getBoundingClientRect();
         const containerX = e.clientX - rect.left;

@@ -193,7 +193,7 @@ class HexWebsiteDraggable extends BaseDraggableTile {
         // Notify parent to show global drag ghost
         const { setDragGhost, website } = this.props;
         if (setDragGhost) {
-            setDragGhost(website);
+            setDragGhost({ visible: true, website });
         }
     }
     
@@ -201,7 +201,11 @@ class HexWebsiteDraggable extends BaseDraggableTile {
      * Override drag end
      */
     onDragEnd() {
-        // Drag end is handled by parent through onDrop
+        // Hide the drag ghost
+        const { setDragGhost } = this.props;
+        if (setDragGhost) {
+            setDragGhost({ visible: false, website: null });
+        }
     }
     
     /**
