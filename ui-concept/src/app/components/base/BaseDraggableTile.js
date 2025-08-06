@@ -296,6 +296,10 @@ class BaseDraggableTile extends Component {
         return false; // Override in subclass if using floating handle
     }
     
+    useScreenBlendMode() {
+        return false; // Override in subclass to enable screen blend mode
+    }
+    
     // Lifecycle hooks for subclasses
     onTileHoverStart() {
         // Override for hover start behavior
@@ -364,7 +368,7 @@ class BaseDraggableTile extends Component {
         const useLoD = lodState?.zoom?.config?.showContent === 'placeholder';
         
         return (
-            <LoDHexWrapper lodState={lodState} hexType={this.getHexType()}>
+            <LoDHexWrapper lodState={lodState} hexType={this.getHexType()} useScreenBlend={this.useScreenBlendMode()}>
                 <Hexagon
                     q={q}
                     r={r}

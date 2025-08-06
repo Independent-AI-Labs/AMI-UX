@@ -57,6 +57,13 @@ class HexWebsiteDraggable extends BaseDraggableTile {
     }
     
     /**
+     * Websites use screen blend mode
+     */
+    useScreenBlendMode() {
+        return true;
+    }
+    
+    /**
      * Get hex type for LoD
      */
     getHexType() {

@@ -20,9 +20,28 @@ export const generateLoDStyles = (lodState, hexType = 'message') => {
 };
 
 // LoD-aware hex wrapper component
-export const LoDHexWrapper = ({ children, lodState, hexType = 'message', className = '', ...props }) => {
+export const LoDHexWrapper = ({ children, lodState, hexType = 'message', className = '', useScreenBlend = false, ...props }) => {
     const styles = generateLoDStyles(lodState, hexType);
     
+    // Only wrap with blend container if explicitly requested
+    if (useScreenBlend) {
+        return (
+            <div 
+                className="hex-blend-container"
+                style={{ mixBlendMode: 'screen' }}
+            >
+                <div 
+                    className={`lod-hex-wrapper ${className}`}
+                    style={styles}
+                    {...props}
+                >
+                    {children}
+                </div>
+            </div>
+        );
+    }
+    
+    // Default: no blend mode wrapper
     return (
         <div 
             className={`lod-hex-wrapper ${className}`}
