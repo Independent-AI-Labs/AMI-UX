@@ -18,6 +18,75 @@ const BottomBar = ({
     const [hoveredButton, setHoveredButton] = useState(null);
     const [activeButton, setActiveButton] = useState(null);
     const [activePanels, setActivePanels] = useState(new Set());
+    
+    // Define icons first so they can be used in calculations
+    const leftIcons = [
+        { id: 'home', Icon: Home, size: 48, title: 'Home' },
+        { id: 'search', Icon: Search, size: 48, title: 'Search' },
+        { id: 'chat', Icon: MessageSquare, size: 48, title: 'Chat' },
+    ];
+
+    const centerIcon = { id: 'grid', Icon: Grid3X3, size: 56, primary: true, title: 'Grid View' };
+
+    const rightIcons = [
+        { id: 'files', Icon: FileText, size: 48, title: 'Files' },
+        { id: 'music', Icon: Music, size: 48, title: 'Music' },
+        { id: 'settings', Icon: Settings, size: 48, title: 'Settings' },
+    ];
+    
+    // Calculate button positions dynamically
+    const calculateButtonPositions = () => {
+        const buttonGap = 12; // Gap between buttons
+        
+        // Calculate total width needed
+        let totalWidth = 0;
+        
+        // Left group
+        leftIcons.forEach((icon, i) => {
+            if (i > 0) totalWidth += buttonGap;
+            totalWidth += icon.size;
+        });
+        
+        // Gap before center
+        totalWidth += buttonGap;
+        
+        // Center button
+        totalWidth += centerIcon.size;
+        
+        // Gap after center
+        totalWidth += buttonGap;
+        
+        // Right group
+        rightIcons.forEach((icon, i) => {
+            if (i > 0) totalWidth += buttonGap;
+            totalWidth += icon.size;
+        });
+        
+        // Start position (negative half of total width to center)
+        let currentX = -totalWidth / 2;
+        
+        // Position left buttons (store left edge positions)
+        const leftPositions = [];
+        leftIcons.forEach((icon) => {
+            leftPositions.push(currentX); // Left edge of button
+            currentX += icon.size + buttonGap;
+        });
+        
+        // Position center button
+        const centerPosition = currentX; // Left edge of center button
+        currentX += centerIcon.size + buttonGap;
+        
+        // Position right buttons
+        const rightPositions = [];
+        rightIcons.forEach((icon) => {
+            rightPositions.push(currentX); // Left edge of button
+            currentX += icon.size + buttonGap;
+        });
+        
+        return { leftPositions, centerPosition, rightPositions };
+    };
+    
+    const { leftPositions, centerPosition, rightPositions } = calculateButtonPositions();
 
     const handleClick = (id) => {
         setActiveButton(id);
@@ -50,20 +119,6 @@ const BottomBar = ({
     };
 
     if (isLocked || isWebsiteLocked) return null;
-
-    const leftIcons = [
-        { id: 'home', Icon: Home, size: 48, title: 'Home' },
-        { id: 'search', Icon: Search, size: 48, title: 'Search' },
-        { id: 'chat', Icon: MessageSquare, size: 48, title: 'Chat' },
-    ];
-
-    const centerIcon = { id: 'grid', Icon: Grid3X3, size: 56, primary: true, title: 'Grid View' };
-
-    const rightIcons = [
-        { id: 'files', Icon: FileText, size: 48, title: 'Files' },
-        { id: 'music', Icon: Music, size: 48, title: 'Music' },
-        { id: 'settings', Icon: Settings, size: 48, title: 'Settings' },
-    ];
 
     const renderIcon = (icon) => {
         const { id, Icon, size, primary } = icon;
@@ -236,7 +291,6 @@ const BottomBar = ({
             {/* Render each button as a root element */}
             {leftIcons.map((icon, index) => {
                 const isActive = activePanels.has(icon.id);
-                const leftOffset = -180 + (index * 60); // Position calculation for left group
                 
                 return (
                     <div 
@@ -245,8 +299,8 @@ const BottomBar = ({
                             mixBlendMode: isActive ? 'normal' : 'screen',
                             position: 'fixed',
                             bottom: '32px',
-                            left: '50%',
-                            transform: `translateX(${leftOffset}px)`,
+                            left: `calc(50% + ${leftPositions[index] + icon.size/2}px)`,
+                            transform: 'translateX(-50%)',
                             zIndex: isActive ? 60 : 50
                         }}
                     >
@@ -306,8 +360,8 @@ const BottomBar = ({
                             mixBlendMode: isActive ? 'normal' : 'screen',
                             position: 'fixed',
                             bottom: '32px',
-                            left: '50%',
-                            transform: 'translateX(0px)', // Center is at 0
+                            left: `calc(50% + ${centerPosition + centerIcon.size/2}px)`,
+                            transform: 'translateX(-50%)',
                             zIndex: isActive ? 60 : 50
                         }}
                     >
@@ -347,7 +401,7 @@ const BottomBar = ({
                                 style={{
                                     opacity: isActive ? 1 : 0.9,
                                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    transform: hoveredButton === centerIcon.id || isActive ? 'rotate(45deg) scale(1.1)' : 'scale(1)',
+                                    transform: hoveredButton === centerIcon.id || isActive ? 'rotate(45deg) scale(1.1)' : 'rotate(0deg) scale(1)',
                                 }}
                             />
                         </button>
@@ -358,7 +412,6 @@ const BottomBar = ({
             {/* Right icons */}
             {rightIcons.map((icon, index) => {
                 const isActive = activePanels.has(icon.id);
-                const rightOffset = 60 + (index * 60); // Position calculation for right group
                 
                 return (
                     <div 
@@ -367,8 +420,8 @@ const BottomBar = ({
                             mixBlendMode: isActive ? 'normal' : 'screen',
                             position: 'fixed',
                             bottom: '32px',
-                            left: '50%',
-                            transform: `translateX(${rightOffset}px)`,
+                            left: `calc(50% + ${rightPositions[index] + icon.size/2}px)`,
+                            transform: 'translateX(-50%)',
                             zIndex: isActive ? 60 : 50
                         }}
                     >
