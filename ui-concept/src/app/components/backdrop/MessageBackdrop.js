@@ -81,4 +81,4 @@ const MessageBackdrop = ({
     );
 };
 
-export default MessageBackdrop;
+export default React.memo(MessageBackdrop);

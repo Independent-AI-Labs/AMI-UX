@@ -21,7 +21,8 @@
       "mcp__chrome-mcp-server__chrome_close_tabs",
       "Bash(git commit:*)",
       "mcp__chrome-mcp-server__chrome_screenshot",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

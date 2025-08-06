@@ -3,10 +3,18 @@
 import React, { useRef, useState, useCallback, useMemo } from 'react';
 import GridSelection from '../GridSelection';
 import HexMessage from '../HexMessage';
+import HexMessageOptimized from '../HexMessageOptimized';
+import HexMessageDraggable from '../HexMessageDraggable';
 import HexWebsite from '../HexWebsite';
+import HexWebsiteOptimized from '../HexWebsiteOptimized';
+import HexWebsiteDraggable from '../HexWebsiteDraggable';
 import TypingIndicator from '../TypingIndicator';
 import HexInput from '../HexInput';
 import AnimatedUITile from '../AnimatedUITile';
+
+// Use new draggable components with unified base class
+const MessageComponent = HexMessageDraggable;
+const WebsiteComponent = HexWebsiteDraggable;
 
 const HexagonalGrid = ({
     messages,
@@ -77,7 +85,7 @@ const HexagonalGrid = ({
                 const pixelPosition = hexToPixel(position.q, position.r);
 
                 return (
-                    <HexMessage
+                    <MessageComponent
                         key={message.id}
                         message={message}
                         position={{ ...position, ...pixelPosition }}
@@ -85,6 +93,7 @@ const HexagonalGrid = ({
                         isLocked={conversationState.isConversationMode}
                         isDragging={isDragging}
                         dragRef={dragRef}
+                        viewState={viewState}
                         onLockToConversation={(q, r) => lockToConversation(q, r, message.id)}
                         onExpandMessage={handleExpandMessage}
                         onCloseExpanded={handleCloseExpanded}
@@ -105,23 +114,24 @@ const HexagonalGrid = ({
                 const pixelPosition = hexToPixel(position.q, position.r);
 
                 return (
-                    <HexWebsite
+                    <WebsiteComponent
                         key={website.id}
                         website={website}
                         position={{ ...position, ...pixelPosition }}
                         hexSize={hexSize}
                         isLocked={conversationState.isConversationMode}
                         isWebsiteLocked={conversationState.isWebsiteMode && conversationState.lockedTarget === website.id}
+                        lockedWebsiteId={conversationState.isWebsiteMode ? conversationState.lockedTarget : null}
+                        isDragging={isDragging}
                         isPanDragging={isDragging}
                         dragRef={dragRef}
-                        onLockToConversation={() => {/* Websites don't lock to conversations */}}
+                        viewState={viewState}
                         onLockToWebsite={handleLockToWebsite}
                         onRemoveWebsite={handleRemoveWebsite}
                         onUpdateWebsiteUrl={handleUpdateWebsiteUrl}
                         onMoveWebsite={handleMoveWebsite}
                         onExpandWebsite={handleExpandWebsite}
-                        onDragStart={(website) => setDragGhost({ visible: true, website })}
-                        onDragEnd={() => setDragGhost({ visible: false, website: null })}
+                        setDragGhost={setDragGhost}
                         onHoverChange={(websiteId, isHovered, hoverData) => {
                             if (isHovered) {
                                 const rect = containerRef.current?.getBoundingClientRect();
@@ -200,4 +210,4 @@ const HexagonalGrid = ({
     );
 };
 
-export default HexagonalGrid;
+export default React.memo(HexagonalGrid);

@@ -14,9 +14,7 @@ const VideoBackdrop = ({ viewState, screenCenter, onVideoChange }) => {
     
     // Refs for video elements
     const video1Ref = useRef(null);
-    const bgVideo1Ref = useRef(null);
     const video2Ref = useRef(null);
-    const bgVideo2Ref = useRef(null);
     const cycleIntervalRef = useRef(null);
     const isTransitioningRef = useRef(false);
     
@@ -222,10 +220,8 @@ const VideoBackdrop = ({ viewState, screenCenter, onVideoChange }) => {
             });
         };
         
-        setupVideo(video1Ref.current, 'Layer1-Main');
-        setupVideo(bgVideo1Ref.current, 'Layer1-Background');
-        setupVideo(video2Ref.current, 'Layer2-Main');
-        setupVideo(bgVideo2Ref.current, 'Layer2-Background');
+        setupVideo(video1Ref.current, 'Layer1');
+        setupVideo(video2Ref.current, 'Layer2');
     }, []);
     
     // Update video sources when layers change
@@ -242,12 +238,7 @@ const VideoBackdrop = ({ viewState, screenCenter, onVideoChange }) => {
         if (layer1Video && video1Ref.current && video1Ref.current.src !== window.location.origin + layer1Video.src) {
             video1Ref.current.src = layer1Video.src;
             video1Ref.current.load();
-            video1Ref.current.play().catch(e => console.log('Layer1 main play failed:', e));
-        }
-        if (layer1Video && bgVideo1Ref.current && bgVideo1Ref.current.src !== window.location.origin + layer1Video.src) {
-            bgVideo1Ref.current.src = layer1Video.src;
-            bgVideo1Ref.current.load();
-            bgVideo1Ref.current.play().catch(e => console.log('Layer1 bg play failed:', e));
+            video1Ref.current.play().catch(e => console.log('Layer1 play failed:', e));
         }
         
         // Update layer 2 videos
@@ -255,12 +246,7 @@ const VideoBackdrop = ({ viewState, screenCenter, onVideoChange }) => {
         if (layer2Video && video2Ref.current && video2Ref.current.src !== window.location.origin + layer2Video.src) {
             video2Ref.current.src = layer2Video.src;
             video2Ref.current.load();
-            video2Ref.current.play().catch(e => console.log('Layer2 main play failed:', e));
-        }
-        if (layer2Video && bgVideo2Ref.current && bgVideo2Ref.current.src !== window.location.origin + layer2Video.src) {
-            bgVideo2Ref.current.src = layer2Video.src;
-            bgVideo2Ref.current.load();
-            bgVideo2Ref.current.play().catch(e => console.log('Layer2 bg play failed:', e));
+            video2Ref.current.play().catch(e => console.log('Layer2 play failed:', e));
         }
     }, [videoLayers, videoFiles]);
 
@@ -271,34 +257,7 @@ const VideoBackdrop = ({ viewState, screenCenter, onVideoChange }) => {
     
     return (
         <>
-            {/* Layer 1 Videos */}
-            <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                width: '8000vw',
-                height: '8000vh',
-                transform: `translate(-50%, -50%) translateZ(-20000px)`,
-                transformStyle: 'preserve-3d',
-                pointerEvents: 'none',
-                opacity: videoLayers.layer1.opacity,
-                transition: 'opacity 0.1s linear'
-            }}>
-                <video
-                    ref={bgVideo1Ref}
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        filter: 'blur(20px)'
-                    }}
-                    muted
-                    loop
-                    playsInline
-                    preload="auto"
-                />
-            </div>
-            
+            {/* Layer 1 Video */}
             <div style={{
                 position: 'absolute',
                 top: '50%',
@@ -325,26 +284,25 @@ const VideoBackdrop = ({ viewState, screenCenter, onVideoChange }) => {
                 />
             </div>
             
-            {/* Layer 2 Videos */}
+            {/* Layer 2 Video */}
             <div style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
-                width: '8000vw',
-                height: '8000vh',
-                transform: `translate(-50%, -50%) translateZ(-20000px)`,
+                width: '6000vw',
+                height: '6000vh',
+                transform: `translate(-50%, -50%) translateZ(-15000px)`,
                 transformStyle: 'preserve-3d',
                 pointerEvents: 'none',
                 opacity: videoLayers.layer2.opacity,
                 transition: 'opacity 0.1s linear'
             }}>
                 <video
-                    ref={bgVideo2Ref}
+                    ref={video2Ref}
                     style={{
                         width: '100%',
                         height: '100%',
-                        objectFit: 'cover',
-                        filter: 'blur(20px)'
+                        objectFit: 'cover'
                     }}
                     muted
                     loop
