@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+'use client';
+
+import React, { useMemo, useState, useEffect } from 'react';
 import gridSystem from '../core/GridSystem';
 import viewportSystem from '../core/ViewportSystem';
 import tileManager from '../tileManager';
@@ -7,6 +9,11 @@ import tileManager from '../tileManager';
  * GridRenderer - Renders the hex grid dots in screen space for constant size
  */
 const GridRenderer = ({ viewState }) => {
+    const [mounted, setMounted] = useState(false);
+    
+    useEffect(() => {
+        setMounted(true);
+    }, []);
     // Update viewport system with current state
     useMemo(() => {
         viewportSystem.updateViewState(viewState);
@@ -62,6 +69,25 @@ const GridRenderer = ({ viewState }) => {
         
         return dots;
     }, [viewState.x, viewState.y, viewState.zoom]);
+    
+    // Only render dots after client mount to avoid hydration mismatch
+    if (!mounted) {
+        return (
+            <div 
+                className="grid-renderer"
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                    transform: 'none'
+                }}
+            />
+        );
+    }
     
     return (
         <div 
