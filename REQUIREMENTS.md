@@ -1,48 +1,41 @@
 # UX Module Requirements
 
 ## Overview
-Main user experience and interface module providing the primary interaction layer for the AMI-ORCHESTRATOR framework. Features an innovative hexagonal grid-based UI with advanced visualization capabilities, real-time collaboration features, and comprehensive file browsing functionality.
+Main user experience and interface module providing the primary interaction layer for the AMI-ORCHESTRATOR framework. Features a comprehensive chat interface, agent configuration system, real-time collaboration capabilities, and advanced file browsing functionality.
 
 ## Core Requirements
 
-### 1. Hexagonal Grid Interface
+### 1. Chat and Agent Interface
 
-#### Grid System
-- **Hexagonal Layout**
-  - Dynamic hex grid generation
-  - Infinite canvas navigation
-  - Zoom levels (10% - 500%)
-  - Smooth pan and zoom
-  - Grid snapping
+#### Agent Configuration
+- **Agent Management**
+  - Create and configure AI agents
+  - Define agent capabilities and permissions
+  - Set agent behavioral parameters
+  - Monitor agent activities
+  - Agent performance metrics
 
-- **Tile Management**
-  - Multiple tile types (message, website, file, media)
-  - Drag-and-drop positioning
-  - Tile clustering
-  - Auto-arrangement algorithms
-  - Collision detection
+- **Agent Interaction**
+  - Natural language communication
+  - Command palette for agent actions
+  - Agent status visualization
+  - Task assignment and tracking
+  - Multi-agent coordination
 
-- **Visual Effects**
-  - Parallax scrolling
-  - Depth-based rendering
-  - Smooth transitions
-  - Particle effects
-  - Glass morphism
+#### Chat System
+- **Conversation Management**
+  - Multi-threaded conversations
+  - Context preservation
+  - Conversation history
+  - Search and filtering
+  - Export capabilities
 
-#### Interactive Elements
-- **Hex Tiles**
-  - Message tiles with markdown
-  - Website iframe tiles
-  - File preview tiles
-  - Media player tiles
-  - Code editor tiles
-
-- **Tile Interactions**
-  - Click to focus
-  - Double-click to maximize
-  - Drag to reposition
-  - Resize handles
-  - Context menus
+- **Message Features**
+  - Rich text formatting
+  - Code syntax highlighting
+  - File attachments
+  - Inline previews
+  - Message reactions
 
 ### 2. File Browser Interface
 
@@ -76,30 +69,30 @@ Main user experience and interface module providing the primary interaction laye
   - File sharing
   - Tagging system
 
-### 3. Chat and Messaging
+### 3. Dashboards and Monitoring
 
-#### Chat Interface
-- **Message Display**
-  - Threaded conversations
-  - Rich text formatting
-  - Code syntax highlighting
-  - File attachments
-  - Emoji support
+#### System Dashboard
+- **Metrics Display**
+  - Real-time system metrics
+  - Agent activity monitoring
+  - Resource utilization graphs
+  - Performance indicators
+  - Alert notifications
 
-- **Input Methods**
-  - Multi-line text input
-  - Markdown editor
-  - Voice input
-  - File drag-and-drop
-  - Command palette
+- **Customization**
+  - Configurable widgets
+  - Drag-and-drop layout
+  - Custom metric definitions
+  - Theme selection
+  - Export capabilities
 
-#### Collaboration Features
-- **Real-Time Updates**
-  - Live typing indicators
-  - Presence awareness
-  - Read receipts
-  - Message reactions
-  - Screen sharing
+#### Analytics Views
+- **Data Visualization**
+  - Time series charts
+  - Heat maps
+  - Network diagrams
+  - Status indicators
+  - Trend analysis
 
 ### 4. UI Components Library
 
@@ -145,15 +138,15 @@ Main user experience and interface module providing the primary interaction laye
 ### Module Structure
 ```
 ux/
-├── ui-concept/           # Next.js hexagonal UI
+├── ui-concept/           # Next.js UI application
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── components/
-│   │   │   │   ├── base/        # Base tile components
-│   │   │   │   ├── grid/        # Grid system
-│   │   │   │   ├── backdrop/    # Visual effects
+│   │   │   │   ├── chat/        # Chat interface components
+│   │   │   │   ├── agents/      # Agent configuration UI
+│   │   │   │   ├── dashboard/   # Dashboard components
 │   │   │   │   ├── modal/       # Modal system
-│   │   │   │   └── drag/        # Drag system
+│   │   │   │   └── common/      # Shared components
 │   │   │   ├── core/            # Core systems
 │   │   │   ├── hooks/           # React hooks
 │   │   │   ├── utils/           # Utilities
@@ -177,54 +170,54 @@ ux/
 
 ### Core Systems
 
-#### Grid System
+#### Agent Manager
 ```javascript
-class HexagonalGrid {
+class AgentManager {
     constructor(config) {
-        this.gridSize = config.gridSize;
-        this.viewport = config.viewport;
-        this.tiles = new Map();
+        this.agents = new Map();
+        this.activeAgents = new Set();
+        this.config = config;
     }
     
-    addTile(tile, position) { }
-    removeTile(tileId) { }
-    moveTile(tileId, newPosition) { }
-    getTilesInViewport() { }
-    calculateLayout() { }
+    createAgent(name, capabilities) { }
+    configureAgent(agentId, settings) { }
+    activateAgent(agentId) { }
+    deactivateAgent(agentId) { }
+    getAgentStatus(agentId) { }
 }
 ```
 
-#### Viewport System
+#### Chat System
 ```javascript
-class ViewportSystem {
+class ChatSystem {
     constructor() {
-        this.zoom = 1.0;
-        this.pan = { x: 0, y: 0 };
-        this.bounds = null;
+        this.conversations = new Map();
+        this.activeConversation = null;
+        this.messageQueue = [];
     }
     
-    zoomTo(level, center) { }
-    panTo(position) { }
-    fitToContent() { }
-    screenToWorld(point) { }
-    worldToScreen(point) { }
+    createConversation(participants) { }
+    sendMessage(conversationId, message) { }
+    receiveMessage(message) { }
+    searchConversations(query) { }
+    exportConversation(conversationId) { }
 }
 ```
 
-#### Tile Manager
+#### Dashboard Manager
 ```javascript
-class TileManager {
+class DashboardManager {
     constructor() {
-        this.tiles = new Map();
-        this.activeT ileId = null;
+        this.widgets = new Map();
+        this.layout = [];
+        this.metrics = new Map();
     }
     
-    createTile(type, content, position) { }
-    updateTile(tileId, updates) { }
-    deleteTile(tileId) { }
-    focusTile(tileId) { }
-    arrangeTiles(algorithm) { }
-}
+    addWidget(widget, position) { }
+    removeWidget(widgetId) { }
+    updateMetric(metricId, value) { }
+    saveLayout() { }
+    loadLayout(layoutId) { }
 ```
 
 #### Animation Manager
@@ -323,24 +316,31 @@ class AnimationManager {
 // Redux/Zustand store structure
 {
     ui: {
-        viewport: { zoom, pan },
         theme: 'dark',
-        sidebar: { open, activePanel }
+        sidebar: { open, activePanel },
+        modals: { active: null, stack: [] }
     },
-    grid: {
-        tiles: Map,
-        selection: Set,
-        layout: 'auto'
+    agents: {
+        configured: Map,
+        active: Set,
+        status: Map
+    },
+    chat: {
+        conversations: Map,
+        activeConversation: null,
+        messages: [],
+        typing: Map,
+        presence: Map
+    },
+    dashboard: {
+        widgets: Map,
+        layout: [],
+        metrics: Map
     },
     files: {
         tree: {},
         selected: [],
         preview: null
-    },
-    chat: {
-        messages: [],
-        typing: Map,
-        presence: Map
     }
 }
 ```
