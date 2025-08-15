@@ -128,6 +128,12 @@ class LoD {
         // Callbacks
         this.onStateChange = null;
         this.onTransition = null;
+        
+        // Event listeners for event-driven pattern
+        this.listeners = {
+            stateChange: [],
+            transition: []
+        };
     }
     
     // Initialize with callbacks
@@ -314,17 +320,42 @@ class LoD {
         return styling.transparency[hexType]?.[state] || 0.2;
     }
     
-    // Notification methods
-    notifyStateChange() {
-        if (this.onStateChange) {
-            this.onStateChange(this.getCurrentState());
+    // Event emitter methods for event-driven pattern
+    on(event, callback) {
+        if (this.listeners[event]) {
+            this.listeners[event].push(callback);
         }
     }
     
-    notifyTransition(transitionType, data) {
-        if (this.onTransition) {
-            this.onTransition(transitionType, data, this.getCurrentState());
+    off(event, callback) {
+        if (this.listeners[event]) {
+            this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
         }
+    }
+    
+    emit(event, ...args) {
+        if (this.listeners[event]) {
+            this.listeners[event].forEach(callback => callback(...args));
+        }
+    }
+    
+    // Notification methods
+    notifyStateChange() {
+        const state = this.getCurrentState();
+        if (this.onStateChange) {
+            this.onStateChange(state);
+        }
+        // Emit event for event-driven pattern
+        this.emit('stateChange', state);
+    }
+    
+    notifyTransition(transitionType, data) {
+        const state = this.getCurrentState();
+        if (this.onTransition) {
+            this.onTransition(transitionType, data, state);
+        }
+        // Emit event for event-driven pattern  
+        this.emit('transition', transitionType, data, state);
     }
     
     // Debug information
