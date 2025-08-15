@@ -66,13 +66,18 @@ export const useLoDCapabilities = () => {
         const currentState = lodManager.getCurrentState();
         setCapabilities(currentState.capabilities);
         
-        // Subscribe to changes (simplified - in real app would use proper event system)
-        const interval = setInterval(() => {
+        // Subscribe to changes using event listener
+        const handleStateChange = () => {
             const state = lodManager.getCurrentState();
             setCapabilities(state.capabilities);
-        }, 100);
+        };
         
-        return () => clearInterval(interval);
+        // Add listener for LoD state changes
+        lodManager.on('stateChange', handleStateChange);
+        
+        return () => {
+            lodManager.off('stateChange', handleStateChange);
+        };
     }, []);
     
     return capabilities;
