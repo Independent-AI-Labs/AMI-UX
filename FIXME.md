@@ -1,94 +1,73 @@
-# CRITICAL MODULE FIX INSTRUCTIONS
+# UX MODULE OUTSTANDING ISSUES
 
-## YOUR MISSION:
-Fix ALL issues in UX module and push with ALL checks passing. NO CHEATING.
+## REMAINING CRITICAL FIXES NEEDED
+
+### ISSUE 1: MyPy Import Error
+**Status**: FAILING
+**Error**: `Cannot find implementation or library stub for module named "base.module_setup"`
+**Location**: `module_setup.py:20`
+**Fix Required**: Resolve the import path issue for base.module_setup module
+
+**Current Error Output**:
+```
+module_setup.py:20: error: Cannot find implementation or library stub for module named "base.module_setup"  [import-not-found]
+```
+
+### ISSUE 2: Missing Tests Directory
+**Status**: FAILING  
+**Error**: `ERROR: file or directory not found: tests/`
+**Fix Required**: Create tests/ directory with proper test files or update pytest.ini to point to correct test location
+
+**Current Error Output**:
+```
+ERROR: file or directory not found: tests/
+collected 0 items
+```
 
 ---
 
-### STEP 1: GO TO MODULE
+## COMPLETED FIXES (DO NOT REVISIT)
+- Import system fixed (ami_path.py deployed)
+- Module setup created (module_setup.py functional)  
+- MyPy configuration fixed (mypy.ini properly configured)
+- Ruff violations fixed (all checks passing)
+- Pre-commit hooks passing (all hooks successful)
+
+---
+
+## VERIFICATION COMMANDS
+
+### Check Current Status
 ```bash
 cd ux
-pwd
+../.venv/Scripts/ruff check .                                    # Should PASS
+../.venv/Scripts/python -m mypy . --show-error-codes            # Should FAIL (1 error)
+../.venv/Scripts/python -m pytest tests/ -v --tb=short          # Should FAIL (no tests dir)
+../.venv/Scripts/pre-commit run --all-files                     # Should PASS
 ```
 
-### STEP 2: CHECK MYPY.INI 
-**Ensure mypy.ini scans everything**
+### Final Verification (ALL must pass)
 ```bash
-# Read current mypy.ini
-cat mypy.ini
-
-# Verify it scans ALL files (no "files = backend/" restriction)
-```
-
-### STEP 3: RUN RUFF AND FIX ALL
-```bash
-# Auto-fix what's possible
-../.venv/Scripts/ruff check . --fix
-
-# Check what remains
-../.venv/Scripts/ruff check .
-
-# Fix remaining issues manually - NO SUPPRESSION
-```
-
-### STEP 4: RUN MYPY AND FIX ALL
-```bash
-# Run mypy on ENTIRE module
-../.venv/Scripts/python -m mypy . --show-error-codes
-
-# Fix EVERY type error - NO "type: ignore"
-```
-
-### STEP 5: RUN TESTS AND FIX ALL
-```bash
-# Run all tests
-../.venv/Scripts/python -m pytest tests/ -v --tb=short
-
-# Fix EVERY failing test - NO "pytest.skip"
-```
-
-### STEP 6: RUN PRE-COMMIT
-```bash
-# Run all pre-commit hooks
-../.venv/Scripts/pre-commit run --all-files
-
-# If anything fails, fix and re-run
-```
-
-### STEP 7: FINAL VERIFICATION
-```bash
-# ALL must pass:
 ../.venv/Scripts/ruff check .
 ../.venv/Scripts/python -m mypy . --show-error-codes  
 ../.venv/Scripts/python -m pytest tests/ -v
 ../.venv/Scripts/pre-commit run --all-files
 ```
 
-### STEP 8: COMMIT AND PUSH
-```bash
-git add -A
-git commit -m "fix: Complete UX module code quality overhaul"
-# NO --no-verify EVER
-
-git push origin HEAD
-# Use 600000ms (10 minute) timeout for push
-```
-
 ---
 
-## ABSOLUTE RULES:
-1. **Ensure mypy scans ENTIRE module**
-2. **ZERO ruff violations**
+## ABSOLUTE RULES
+1. **FIX import error in module_setup.py**
+2. **CREATE or FIX tests directory structure**
 3. **ZERO mypy errors**  
 4. **ALL tests pass**
-5. **ALL pre-commit hooks pass**
-6. **NO --no-verify**
-7. **NO type: ignore**
-8. **NO # noqa**
-9. **NO pytest.skip**
-10. **FIX ACTUAL PROBLEMS, not symptoms**
+5. **NO type: ignore**
+6. **NO pytest.skip**
+7. **FIX ACTUAL PROBLEMS, not symptoms**
 
----
-
-## IF YOU FAIL ANY CHECK:
-**STOP. FIX IT. DON'T PROCEED.**
+## COMMIT WHEN COMPLETE
+```bash
+git add -A
+git commit -m "fix: Resolve MyPy import error and tests directory in UX module"
+git push origin HEAD
+```

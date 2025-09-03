@@ -73,7 +73,10 @@ htmlcov/
 
 nul
 
-.claude
+.claude# Reference code directories - not tracked
+_reference_code/
+*/_reference_code/
+
 # Node.js
 node_modules/
 .next/
