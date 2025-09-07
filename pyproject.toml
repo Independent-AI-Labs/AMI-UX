@@ -1,0 +1,54 @@
+[project]
+name = "ami-ux"
+version = "0.1.0"
+description = "UX module for AMI orchestrator"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [ { name = "AMI Team" } ]
+
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.4.1",
+  "pytest-asyncio==1.1.0",
+  "pytest-aiohttp==1.0.5",
+  "pytest-cov==6.2.1",
+  "pytest-timeout==2.4.0",
+  "pytest-mock==3.14.1",
+  "ruff==0.12.8",
+  "pre-commit==4.3.0",
+  "mypy==1.17.1",
+]
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["ux*"]
+
+[tool.uv]
+package = true
+dev-dependencies = [
+  "pytest==8.4.1",
+  "pytest-asyncio==1.1.0",
+  "pytest-aiohttp==1.0.5",
+  "pytest-cov==6.2.1",
+  "pytest-timeout==2.4.0",
+  "pytest-mock==3.14.1",
+  "faker==37.5.3",
+  "ruff==0.12.8",
+  "pre-commit==4.3.0",
+  "mypy==1.17.1",
+]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+
