@@ -45,16 +45,60 @@ def _extract_encoded_body_text(src: str) -> str:
 
 
 def build_wp_like_document() -> bytes:
-    """Return the decoded snippet bytes, unwrapped.
+    """Build a minimal HTML doc that wraps the decoded snippet.
 
-    This mirrors WP Custom HTML block insertion while avoiding any outer shell
-    that could cause the browser to reparent/move nodes. Browsers will create
-    implied <html><head><body> around this fragment at parse time.
+    Adds a neutral wrapper with an animated light-gray multipoint gradient
+    background, without altering the snippet markup itself.
     """
     raw = LANDING_PATH.read_text(encoding="utf-8")
     encoded = _extract_encoded_body_text(raw)
     decoded_snippet = html.unescape(encoded)
-    return decoded_snippet.encode("utf-8")
+
+    doc = f"""<!doctype html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\"> 
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <title>landing snippet</title>
+    <style>
+      html, body {{ margin: 0; padding: 0; background: #ffffff; }}
+      /* Animated light-gray multipoint gradient background */
+      .iail-bg-anim {{
+        min-height: 100vh;
+        background:
+          radial-gradient(at 20% 30%, #e9e9e9 0, #e2e2e2 40%, transparent 65%),
+          radial-gradient(at 80% 20%, #e7e7e7 0, #dfdfdf 35%, transparent 60%),
+          radial-gradient(at 30% 80%, #ebebeb 0, #e3e3e3 40%, transparent 65%),
+          radial-gradient(at 70% 70%, #e6e6e6 0, #dddddd 35%, transparent 60%),
+          #f6f6f6;
+        background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%, auto;
+        animation: iailGradientShift 24s ease-in-out infinite alternate;
+      }}
+
+      @keyframes iailGradientShift {{
+        0% {{
+          background-position:
+            0% 0%, 100% 0%, 0% 100%, 100% 100%, 0 0;
+        }}
+        50% {{
+          background-position:
+            50% 50%, 50% 0%, 50% 100%, 0% 50%, 0 0;
+        }}
+        100% {{
+          background-position:
+            100% 100%, 0% 100%, 100% 0%, 0% 0%, 0 0;
+        }}
+      }}
+    </style>
+  </head>
+  <body>
+    <div class=\"iail-wrapper iail-bg-anim\">
+      {decoded_snippet}
+    </div>
+  </body>
+</html>
+"""
+    return doc.encode("utf-8")
 
 
 class Handler(BaseHTTPRequestHandler):
