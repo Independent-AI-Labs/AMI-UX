@@ -90,11 +90,11 @@ class Handler(BaseHTTPRequestHandler):
       .page-bg {{
         position: fixed; inset: 0; z-index: 0; pointer-events: none;
         background:
-          radial-gradient(at 20% 30%, #e9e9e9 0, #e2e2e2 40%, transparent 65%),
-          radial-gradient(at 80% 20%, #e7e7e7 0, #dfdfdf 35%, transparent 60%),
-          radial-gradient(at 30% 80%, #ebebeb 0, #e3e3e3 40%, transparent 65%),
-          radial-gradient(at 70% 70%, #e6e6e6 0, #dddddd 35%, transparent 60%),
-          #f6f6f6;
+          radial-gradient(at 20% 30%, #d0d0d0 0, #c4c4c4 40%, transparent 65%),
+          radial-gradient(at 80% 20%, #cecece 0, #c0c0c0 35%, transparent 60%),
+          radial-gradient(at 30% 80%, #d2d2d2 0, #c5c5c5 40%, transparent 65%),
+          radial-gradient(at 70% 70%, #cccccc 0, #bfbfbf 35%, transparent 60%),
+          #d8d8d8;
         background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%, auto;
         animation: pageGradientShift 24s ease-in-out infinite alternate;
       }}
