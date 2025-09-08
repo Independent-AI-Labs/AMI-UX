@@ -94,6 +94,20 @@ def build_wp_like_document() -> bytes:
   <body>
     <div class=\"iail-wrapper iail-bg-anim\">
       {decoded_snippet}
+      <!-- Ensure the section gets its own animated background inside .iail-bg -->
+      <style>
+        /* Override snippet's transparent background by declaring after it */
+        #how-we-help .iail-bg {{
+          background:
+            radial-gradient(at 20% 30%, #e9e9e9 0, #e2e2e2 40%, transparent 65%),
+            radial-gradient(at 80% 20%, #e7e7e7 0, #dfdfdf 35%, transparent 60%),
+            radial-gradient(at 30% 80%, #ebebeb 0, #e3e3e3 40%, transparent 65%),
+            radial-gradient(at 70% 70%, #e6e6e6 0, #dddddd 35%, transparent 60%),
+            #f6f6f6 !important;
+          background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%, auto !important;
+          animation: iailGradientShift 24s ease-in-out infinite alternate !important;
+        }}
+      </style>
     </div>
   </body>
 </html>
