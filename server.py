@@ -72,6 +72,56 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_error(404, "landing.html not found")
             return
 
+        if parsed.path == "/page":
+            try:
+                raw = LANDING_PATH.read_text(encoding="utf-8")
+                encoded = _extract_encoded_body_text(raw)
+                decoded_snippet = html.unescape(encoded)
+
+                # Non-interfering background: fixed sibling behind content
+                doc = f"""<!doctype html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\"> 
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <title>landing snippet (with page background)</title>
+    <style>
+      html, body {{ margin: 0; padding: 0; background: #ffffff; }}
+      .page-bg {{
+        position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        background:
+          radial-gradient(at 20% 30%, #e9e9e9 0, #e2e2e2 40%, transparent 65%),
+          radial-gradient(at 80% 20%, #e7e7e7 0, #dfdfdf 35%, transparent 60%),
+          radial-gradient(at 30% 80%, #ebebeb 0, #e3e3e3 40%, transparent 65%),
+          radial-gradient(at 70% 70%, #e6e6e6 0, #dddddd 35%, transparent 60%),
+          #f6f6f6;
+        background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%, auto;
+        animation: pageGradientShift 24s ease-in-out infinite alternate;
+      }}
+      @keyframes pageGradientShift {{
+        0%   {{ background-position: 0% 0%,   100% 0%,  0% 100%, 100% 100%, 0 0; }}
+        50%  {{ background-position: 50% 50%, 50% 0%,  50% 100%, 0% 50%,    0 0; }}
+        100% {{ background-position: 100% 100%, 0% 100%, 100% 0%,  0% 0%,    0 0; }}
+      }}
+      #content {{ position: relative; z-index: 1; }}
+    </style>
+  </head>
+  <body>
+    <div class=\"page-bg\" aria-hidden=\"true\"></div>
+    <div id=\"content\">{decoded_snippet}</div>
+  </body>
+</html>
+""".encode("utf-8")
+
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(doc)))
+                self.end_headers()
+                self.wfile.write(doc)
+            except FileNotFoundError:
+                self.send_error(404, "landing.html not found")
+            return
+
         if parsed.path == "/healthz":
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
