@@ -16,7 +16,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: "cmd /c \"cd .. && .venv\\Scripts\\python.exe -m mypy ux --config-file=ux\\mypy.ini\""
+        entry: "bash -lc 'cd .. && ux/.venv/bin/python -m mypy ux/scripts --config-file=ux/mypy.ini'"
         language: system
         types: [ python ]
         require_serial: true
