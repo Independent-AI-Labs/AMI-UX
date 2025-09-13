@@ -72,6 +72,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_error(404, "landing.html not found")
             return
 
+        if parsed.path == "/etag":
+            try:
+                mtime = str(LANDING_PATH.stat().st_mtime_ns).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(mtime)))
+                self.end_headers()
+                self.wfile.write(mtime)
+            except FileNotFoundError:
+                self.send_error(404, "landing.html not found")
+            return
+
         if parsed.path == "/page":
             try:
                 raw = LANDING_PATH.read_text(encoding="utf-8")
