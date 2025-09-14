@@ -63,7 +63,7 @@ async function main() {
   }
   firstFile = findFirstFile(tree.json)
   const docRoot = tree.json?.docRoot || ''
-  out.steps.sample = { docRoot, firstFile }
+  out.steps.sample = { ok: Boolean(docRoot), docRoot, firstFile }
 
   // 2) Config persistence: preferredMode + recentsAdd + tabs
   const cfgSet = await post('/api/config', {
