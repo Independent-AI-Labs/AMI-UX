@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Independent AI Labs — Docs</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <style>
+    :root {
+      --bg: #0b0c0f;
+      --panel: #111319;
+      --text: #e6e9ef;
+      --muted: #9aa3b2;
+      --accent: #7aa2f7;
+      --link: #7dcfff;
+      --border: #242832;
+      --code-bg: #0d1117;
+    }
+    [data-theme="light"] {
+      --bg: #ffffff;
+      --panel: #f7f7f9;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #1d4ed8;
+      --link: #2563eb;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+    }
+    html, body { height: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; gap: 12px; align-items: center; }
+    header h1 { font-size: 16px; margin: 0 8px 0 0; }
+    header input[type="search"] { flex: 1; padding: 6px 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; }
+    header .btn { padding: 6px 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; cursor: pointer; }
+    main { display: grid; grid-template-columns: 280px 1fr; gap: 0; height: calc(100% - 44px); }
+    nav { position: sticky; top: 44px; align-self: start; height: calc(100vh - 44px); overflow: auto; border-right: 1px solid var(--border); background: var(--panel); }
+    nav .toc { padding: 12px; font-size: 13px; }
+    nav .toc h3 { font-size: 12px; color: var(--muted); margin: 8px 0; text-transform: uppercase; letter-spacing: 0.06em; }
+    nav .toc a { display: block; padding: 2px 4px; border-radius: 4px; }
+    nav .toc a:hover { background: var(--bg); }
+    section#content { overflow: auto; padding: 16px 24px; }
+    .dir, .file { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); margin: 8px 0; }
+    details { padding: 0; }
+    summary { list-style: none; cursor: pointer; padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+    summary::marker, summary::-webkit-details-marker { display: none; }
+    summary .meta { color: var(--muted); font-weight: 400; margin-left: 8px; }
+    .indent { display: inline-block; width: calc(var(--depth, 0) * 1rem); }
+    .body { padding: 12px 16px; background: var(--bg); }
+    .md h1, .md h2, .md h3, .md h4 { scroll-margin-top: 70px; }
+    .md pre { background: var(--code-bg); padding: 12px; border-radius: 6px; overflow: auto; }
+    .md code { background: var(--code-bg); padding: 2px 4px; border-radius: 4px; }
+    .controls { display: flex; gap: 8px; margin-left: auto; }
+    .muted { color: var(--muted); }
+    .anchor { visibility: hidden; margin-left: 6px; font-size: 12px; }
+    .md h1:hover .anchor, .md h2:hover .anchor, .md h3:hover .anchor, .md h4:hover .anchor { visibility: visible; }
+    .hidden { display: none !important; }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } nav { display:none; } }
+    @media print {
+      header, nav { display: none; }
+      main { grid-template-columns: 1fr; }
+      .file, .dir { border: none; }
+      summary { border: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="appTitle">Docs</h1>
+    <input id="search" type="search" placeholder="Search files and headings (/)" />
+    <button class="btn" id="expandAll">Expand All</button>
+    <button class="btn" id="collapseAll">Collapse All</button>
+    <button class="btn" id="themeToggle">Theme</button>
+    <button class="btn" id="selectDirBtn">Select Directory</button>
+    <span class="muted" id="docRootLabel" title="Current doc root"></span>
+    <button class="btn" id="printBtn">Print</button>
+  </header>
+  <main>
+    <nav><div class="toc" id="toc"></div></nav>
+    <section id="content"></section>
+  </main>
+
+  <!-- External libs via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+
+  <script type="module">
+    const APP_TITLE = (document.querySelector('#appTitle').textContent = (new URLSearchParams()).get('') || 'Independent AI Labs — Docs')
+
+    const state = {
+      tree: null,
+      cache: new Map(), // path -> { html, headings }
+      open: new Set(), // paths of open details
+      theme: localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+      sse: null,
+      refreshTimer: null
+    }
+
+    // Theme handling
+    function applyTheme() {
+      document.documentElement.setAttribute('data-theme', state.theme)
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: false, theme: state.theme === 'dark' ? 'dark' : 'default' })
+      }
+    }
+    applyTheme()
+
+    // Markdown config (no HTML)
+    marked.setOptions({ gfm: true, breaks: false, headerIds: false, mangle: false })
+
+    async function fetchConfig() {
+      const res = await fetch('/api/config')
+      if (!res.ok) throw new Error('Failed to fetch config')
+      return res.json()
+    }
+
+    async function setDocRoot(pathStr) {
+      const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ docRoot: pathStr }) })
+      if (!res.ok) {
+        const msg = await res.text().catch(() => '')
+        throw new Error('Failed to set doc root: ' + msg)
+      }
+      return res.json()
+    }
+
+    async function fetchTree() {
+      const res = await fetch('/api/tree')
+      if (!res.ok) throw new Error('Failed to fetch tree')
+      return res.json()
+    }
+
+    async function fetchFile(relPath) {
+      const res = await fetch('/api/file?path=' + encodeURIComponent(relPath))
+      if (!res.ok) throw new Error('Failed to fetch file ' + relPath)
+      return res.text()
+    }
+
+    function slugify(str) {
+      return str.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')
+    }
+
+    function pathAnchor(relPath) {
+      return 'file-' + relPath.replace(/[^a-zA-Z0-9]+/g, '-')
+    }
+
+    // Renderers
+    function renderMarkdown(md, relPath) {
+      const raw = marked.parse(md)
+      const html = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
+      const wrapper = document.createElement('div')
+      wrapper.className = 'md'
+      wrapper.innerHTML = html
+
+      // Transform mermaid code blocks into <div class="mermaid"> nodes
+      wrapper.querySelectorAll('pre > code').forEach(code => {
+        const cls = code.className || ''
+        if (cls.includes('language-mermaid') || /^\s*graph|sequenceDiagram|classDiagram|stateDiagram/.test(code.textContent || '')) {
+          const div = document.createElement('div')
+          div.className = 'mermaid'
+          div.textContent = code.textContent || ''
+          const pre = code.parentElement
+          pre?.replaceWith(div)
+        }
+      })
+
+      // Math rendering (inline $...$, $$...$$)
+      try { renderMathInElement(wrapper, { delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true }
+      ] }) } catch {}
+
+      // Initialize mermaid only for new nodes
+      const mermaidBlocks = wrapper.querySelectorAll('.mermaid')
+      if (mermaidBlocks.length && window.mermaid) {
+        if (window.mermaid.run) window.mermaid.run({ nodes: mermaidBlocks })
+        else if (window.mermaid.init) window.mermaid.init(undefined, mermaidBlocks)
+      }
+
+      // Headings: add ids + anchor links
+      const headings = []
+      wrapper.querySelectorAll('h1, h2, h3, h4').forEach(h => {
+        const text = h.textContent || ''
+        const id = pathAnchor(relPath) + '-' + slugify(text)
+        h.id = id
+        const a = document.createElement('a')
+        a.href = '#' + id
+        a.className = 'anchor'
+        a.textContent = '¶'
+        h.appendChild(a)
+        headings.push({ id, text, level: parseInt(h.tagName.slice(1), 10) })
+      })
+
+      return { htmlEl: wrapper, headings }
+    }
+
+    function renderCSV(text) {
+      // Simple CSV parser (handles quotes and commas)
+      const rows = []
+      let i = 0, field = '', row = [], inQuotes = false
+      while (i <= text.length) {
+        const ch = text[i] || '\n'
+        if (inQuotes) {
+          if (ch === '"' && text[i + 1] === '"') { field += '"'; i++ } else if (ch === '"') { inQuotes = false } else { field += ch }
+        } else {
+          if (ch === '"') { inQuotes = true }
+          else if (ch === ',') { row.push(field); field = '' }
+          else if (ch === '\n' || ch === '\r') { if (field !== '' || row.length) { row.push(field); rows.push(row); row = []; field = '' } }
+          else { field += ch }
+        }
+        i++
+      }
+      const table = document.createElement('table')
+      table.style.width = '100%'; table.style.borderCollapse = 'collapse'
+      const mkCell = (tag, txt, isHeader=false) => {
+        const el = document.createElement(tag)
+        el.textContent = txt
+        el.style.border = '1px solid var(--border)'
+        el.style.padding = '6px 8px'
+        if (isHeader) el.style.background = 'var(--panel)'
+        return el
+      }
+      if (!rows.length) return table
+      const thead = document.createElement('thead'); const tbody = document.createElement('tbody')
+      const [head, ...rest] = rows
+      const trh = document.createElement('tr'); head.forEach(h => trh.appendChild(mkCell('th', h, true))); thead.appendChild(trh)
+      rest.forEach(r => { const tr = document.createElement('tr'); r.forEach(c => tr.appendChild(mkCell('td', c))); tbody.appendChild(tr) })
+      table.appendChild(thead); table.appendChild(tbody)
+      table.style.overflowX = 'auto'
+      return table
+    }
+
+    async function loadFileNode(details, node, body) {
+      if (state.cache.has(node.path)) return
+      try {
+        const raw = await fetchFile(node.path)
+        let contentEl
+        let headings = []
+        const lname = node.name.toLowerCase()
+        if (lname.endsWith('.md')) {
+          const out = renderMarkdown(raw, node.path)
+          contentEl = out.htmlEl; headings = out.headings
+        } else if (lname.endsWith('.csv')) {
+          contentEl = renderCSV(raw)
+        } else {
+          contentEl = document.createElement('pre'); contentEl.textContent = raw
+        }
+        state.cache.set(node.path, { html: contentEl, headings })
+        body.innerHTML = ''
+        const anchor = document.createElement('a')
+        anchor.id = pathAnchor(node.path)
+        body.appendChild(anchor)
+        body.appendChild(contentEl)
+        updateTOC()
+      } catch (e) {
+        body.textContent = 'Failed to load file.'
+      }
+    }
+
+    function buildNode(node, depth=0) {
+      const details = document.createElement('details')
+      details.className = node.type === 'dir' ? 'dir' : 'file'
+      details.style.setProperty('--depth', String(depth))
+      details.dataset.path = node.path
+      const sum = document.createElement('summary')
+      sum.innerHTML = `<span class="indent"></span>${node.name}${node.type==='file'?` <span class="meta">(${node.path})</span>`:''}`
+      details.appendChild(sum)
+      const body = document.createElement('div')
+      body.className = 'body'
+      details.appendChild(body)
+
+      if (node.type === 'dir') {
+        // Directory anchor for deep links
+        const dirAnchor = document.createElement('a')
+        dirAnchor.id = 'dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root')
+        body.appendChild(dirAnchor)
+
+        const children = (node.children || []).slice()
+        // Move README.md to the top
+        children.sort((a, b) => {
+          const ar = a.type === 'file' && a.name.toLowerCase() === 'readme.md'
+          const br = b.type === 'file' && b.name.toLowerCase() === 'readme.md'
+          if (ar && !br) return -1
+          if (br && !ar) return 1
+          return 0
+        })
+        children.forEach(child => {
+          const childEl = buildNode(child, depth + 1)
+          if (child.type === 'file' && child.name.toLowerCase() === 'readme.md') {
+            childEl.setAttribute('open', '')
+            const childBody = childEl.querySelector('.body')
+            loadFileNode(childEl, child, childBody)
+          }
+          body.appendChild(childEl)
+        })
+      } else {
+        // Lazy load on first open
+        details.addEventListener('toggle', async () => {
+          if (details.open && !state.cache.has(node.path)) {
+            await loadFileNode(details, node, body)
+            restoreHashTarget()
+          }
+        }, { once: false })
+      }
+
+      // Persist open state
+      details.addEventListener('toggle', () => {
+        const p = node.path
+        if (details.open) state.open.add(p); else state.open.delete(p)
+        localStorage.setItem('open', JSON.stringify(Array.from(state.open)))
+      })
+
+      // Pre-open based on saved state
+      if (state.open.has(node.path)) details.setAttribute('open', '')
+
+      return details
+    }
+
+    function updateTOC() {
+      const toc = document.getElementById('toc')
+      toc.innerHTML = ''
+      // Structure
+      const structHdr = document.createElement('h3'); structHdr.textContent = 'Structure'
+      toc.appendChild(structHdr)
+      const struct = document.createElement('div')
+      function addStruct(node, depth=0) {
+        if (node.type === 'dir') {
+          const a = document.createElement('a')
+          a.textContent = node.name + '/'
+          a.href = '#' + ('dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root'))
+          a.style.paddingLeft = depth * 12 + 'px'
+          struct.appendChild(a)
+          ;(node.children||[]).forEach(ch => addStruct(ch, depth+1))
+        } else {
+          const a = document.createElement('a')
+          a.textContent = node.name
+          a.href = '#' + pathAnchor(node.path)
+          a.style.paddingLeft = depth * 12 + 'px'
+          struct.appendChild(a)
+        }
+      }
+      if (state.tree?.children) state.tree.children.forEach(ch => addStruct(ch, 0))
+      toc.appendChild(struct)
+
+      // Headings
+      const headHdr = document.createElement('h3'); headHdr.textContent = 'Table of Contents'
+      toc.appendChild(headHdr)
+      const hnav = document.createElement('div')
+      document.querySelectorAll('.md h1, .md h2, .md h3, .md h4').forEach(h => {
+        const level = parseInt(h.tagName.slice(1), 10)
+        const id = h.id
+        const text = (h.textContent || '').replace('¶','').trim()
+        const a = document.createElement('a')
+        a.href = '#' + id
+        a.textContent = text
+        a.style.paddingLeft = (level - 1) * 12 + 'px'
+        hnav.appendChild(a)
+      })
+      toc.appendChild(hnav)
+    }
+
+    function debounceRefreshTree() {
+      if (state.refreshTimer) clearTimeout(state.refreshTimer)
+      state.refreshTimer = setTimeout(async () => {
+        try {
+          const newTree = await fetchTree()
+          state.tree = newTree
+          const root = document.getElementById('content')
+          const scrollY = window.scrollY
+          root.innerHTML = ''
+          const frag = document.createDocumentFragment()
+          ;(newTree.children || []).forEach(child => frag.appendChild(buildNode(child, 0)))
+          root.appendChild(frag)
+          updateTOC()
+          // attempt to restore scroll position
+          window.scrollTo(0, scrollY)
+        } catch (e) { console.warn('Failed to refresh tree', e) }
+      }, 200)
+    }
+
+    function connectSSE() {
+      try { state.sse?.close?.() } catch {}
+      const es = new EventSource('/api/events')
+      es.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data)
+          if (msg.type === 'config') {
+            // doc root changed; re-fetch config + tree
+            debounceRefreshTree()
+            fetchConfig().then(c => {
+              const l = document.getElementById('docRootLabel'); l.textContent = '(' + (c.docRoot || '') + ')'
+            }).catch(() => {})
+            return
+          }
+          if (msg.type === 'add' || msg.type === 'unlink' || msg.type === 'addDir' || msg.type === 'unlinkDir') {
+            debounceRefreshTree()
+          } else if (msg.type === 'change' && typeof msg.path === 'string') {
+            // invalidate cache and reload open file
+            const rel = msg.path
+            state.cache.delete(rel)
+            const openFile = document.querySelector(`details.file[data-path="${CSS.escape(rel)}"]`)
+            if (openFile && openFile.hasAttribute('open')) {
+              const body = openFile.querySelector('.body')
+              const node = { name: rel.split('/').pop() || rel, path: rel, type: 'file' }
+              loadFileNode(openFile, node, body)
+            }
+            updateTOC()
+          }
+        } catch {}
+      }
+      es.onerror = () => { /* try to reconnect */ setTimeout(connectSSE, 3000) }
+      state.sse = es
+    }
+
+    function expandCollapseAll(expand=true) {
+      document.querySelectorAll('#content details').forEach(d => {
+        const isOpen = d.hasAttribute('open')
+        if (expand && !isOpen) d.setAttribute('open', '')
+        if (!expand && isOpen) d.removeAttribute('open')
+      })
+    }
+
+    function restoreState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('open') || '[]')
+        state.open = new Set(saved)
+      } catch { state.open = new Set() }
+    }
+
+    function restoreHashTarget() {
+      if (location.hash) {
+        const id = location.hash.slice(1)
+        const el = document.getElementById(id)
+        if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      }
+    }
+
+    function openParentsForHash() {
+      if (!location.hash) return
+      const id = location.hash.slice(1)
+      if (id.startsWith('file-')) {
+        // open the file details by path
+        const parts = id.replace(/^file-/, '')
+        // find details by data-path matching; best-effort because id includes dashes only
+      }
+    }
+
+    function attachEvents() {
+      document.getElementById('themeToggle').addEventListener('click', () => {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark'
+        localStorage.setItem('theme', state.theme)
+        applyTheme()
+      })
+      document.getElementById('expandAll').addEventListener('click', () => expandCollapseAll(true))
+      document.getElementById('collapseAll').addEventListener('click', () => expandCollapseAll(false))
+      document.getElementById('printBtn').addEventListener('click', () => window.print())
+      document.getElementById('selectDirBtn').addEventListener('click', async () => {
+        try {
+          const current = (await fetchConfig()).docRoot || ''
+          const val = prompt('Enter docs directory path (absolute or relative to server):', current)
+          if (!val) return
+          await setDocRoot(val)
+          await init(true)
+        } catch (e) { alert(e.message || 'Failed to set directory') }
+      })
+      const search = document.getElementById('search')
+      window.addEventListener('keydown', (e) => { if (e.key === '/' && document.activeElement !== search) { e.preventDefault(); search.focus() } })
+      search.addEventListener('input', () => {
+        const q = search.value.toLowerCase()
+        document.querySelectorAll('#content details').forEach(d => {
+          const title = d.querySelector('summary')?.textContent?.toLowerCase() || ''
+          const match = !q || title.includes(q)
+          d.classList.toggle('hidden', !match)
+        })
+      })
+      window.addEventListener('hashchange', restoreHashTarget)
+
+      // Expand all for print and restore after
+      let prevOpen = []
+      window.addEventListener('beforeprint', () => {
+        prevOpen = Array.from(document.querySelectorAll('#content details[open]'))
+        expandCollapseAll(true)
+      })
+      window.addEventListener('afterprint', () => {
+        document.querySelectorAll('#content details').forEach(d => d.removeAttribute('open'))
+        prevOpen.forEach(d => d.setAttribute('open', ''))
+      })
+    }
+
+    async function init(fromSelect=false) {
+      restoreState()
+      attachEvents()
+      let cfg
+      try { cfg = await fetchConfig() } catch {}
+      const docRootLabel = document.getElementById('docRootLabel')
+      if (cfg && cfg.docRoot) { docRootLabel.textContent = '(' + cfg.docRoot + ')' } else { docRootLabel.textContent = '' }
+      const tree = await fetchTree()
+      state.tree = tree
+      const root = document.getElementById('content')
+      root.innerHTML = ''
+      const title = document.getElementById('appTitle')
+      title.textContent = (tree?.name || 'Docs')
+      const frag = document.createDocumentFragment()
+      ;(tree.children || []).forEach(child => frag.appendChild(buildNode(child, 0)))
+      root.appendChild(frag)
+      updateTOC()
+      restoreHashTarget()
+      connectSSE()
+    }
+
+    init().catch(err => {
+      document.getElementById('content').textContent = 'Failed to load documentation tree.'
+      console.error(err)
+    })
+  </script>
+</body>
+</html>
