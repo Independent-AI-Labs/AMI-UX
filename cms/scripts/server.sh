@@ -21,12 +21,18 @@ PID_FILE="/tmp/docs-web-${PORT}.pid"
 LOG_FILE="/tmp/docs-web-${PORT}.log"
 
 is_running() {
+  # Prefer PID file when valid
   if [[ -f "$PID_FILE" ]]; then
     local pid
     pid=$(cat "$PID_FILE" 2>/dev/null || true)
     if [[ -n "$pid" ]] && ps -p "$pid" >/dev/null 2>&1; then
       return 0
     fi
+  fi
+  # Fallback: if something is listening on the recorded port, treat as running
+  local p=""; [[ -f "${PID_FILE}.port" ]] && p=$(cat "${PID_FILE}.port" 2>/dev/null || true)
+  if [[ -n "$p" ]]; then
+    if listener_pid "$p" >/dev/null 2>&1; then return 0; fi
   fi
   return 1
 }
@@ -54,6 +60,20 @@ kill_port() {
   elif command -v fuser >/dev/null 2>&1; then
     fuser -k "$PORT"/tcp || true
   fi
+}
+
+listener_pid() {
+  local p="$1"
+  local lp=""
+  if command -v lsof >/dev/null 2>&1; then
+    lp=$(lsof -ti :"$p" -sTCP:LISTEN 2>/dev/null | head -n1 || true)
+  elif command -v ss >/dev/null 2>&1; then
+    lp=$(ss -ltnp 2>/dev/null | awk -v P=":$p" '$4 ~ P {print $0}' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | head -n1 || true)
+  elif command -v fuser >/dev/null 2>&1; then
+    lp=$(fuser -n tcp "$p" 2>/dev/null | awk '{print $1}' | head -n1 || true)
+  fi
+  if [[ -n "$lp" ]]; then echo "$lp"; return 0; fi
+  return 1
 }
 
 kill_orphans() {
@@ -105,6 +125,13 @@ start() {
     if [[ "$WAIT_SECS" -gt 0 ]]; then loops=$(( WAIT_SECS * 3 )); fi
     for ((i=1;i<=loops;i++)); do
       if curl -fsS --max-time 1 "http://127.0.0.1:$p/api/tree" >/dev/null 2>&1; then
+        # Record the actual listener pid if we can find it (retry briefly)
+        local lpid=""
+        for ((j=1;j<=10;j++)); do
+          lpid=$(listener_pid "$p" 2>/dev/null || true)
+          if [[ -n "$lpid" ]]; then echo "$lpid" >"$PID_FILE"; break; fi
+          sleep 0.1
+        done
         local pidval=""
         [[ -f "$PID_FILE" ]] && pidval=$(cat "$PID_FILE" 2>/dev/null || true)
         echo "Started on port $p (pid ${pidval}) | logs: $LOG_FILE"; return 0
@@ -139,10 +166,16 @@ stop() {
 }
 
 status() {
-  if is_running; then
-    local p="unknown"; [[ -f "${PID_FILE}.port" ]] && p=$(cat "${PID_FILE}.port")
-    local pidval=""; [[ -f "$PID_FILE" ]] && pidval=$(cat "$PID_FILE" 2>/dev/null || true)
-    echo "Running (pid ${pidval}) on port ${p} (base $PORT)"; echo "Log: $LOG_FILE"; tail -n 5 "$LOG_FILE" 2>/dev/null || true
+  local p="unknown"; [[ -f "${PID_FILE}.port" ]] && p=$(cat "${PID_FILE}.port")
+  local pidval=""; [[ -f "$PID_FILE" ]] && pidval=$(cat "$PID_FILE" 2>/dev/null || true)
+  local lpid=""; if [[ -n "$p" ]]; then lpid=$(listener_pid "$p" 2>/dev/null || true); fi
+  if is_running || [[ -n "$lpid" ]]; then
+    if [[ -n "$lpid" ]]; then
+      echo "Running (pid ${pidval}, listener ${lpid}) on port ${p} (base $PORT)"
+    else
+      echo "Running (pid ${pidval}) on port ${p} (base $PORT)"
+    fi
+    echo "Log: $LOG_FILE"; tail -n 5 "$LOG_FILE" 2>/dev/null || true
   else
     echo "Not running on port $PORT"; echo "Recent log (if any):"; tail -n 5 "$LOG_FILE" 2>/dev/null || true
   fi
