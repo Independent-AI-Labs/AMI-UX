@@ -77,6 +77,18 @@ export async function GET(req: Request) {
   if (!ALLOWED.has(ext)) return new NextResponse('Unsupported type', { status: 415 })
 
   try {
+    const st = await fs.stat(targetAbs)
+    const etag = `W/"${st.size}-${Number(st.mtimeMs).toString(16)}"`
+    const ifNoneMatch = req.headers.get('if-none-match')
+    if (ifNoneMatch && ifNoneMatch === etag) {
+      const h304 = new Headers({
+        ETag: etag,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      })
+      return new NextResponse(null, { status: 304, headers: h304 })
+    }
     const data = await fs.readFile(targetAbs)
     const type = MIME[ext] || 'application/octet-stream'
     const allowInline = mode === 'A'
@@ -87,10 +99,10 @@ export async function GET(req: Request) {
       Expires: '0',
       'Content-Security-Policy': buildCspHeader({ allowInlineScript: allowInline }),
       'X-Content-Type-Options': 'nosniff',
+      ETag: etag,
     })
     return new NextResponse(data, { status: 200, headers })
   } catch (e) {
     return new NextResponse('Not found', { status: 404 })
   }
 }
-

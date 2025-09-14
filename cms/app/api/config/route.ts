@@ -20,6 +20,7 @@ export async function GET() {
     activeTabId: cfg.activeTabId ?? null,
     preferredMode: cfg.preferredMode,
     recents: cfg.recents ?? [],
+    allowed: cfg.allowed,
   }
   return NextResponse.json(filled)
 }
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
   if ('activeTabId' in body) next.activeTabId = (body as any).activeTabId ?? null
   if (typeof (body as any).preferredMode === 'string') next.preferredMode = (body as any).preferredMode as any
   if (Array.isArray((body as any).recents)) next.recents = (body as any).recents as any
+  if (typeof (body as any).allowed === 'string') next.allowed = String((body as any).allowed)
 
   // Convenience: recentsAdd to push a single entry
   const add = (body as any).recentsAdd

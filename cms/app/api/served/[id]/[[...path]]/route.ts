@@ -48,14 +48,11 @@ export async function GET(req: Request, { params }: { params: { id: string, path
   const entry = entries.find((e) => e.id === inst.entryId)
   if (!entry) return NextResponse.json({ error: 'entry missing' }, { status: 404 })
 
-  // App proxy
   if (inst.kind === 'app' && inst.port) {
     return proxyToPort(inst.port, p, req)
   }
 
-  // File/Dir mapping
   if (inst.kind === 'file') {
-    // Serve the file directly for base path; allow asset children resolved relative to file dir
     const base = path.dirname(entry.path)
     const target = p ? path.resolve(base, p) : entry.path
     if (!target.startsWith(base)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
@@ -67,7 +64,6 @@ export async function GET(req: Request, { params }: { params: { id: string, path
     } catch { return NextResponse.json({ error: 'not found' }, { status: 404 }) }
   }
   if (inst.kind === 'dir') {
-    // Serve a small wrapper that embeds doc.html and sets docRoot via postMessage
     const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Docs</title></head><body style="margin:0; height:100vh; background:#111;"><iframe id="d" src="/doc.html?embed=1" style="border:0;width:100%;height:100%"></iframe><script>window.addEventListener('load',function(){try{document.getElementById('d').contentWindow.postMessage({type:'setDocRoot',path:${JSON.stringify(entry.path)}},'*')}catch(e){}})</script></body></html>`
     const headers = new Headers({ 'Content-Type': 'text/html; charset=utf-8' })
     csp(headers)
