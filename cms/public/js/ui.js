@@ -62,8 +62,8 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
     body.appendChild(dirAnchor)
 
     const children = (node.children || []).slice()
-    // For every directory, ensure Introduction/README appears first
-    {
+    // Root only: ensure Introduction/README appears first
+    if (depth === 0) {
       const idxIntro = children.findIndex((ch) => ch.type === 'file' && isIntroFile(ch.name))
       if (idxIntro >= 0) {
         const intro = children.splice(idxIntro, 1)[0]
@@ -73,8 +73,8 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
     let idx = 1
     children.forEach((child) => {
       const childEl = buildNode(state, child, depth + 1, indexPath.concat(idx++))
-      // Auto-expand and preload Introduction/README everywhere
-      if (child.type === 'file' && isIntroFile(child.name)) {
+      // Auto-expand and preload Introduction/README at root only
+      if (depth === 0 && child.type === 'file' && isIntroFile(child.name)) {
         childEl.setAttribute('open', '')
         const childBody = childEl.querySelector('.body')
         loadFileNode(state, childEl, child, childBody)
@@ -127,8 +127,8 @@ export function updateTOC(state) {
       det.appendChild(sum)
       const container = document.createElement('div')
       const kids = (node.children || []).slice()
-      // Mirror placement in TOC for every directory
-      {
+      // Mirror placement in TOC for root only
+      if (indexPath.length === 1) {
         const i = kids.findIndex((ch) => ch.type === 'file' && isIntroFile(ch.name))
         if (i >= 0) {
           const rm = kids.splice(i, 1)[0]
