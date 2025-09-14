@@ -167,6 +167,12 @@
       return base
     }
 
+    function displayName(node) {
+      const lname = (node.name || '').toLowerCase()
+      if (node.type === 'file' && lname === 'readme.md') return 'Introduction'
+      return humanizeName(node.name, node.type)
+    }
+
     // Renderers
     function renderMarkdown(md, relPath) {
       const raw = marked.parse(md)
@@ -282,14 +288,15 @@
       }
     }
 
-    function buildNode(node, depth=0) {
+    function buildNode(node, depth=0, indexPath=[]) {
       const details = document.createElement('details')
       details.className = node.type === 'dir' ? 'dir' : 'file'
       details.style.setProperty('--depth', String(depth))
       details.dataset.path = node.path
       const sum = document.createElement('summary')
-      const label = humanizeName(node.name, node.type)
-      sum.innerHTML = `<span class="indent"></span>${label}${node.type==='file'?` <span class="meta">(${node.path})</span>`:''}`
+      const label = displayName(node)
+      const num = indexPath.length ? (indexPath.join('.') + '. ') : ''
+      sum.innerHTML = '<span class="indent"></span>' + num + label + (node.type==='file' ? ' <span class="meta">(' + node.path + ')</span>' : '')
       details.appendChild(sum)
       const body = document.createElement('div')
       body.className = 'body'
@@ -310,8 +317,9 @@
           if (br && !ar) return 1
           return 0
         })
+        let idx = 1
         children.forEach(child => {
-          const childEl = buildNode(child, depth + 1)
+          const childEl = buildNode(child, depth + 1, indexPath.concat(idx++))
           if (child.type === 'file' && child.name.toLowerCase() === 'readme.md') {
             childEl.setAttribute('open', '')
             const childBody = childEl.querySelector('.body')
@@ -349,23 +357,46 @@
       const structHdr = document.createElement('h3'); structHdr.textContent = 'Structure'
       toc.appendChild(structHdr)
       const struct = document.createElement('div')
-      function addStruct(node, depth=0) {
+      function addStruct(node, indexPath=[]) {
         if (node.type === 'dir') {
+          const det = document.createElement('details')
+          det.open = indexPath.length <= 1
+          const sum = document.createElement('summary')
+          const num = indexPath.length ? (indexPath.join('.') + '. ') : ''
+          const label = displayName(node)
           const a = document.createElement('a')
-          a.textContent = humanizeName(node.name, 'dir') + '/'
+          a.textContent = num + label + '/'
           a.href = '#' + ('dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root'))
-          a.style.paddingLeft = depth * 12 + 'px'
-          struct.appendChild(a)
-          ;(node.children||[]).forEach(ch => addStruct(ch, depth+1))
+          sum.appendChild(a)
+          det.appendChild(sum)
+          const container = document.createElement('div')
+          const kids = (node.children || []).slice().sort((a, b) => {
+            const ar = a.type === 'file' && a.name.toLowerCase() === 'readme.md'
+            const br = b.type === 'file' && b.name.toLowerCase() === 'readme.md'
+            if (ar && !br) return -1
+            if (br && !ar) return 1
+            return 0
+          })
+          let idx = 1
+          kids.forEach(ch => {
+            container.appendChild(addStruct(ch, indexPath.concat(idx++)))
+          })
+          det.appendChild(container)
+          return det
         } else {
           const a = document.createElement('a')
-          a.textContent = humanizeName(node.name, 'file')
+          const num = (indexPath.join('.') + '. ')
+          a.textContent = num + displayName(node)
           a.href = '#' + pathAnchor(node.path)
-          a.style.paddingLeft = depth * 12 + 'px'
-          struct.appendChild(a)
+          a.style.display = 'block'
+          a.style.paddingLeft = (indexPath.length * 12) + 'px'
+          return a
         }
       }
-      if (state.tree?.children) state.tree.children.forEach(ch => addStruct(ch, 0))
+      if (state.tree?.children) {
+        let idx = 1
+        state.tree.children.forEach(ch => struct.appendChild(addStruct(ch, [idx++])))
+      }
       toc.appendChild(struct)
 
       // Headings
@@ -439,7 +470,7 @@
     }
 
     function expandCollapseAll(expand=true) {
-      document.querySelectorAll('#content details').forEach(d => {
+      document.querySelectorAll('#content details, #toc details').forEach(d => {
         const isOpen = d.hasAttribute('open')
         if (expand && !isOpen) d.setAttribute('open', '')
         if (!expand && isOpen) d.removeAttribute('open')
@@ -527,7 +558,8 @@
       const title = document.getElementById('appTitle')
       title.textContent = humanizeName((tree?.name || 'Docs'), 'dir')
       const frag = document.createDocumentFragment()
-      ;(tree.children || []).forEach(child => frag.appendChild(buildNode(child, 0)))
+      let idx = 1
+      ;(tree.children || []).forEach(child => frag.appendChild(buildNode(child, 0, [idx++])))
       root.appendChild(frag)
       updateTOC()
       restoreHashTarget()
