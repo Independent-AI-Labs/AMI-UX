@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "runner": "node scripts/runner.mjs"
+    "runner": "node scripts/runner.mjs",
+    "lint": "eslint . --ext .js,.ts,.tsx",
+    "format": "prettier --check .",
+    "format:write": "prettier --write ."
   },
   "dependencies": {
     "next": "14.2.5",
@@ -17,6 +20,9 @@
   "devDependencies": {
     "@types/node": "20.11.30",
     "@types/react": "19.1.13",
+    "eslint": "9.9.1",
+    "eslint-config-next": "14.2.5",
+    "prettier": "3.3.3",
     "typescript": "5.4.5"
   }
 }
