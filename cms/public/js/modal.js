@@ -1,0 +1,303 @@
+// React-based Select Media Modal
+async function ensureReact() {
+  if (window.React && window.ReactDOM) return { React: window.React, ReactDOM: window.ReactDOM }
+  const load = (src) => new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = src
+    s.crossOrigin = 'anonymous'
+    s.onload = resolve
+    s.onerror = reject
+    document.head.appendChild(s)
+  })
+  // Use CDN consistent with other libs in this app
+  await load('https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js')
+  await load('https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js')
+  return { React: window.React, ReactDOM: window.ReactDOM }
+}
+
+// Overhauled: openSelectMediaModal now opens a Library drawer
+export async function openSelectMediaModal({ onSelect } = {}) {
+  const { React, ReactDOM } = await ensureReact()
+  const { useEffect, useMemo, useRef, useState } = React
+  // Icons
+  const Icon = ({ name }) => {
+    const paths = {
+      file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline>',
+      folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path>',
+      app: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"><\/path>'
+    }
+    const svg = paths[name] || paths.file
+    return React.createElement('span', { dangerouslySetInnerHTML: { __html: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>` } })
+  }
+
+  function Row({ entry, onOpen, onContext }) {
+    const label = entry.label || entry.path.split('/').pop()
+    const kind = entry.kind
+    return React.createElement('div', {
+      className: 'row',
+      onDoubleClick: () => onOpen(entry),
+      onContextMenu: (e) => { e.preventDefault(); onContext(e, entry) },
+      style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderBottom: '1px solid var(--border)', cursor: 'default' }
+    },
+      React.createElement(Icon, { name: kind === 'dir' ? 'folder' : (kind === 'app' ? 'app' : 'file') }),
+      React.createElement('div', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: entry.path }, label),
+    )
+  }
+
+  function ContextMenu({ x, y, onClose, onPick, onStart, onStop, onDeleteLib, onDeleteDisk }) {
+    const items = [
+      { key: 'open', label: 'Open', action: onPick },
+      { key: 'start', label: 'Start Serving', action: onStart },
+      { key: 'stop', label: 'Stop Serving', action: onStop },
+      { key: 'del', label: 'Delete from Library', action: onDeleteLib },
+      { key: 'deld', label: 'Delete from Disk', action: onDeleteDisk },
+    ]
+    return React.createElement('div', { style: { position: 'fixed', left: x, top: y, zIndex: 1002, background: 'var(--panel)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' } },
+      ...items.map(it => React.createElement('div', { key: it.key, className: 'ctx', onClick: () => { it.action(); onClose() }, style: { padding: '8px 10px', cursor: 'pointer' } }, it.label))
+    )
+  }
+
+  function Drawer({ onClose }) {
+    const [entries, setEntries] = useState([])
+    const [filter, setFilter] = useState('')
+    const [menu, setMenu] = useState(null)
+    useEffect(() => { let alive = true; (async () => { const r = await fetch('/api/library'); const j = r.ok ? await r.json() : { entries: [] }; if (alive) setEntries(j.entries || []) })(); return () => { alive = false } }, [])
+    const filtered = entries.filter(e => !filter || (e.path.toLowerCase().includes(filter.toLowerCase()) || (e.label||'').toLowerCase().includes(filter.toLowerCase())))
+
+    async function addExisting() {
+      const p = prompt('Enter absolute or repo-relative path:')
+      if (!p) return
+      const r = await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: p }) })
+      if (r.ok) {
+        const j = await fetch('/api/library').then(r => r.json()).catch(() => ({ entries: [] }))
+        setEntries(j.entries || [])
+      } else alert('Failed to add')
+    }
+
+    async function uploadNew() {
+      const tmp = document.createElement('input')
+      tmp.type = 'file'
+      tmp.multiple = true
+      tmp.onchange = async () => {
+        const fd = new FormData()
+        Array.from(tmp.files || []).forEach(f => fd.append('file', f, (f && f.webkitRelativePath) ? f.webkitRelativePath : f.name))
+        const up = await fetch('/api/upload', { method: 'POST', body: fd })
+        const j = up.ok ? await up.json() : null
+        if (j) {
+          const path = `files/uploads/${j.uploadedAt}`
+          await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) })
+          const j2 = await fetch('/api/library').then(r => r.json()).catch(() => ({ entries: [] }))
+          setEntries(j2.entries || [])
+        }
+      }
+      tmp.click()
+    }
+
+    async function openEntry(e) {
+      onSelect?.(e)
+      onClose()
+    }
+
+    function ctx(e, entry) {
+      setMenu({ x: e.clientX, y: e.clientY, entry })
+    }
+
+    async function startServing(entry) {
+      const r = await fetch('/api/serve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entryId: entry.id }) })
+      if (!r.ok) alert('Failed to start')
+    }
+    async function stopServing(entry) {
+      const list = await fetch('/api/serve').then(r => r.json()).catch(() => ({ instances: [] }))
+      const inst = (list.instances || []).find((i) => i.entryId === entry.id)
+      if (!inst) return
+      await fetch(`/api/serve/${inst.id}`, { method: 'DELETE' })
+    }
+    async function delLib(entry) { await fetch(`/api/library/${entry.id}`, { method: 'DELETE' }); setEntries((ents) => ents.filter((x) => x.id !== entry.id)) }
+    async function delDisk(entry) { if (!confirm('Delete files from disk?')) return; await fetch(`/api/library/${entry.id}/delete`, { method: 'POST' }); setEntries((ents) => ents.filter((x) => x.id !== entry.id)) }
+
+    return React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
+      React.createElement('div', { onClick: onClose, style: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', pointerEvents: 'auto' } }),
+      React.createElement('div', { style: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '560px', maxWidth: '95vw', background: 'var(--panel)', color: 'var(--text)', borderLeft: '1px solid var(--border)', boxShadow: '0 0 30px rgba(0,0,0,0.4)', pointerEvents: 'auto', display: 'flex', flexDirection: 'column' } },
+        React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '10px', borderBottom: '1px solid var(--border)' } },
+          React.createElement('strong', null, 'Media Library'),
+          React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
+          React.createElement('button', { className: 'btn', onClick: uploadNew, title: 'Upload New' }, '+'),
+          React.createElement('button', { className: 'btn', onClick: addExisting, title: 'Add Existing' }, '…'),
+          React.createElement('button', { className: 'btn', onClick: onClose }, 'Close'),
+        ),
+        React.createElement('div', { style: { flex: 1, overflow: 'auto' } },
+          ...filtered.map((e) => React.createElement(Row, { key: e.id, entry: e, onOpen: openEntry, onContext: ctx })),
+        ),
+      ),
+      menu && React.createElement(ContextMenu, {
+        x: menu.x, y: menu.y,
+        onClose: () => setMenu(null),
+        onPick: () => openEntry(menu.entry),
+        onStart: () => startServing(menu.entry),
+        onStop: () => stopServing(menu.entry),
+        onDeleteLib: () => delLib(menu.entry),
+        onDeleteDisk: () => delDisk(menu.entry),
+      })
+    )
+  }
+
+  function RecentTab({ onPick }) {
+    const [loading, setLoading] = useState(true)
+    const [items, setItems] = useState([])
+    useEffect(() => {
+      let alive = true
+      ;(async () => {
+        try {
+          const r = await fetch('/api/config')
+          const cfg = r.ok ? await r.json() : {}
+          if (!alive) return
+          setItems(Array.isArray(cfg.recents) ? cfg.recents : [])
+        } catch { setItems([]) }
+        setLoading(false)
+      })()
+      return () => { alive = false }
+    }, [])
+    if (loading) return React.createElement('div', { className: 'muted' }, 'Loading…')
+    if (!items.length) return React.createElement('div', { className: 'muted' }, 'No recent entries.')
+    return React.createElement(
+      'div',
+      null,
+      ...items.map((e, i) => React.createElement('button', {
+        key: i,
+        className: 'btn',
+        style: { display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' },
+        title: e.path,
+        onClick: () => onPick(e),
+      }, `[${e.mode || e.type}] ${e.path}`)),
+    )
+  }
+
+  function PathsTab({ onPick }) {
+    const [loading, setLoading] = useState(true)
+    const [roots, setRoots] = useState([])
+    useEffect(() => {
+      let alive = true
+      ;(async () => {
+        try {
+          const r = await fetch('/api/media/list')
+          const data = r.ok ? await r.json() : { roots: [] }
+          if (!alive) return
+          setRoots(Array.isArray(data.roots) ? data.roots : [])
+        } catch { setRoots([]) }
+        setLoading(false)
+      })()
+      return () => { alive = false }
+    }, [])
+    if (loading) return React.createElement('div', { className: 'muted' }, 'Loading…')
+    return React.createElement(
+      'div',
+      null,
+      React.createElement('div', { className: 'muted', style: { marginBottom: '6px' } }, 'Roots'),
+      ...roots.map((e, i) => React.createElement('button', {
+        key: i,
+        className: 'btn',
+        style: { display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' },
+        title: e.path,
+        onClick: () => onPick({ type: 'dir', path: e.path, mode: 'C' }),
+      }, `[dir] ${[e.label || '', e.path].filter(Boolean).join(' ')}`)),
+    )
+  }
+
+  function UploadTab({ onPick }) {
+    const filesRef = useRef(null)
+    const dirRef = useRef(null)
+    const prefixRef = useRef(null)
+    const [busy, setBusy] = useState(false)
+    const [result, setResult] = useState(null)
+    useEffect(() => {
+      // Ensure directory picking works across browsers
+      if (dirRef.current) {
+        try { dirRef.current.setAttribute('webkitdirectory', '') } catch {}
+        try { dirRef.current.setAttribute('directory', '') } catch {}
+      }
+    }, [])
+    async function onSubmit(e) {
+      e.preventDefault()
+      const files = filesRef.current?.files
+      const dir = dirRef.current?.files
+      const prefix = prefixRef.current?.value || ''
+      if ((!files || !files.length) && (!dir || !dir.length)) return
+      const fd = new FormData()
+      if (prefix) fd.set('prefix', prefix)
+      const add = (list) => { if (!list) return; for (let i = 0; i < list.length; i++) { const f = list[i]; fd.append('file', f, (f && f.webkitRelativePath) ? f.webkitRelativePath : f.name) } }
+      add(files); add(dir)
+      setBusy(true)
+      setResult({ kind: 'info', text: 'Uploading…' })
+      try {
+        const r = await fetch('/api/upload', { method: 'POST', body: fd })
+        if (!r.ok) throw new Error('bad')
+        const data = await r.json()
+        setResult({ kind: 'ok', uploadedAt: data.uploadedAt })
+      } catch {
+        setResult({ kind: 'err', text: 'Upload failed.' })
+      } finally { setBusy(false) }
+    }
+    return React.createElement(
+      'form',
+      { onSubmit },
+      React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } },
+        React.createElement('input', { type: 'file', multiple: true, ref: filesRef }),
+        React.createElement('label', { className: 'muted' }, 'or'),
+        React.createElement('input', { type: 'file', ref: dirRef }),
+        React.createElement('input', { type: 'text', ref: prefixRef, placeholder: 'Optional prefix folder', style: { flex: 1, padding: '6px 8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', borderRadius: '6px' } }),
+        React.createElement('button', { className: 'btn', type: 'submit', disabled: busy }, busy ? 'Uploading…' : 'Upload'),
+      ),
+      React.createElement('div', { style: { marginTop: '12px' } },
+        result?.kind === 'info' && React.createElement('div', { className: 'muted' }, result.text),
+        result?.kind === 'err' && React.createElement('div', { className: 'muted' }, result.text),
+        result?.kind === 'ok' && React.createElement('button', {
+          className: 'btn',
+          onClick: (e) => { e.preventDefault(); onPick({ type: 'dir', path: `files/uploads/${result.uploadedAt}`, mode: 'C' }) },
+        }, 'View uploaded folder'),
+      ),
+    )
+  }
+
+  function EnterTab({ onPick }) {
+    const inputRef = useRef(null)
+    const [info, setInfo] = useState({ kind: 'idle' })
+    async function validate() {
+      const p = (inputRef.current?.value || '').trim()
+      if (!p) return
+      setInfo({ kind: 'info', text: 'Checking…' })
+      try {
+        const r = await fetch(`/api/pathinfo?path=${encodeURIComponent(p)}`)
+        if (!r.ok) throw new Error('bad')
+        const meta = await r.json()
+        const type = meta.type
+        let mode = 'C'
+        if (type === 'file') mode = meta.hasJs ? 'B' : 'A'
+        if (type === 'app') mode = 'D'
+        setInfo({ kind: 'ok', type, mode, hasJs: !!meta.hasJs, path: p })
+      } catch { setInfo({ kind: 'err', text: 'Not found or unsupported.' }) }
+    }
+    return React.createElement(
+      'div',
+      null,
+      React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
+        React.createElement('input', { type: 'text', ref: inputRef, placeholder: 'Enter absolute or repo-relative path', style: { flex: 1, padding: '6px 8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', borderRadius: '6px' } }),
+        React.createElement('button', { className: 'btn', onClick: validate }, 'Validate'),
+      ),
+      React.createElement('div', { style: { marginTop: '12px' }, className: 'muted' },
+        info.kind === 'info' && info.text,
+        info.kind === 'err' && info.text,
+        info.kind === 'ok' && React.createElement(React.Fragment, null,
+          `Type: ${info.type}${info.hasJs ? ' (has JS)' : ''} `,
+          React.createElement('button', { className: 'btn', onClick: () => onPick({ type: info.type, path: info.path, mode: info.mode }) }, 'Select')
+        ),
+      ),
+    )
+  }
+
+  // Mount modal
+  const overlay = document.createElement('div')
+  document.body.appendChild(overlay)
+  const root = ReactDOM.createRoot(overlay)
+  const onClose = () => { try { root.unmount(); overlay.remove() } catch {} }
+  root.render(React.createElement(Drawer, { onClose }))
+}
