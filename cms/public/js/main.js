@@ -39,9 +39,9 @@ function debounceRefreshTree() {
   }, 200)
 }
 
-async function init(fromSelect = false) {
+export async function startCms(fromSelect = false) {
   restoreState(state)
-  attachEvents(state, setDocRoot, init, () => applyTheme(state))
+  attachEvents(state, setDocRoot, startCms, () => applyTheme(state))
   let cfg
   try {
     cfg = await fetchConfig()
@@ -89,10 +89,6 @@ async function init(fromSelect = false) {
   })
 }
 
-init().catch((err) => {
-  document.getElementById('content').textContent = 'Failed to load documentation tree.'
-  console.error(err)
-})
 
 // Expose helpers for console debugging
 window.__CMS__ = { state, expandCollapseAll }
@@ -104,7 +100,7 @@ window.addEventListener('message', async (ev) => {
   try {
     if (msg.type === 'setDocRoot' && msg.path) {
       await setDocRoot(msg.path)
-      await init(true)
+      await startCms(true)
       return
     }
     if (msg.type === 'search') {

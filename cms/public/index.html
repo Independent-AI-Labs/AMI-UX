@@ -3,93 +3,50 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Independent AI Labs — Docs</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <title>Docs Shell</title>
+  <link rel="stylesheet" href="/styles/shared.css">
   <style>
-    :root {
-      --bg: #0b0c0f;
-      --panel: #111319;
-      --text: #e6e9ef;
-      --muted: #9aa3b2;
-      --accent: #7aa2f7;
-      --link: #7dcfff;
-      --border: #242832;
-      --code-bg: #0d1117;
-    }
-    [data-theme="light"] {
-      --bg: #ffffff;
-      --panel: #f7f7f9;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --accent: #1d4ed8;
-      --link: #2563eb;
-      --border: #e5e7eb;
-      --code-bg: #f3f4f6;
-    }
-    html, body { height: 100%; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
-    a { color: var(--link); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    header { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; gap: 12px; align-items: center; }
-    header h1 { font-size: 16px; margin: 0 8px 0 0; }
-    header input[type="search"] { flex: 1; padding: 6px 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; }
-    header .btn { padding: 6px 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; cursor: pointer; }
-    main { display: grid; grid-template-columns: 280px 1fr; gap: 0; height: calc(100% - 44px); }
-    nav { position: sticky; top: 44px; align-self: start; height: calc(100vh - 44px); overflow: auto; border-right: 1px solid var(--border); background: var(--panel); }
-    nav .toc { padding: 12px; font-size: 13px; }
-    nav .toc h3 { font-size: 12px; color: var(--muted); margin: 8px 0; text-transform: uppercase; letter-spacing: 0.06em; }
-    nav .toc a { display: block; padding: 2px 4px; border-radius: 4px; }
-    nav .toc a:hover { background: var(--bg); }
-    section#content { overflow: auto; padding: 16px 24px; }
-    .dir, .file { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); margin: 8px 0; }
-    details { padding: 0; }
-    summary { list-style: none; cursor: pointer; padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
-    summary::marker, summary::-webkit-details-marker { display: none; }
-    summary .meta { color: var(--muted); font-weight: 400; margin-left: 8px; }
-    .indent { display: inline-block; width: calc(var(--depth, 0) * 1rem); }
-    .body { padding: 12px 16px; background: var(--bg); }
-    .md h1, .md h2, .md h3, .md h4 { scroll-margin-top: 70px; }
-    .md pre { background: var(--code-bg); padding: 12px; border-radius: 6px; overflow: auto; }
-    .md code { background: var(--code-bg); padding: 2px 4px; border-radius: 4px; }
-    .controls { display: flex; gap: 8px; margin-left: auto; }
-    .muted { color: var(--muted); }
-    .anchor { visibility: hidden; margin-left: 6px; font-size: 12px; }
-    .md h1:hover .anchor, .md h2:hover .anchor, .md h3:hover .anchor { visibility: visible; }
-    .hidden { display: none !important; }
-    @media (max-width: 960px) { main { grid-template-columns: 1fr; } nav { display:none; } }
-    @media print {
-      header, nav { display: none; }
-      main { grid-template-columns: 1fr; }
-      .file, .dir { border: none; }
-      summary { border: none; }
-    }
+    /* Shell-specific layout */
+    #tabsBar { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); }
+    .tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; cursor: pointer; }
+    .tab.active { outline: 2px solid var(--accent); }
+    .tab .icon { width: 16px; height: 16px; }
+    .tab .pill { margin-left: 6px; font-size: 11px; color: var(--accent); }
+    .tab .close { margin-left: 8px; opacity: 0.7; }
+    .frame-wrap { position: relative; height: calc(100vh - 44px - 40px); background: #111; }
+    #vizFrame { width: 100%; height: 100%; border: 0; background: #111; }
+    header .right { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
+    #modeLabel { color: var(--muted); }
+    #pathLabel { color: var(--muted); max-width: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   </style>
+  <script>
+    (function() {
+      try {
+        const theme = localStorage.getItem('theme');
+        if (theme) document.documentElement.setAttribute('data-theme', theme);
+      } catch {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
 </head>
 <body>
   <header>
-    <h1 id="appTitle">Docs</h1>
-    <input id="search" type="search" placeholder="Search files and headings (/)" />
-    <button class="btn" id="expandAll">Expand All</button>
-    <button class="btn" id="collapseAll">Collapse All</button>
-    <button class="btn" id="themeToggle">Theme</button>
-    <button class="btn" id="selectDirBtn">Select Directory</button>
-    <span class="muted" id="docRootLabel" title="Current doc root"></span>
-    <button class="btn" id="printBtn">Print</button>
+    <h1>Docs Shell</h1>
+    <input id="globalSearch" type="search" placeholder="Search (/)" />
+    <button class="btn" id="btnExpand" title="Expand All">Expand</button>
+    <button class="btn" id="btnCollapse" title="Collapse All">Collapse</button>
+    <button class="btn" id="btnTheme" title="Toggle Theme"><svg id="iconTheme" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
+    <button class="btn" id="selectMediaBtn">Select Media…</button>
+    <span class="right">
+      <span id="statusPill" class="muted"></span>
+      <span id="modeLabel" class="muted"></span>
+      <span id="pathLabel" class="muted"></span>
+    </span>
   </header>
-  <main>
-    <nav><div class="toc" id="toc"></div></nav>
-    <section id="content"></section>
-  </main>
 
-  <!-- External libs via CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+  <div id="tabsBar"></div>
+  <div class="frame-wrap"><iframe id="vizFrame" title="Visualizer"></iframe></div>
 
-  <script type="module" src="/js/main.js"></script>
-
+  <script type="module" src="/js/shell.js"></script>
 </body>
 </html>

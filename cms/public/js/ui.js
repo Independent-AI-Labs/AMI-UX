@@ -191,15 +191,20 @@ export function restoreHashTarget() {
 }
 
 export function attachEvents(state, setDocRoot, init, applyThemeCb) {
-  document.getElementById('themeToggle').addEventListener('click', () => {
+  const on = (id, evt, fn) => {
+    const el = document.getElementById(id)
+    if (el && typeof el.addEventListener === 'function') el.addEventListener(evt, fn)
+    return el
+  }
+  on('themeToggle', 'click', () => {
     state.theme = state.theme === 'dark' ? 'light' : 'dark'
     localStorage.setItem('theme', state.theme)
     applyThemeCb()
   })
-  document.getElementById('expandAll').addEventListener('click', () => expandCollapseAll(true))
-  document.getElementById('collapseAll').addEventListener('click', () => expandCollapseAll(false))
-  document.getElementById('printBtn').addEventListener('click', () => window.print())
-  document.getElementById('selectDirBtn').addEventListener('click', async () => {
+  on('expandAll', 'click', () => expandCollapseAll(true))
+  on('collapseAll', 'click', () => expandCollapseAll(false))
+  on('printBtn', 'click', () => window.print())
+  on('selectDirBtn', 'click', async () => {
     try {
       const current = (await fetch('/api/config').then((r) => r.json()).catch(() => ({}))).docRoot || ''
       const val = prompt('Enter docs directory path (absolute or relative to server):', current)
@@ -215,10 +220,10 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
   window.addEventListener('keydown', (e) => {
     if (e.key === '/' && document.activeElement !== search) {
       e.preventDefault()
-      search.focus()
+      search && search.focus && search.focus()
     }
   })
-  search.addEventListener('input', () => {
+  if (search && typeof search.addEventListener === 'function') search.addEventListener('input', () => {
     const q = search.value.toLowerCase()
     document.querySelectorAll('#content details').forEach((d) => {
       const title = d.querySelector('summary')?.textContent?.toLowerCase() || ''
@@ -239,4 +244,3 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
     prevOpen.forEach((d) => d.setAttribute('open', ''))
   })
 }
-
