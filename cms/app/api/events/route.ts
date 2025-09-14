@@ -33,8 +33,15 @@ export async function GET() {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const encoder = new TextEncoder()
+      let closed = false
       const send = (event: any) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
+        if (closed) return
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
+        } catch {
+          // Stream already closed; mark closed to stop future sends
+          closed = true
+        }
       }
 
       // initial hello
@@ -72,10 +79,12 @@ export async function GET() {
 
       // cleanup when stream is closed
       const close = async () => {
+        if (closed) return
+        closed = true
         clearInterval(keepalive)
         try { await watcher.close() } catch {}
         try { await configWatcher.close() } catch {}
-        controller.close()
+        try { controller.close() } catch {}
       }
 
       // Since we don't have direct access to the request, rely on garbage collection; keep it safe
