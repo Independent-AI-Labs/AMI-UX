@@ -103,6 +103,14 @@ export async function GET() {
     return nodes
   }
   const tree = await readDirTreeWithAllowed(rootAbs)
+  // Root-level: move Introduction/README to the top if present
+  try {
+    const idx = tree.findIndex((ch: any) => ch.type === 'file' && ['readme.md', 'introduction.md', 'intro.md'].includes(String(ch.name || '').toLowerCase()))
+    if (idx > 0) {
+      const intro = tree.splice(idx, 1)[0]
+      tree.unshift(intro)
+    }
+  } catch {}
   const payload: Node = { name: path.basename(rootAbs), path: '', type: 'dir', children: tree }
   return NextResponse.json({ ...payload, docRoot: cfg.docRoot })
 }
