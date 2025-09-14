@@ -2,6 +2,11 @@ import { displayName, pathAnchor } from './utils.js'
 import { fetchFile } from './api.js'
 import { renderMarkdown, renderCSV } from './renderers.js'
 
+function isIntroFile(name) {
+  const n = String(name || '').toLowerCase()
+  return n === 'readme.md' || n === 'introduction.md' || n === 'intro.md'
+}
+
 export function applyTheme(state) {
   document.documentElement.setAttribute('data-theme', state.theme)
   if (window.mermaid) {
@@ -57,17 +62,20 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
     body.appendChild(dirAnchor)
 
     const children = (node.children || []).slice()
-    children.sort((a, b) => {
-      const ar = a.type === 'file' && a.name.toLowerCase() === 'readme.md'
-      const br = b.type === 'file' && b.name.toLowerCase() === 'readme.md'
-      if (ar && !br) return -1
-      if (br && !ar) return 1
-      return 0
-    })
+    // Root-level: place README.md as item 10 (index 9) if present
+    if (depth === 0) {
+      const idxIntro = children.findIndex((ch) => ch.type === 'file' && isIntroFile(ch.name))
+      if (idxIntro >= 0) {
+        const intro = children.splice(idxIntro, 1)[0]
+        // Place Introduction/README first
+        children.splice(0, 0, intro)
+      }
+    }
     let idx = 1
     children.forEach((child) => {
       const childEl = buildNode(state, child, depth + 1, indexPath.concat(idx++))
-      if (child.type === 'file' && child.name.toLowerCase() === 'readme.md') {
+      // Auto-expand and preload Introduction/README at root level
+      if (depth === 0 && child.type === 'file' && isIntroFile(child.name)) {
         childEl.setAttribute('open', '')
         const childBody = childEl.querySelector('.body')
         loadFileNode(state, childEl, child, childBody)
@@ -119,13 +127,15 @@ export function updateTOC(state) {
       sum.appendChild(a)
       det.appendChild(sum)
       const container = document.createElement('div')
-      const kids = (node.children || []).slice().sort((a, b) => {
-        const ar = a.type === 'file' && a.name.toLowerCase() === 'readme.md'
-        const br = b.type === 'file' && b.name.toLowerCase() === 'readme.md'
-        if (ar && !br) return -1
-        if (br && !ar) return 1
-        return 0
-      })
+      const kids = (node.children || []).slice()
+      // Mirror placement in TOC: put Introduction/README first at root
+      if (indexPath.length === 1) {
+        const i = kids.findIndex((ch) => ch.type === 'file' && isIntroFile(ch.name))
+        if (i >= 0) {
+          const rm = kids.splice(i, 1)[0]
+          kids.splice(0, 0, rm)
+        }
+      }
       let idx = 1
       kids.forEach((ch) => {
         container.appendChild(addStruct(ch, indexPath.concat(idx++)))

@@ -37,11 +37,19 @@
   <header>
     <h1 id="appTitle">Docs</h1>
     <input id="search" type="search" placeholder="Search files and headings (/)" />
-    <button class="btn" id="expandAll">Expand All</button>
-    <button class="btn" id="collapseAll">Collapse All</button>
-    <button class="btn" id="themeToggle">Theme</button>
+    <button class="btn" id="expandAll" title="Expand All" aria-label="Expand All">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </button>
+    <button class="btn" id="collapseAll" title="Collapse All" aria-label="Collapse All">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+    </button>
+    <button class="btn" id="themeToggle" title="Toggle Theme" aria-label="Toggle Theme">
+      <svg id="iconThemeDoc" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+    </button>
     <span class="muted" id="docRootLabel" title="Current doc root"></span>
-    <button class="btn" id="printBtn">Print</button>
+    <button class="btn" id="printBtn" title="Print" aria-label="Print">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8" rx="2"></rect></svg>
+    </button>
   </header>
   <main>
     <nav><div class="toc" id="toc"></div></nav>
