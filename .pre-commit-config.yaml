@@ -16,11 +16,11 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: "bash -lc 'cd .. && ux/.venv/bin/python -m mypy ux/scripts --config-file=ux/mypy.ini'"
+        entry: ".venv/bin/python -m mypy scripts --config-file=mypy.ini"
         language: system
         types: [ python ]
         require_serial: true
-        stages: [ pre-commit ]
+        stages: [ pre-push ]
         pass_filenames: false
 
   - repo: local
@@ -33,6 +33,21 @@ repos:
         always_run: true
         stages: [ pre-push ]
         require_serial: true
+
+  # Module-wide ruff on push
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        name: ruff (module-wide)
+        args: [ --fix, --exit-non-zero-on-fix, --force-exclude, --extend-exclude, .venv, . ]
+        pass_filenames: false
+        stages: [ pre-push ]
+      - id: ruff-format
+        name: ruff-format (module-wide)
+        args: [ --force-exclude, --extend-exclude, .venv, . ]
+        pass_filenames: false
+        stages: [ pre-push ]
 
   # Additional useful hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
