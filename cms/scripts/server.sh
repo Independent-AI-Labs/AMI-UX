@@ -92,9 +92,7 @@ start() {
     else
       (cd "$APP_DIR" && nohup setsid env HOST=0.0.0.0 npm run start -- -p "$p" >>"$LOG_FILE" 2>&1 & echo $! >"$PID_FILE")
     fi
-    sleep 0.5
-    # If process died, try next
-    if ! is_running; then echo "Process not running; checking logs..."; tail -n 10 "$LOG_FILE" || true; continue; fi
+    # Do not rely on transient parent PID; wait for readiness below
     echo "$p" >"${PID_FILE}.port"
     echo "URL: http://$(hostname -I 2>/dev/null | awk '{print $1}'):$p or http://127.0.0.1:$p"
     if [[ "$NOWAIT" -eq 1 && "$WAIT_SECS" -eq 0 ]]; then echo "Started (no-wait) on port $p (pid $(cat \"$PID_FILE\")) | logs: $LOG_FILE"; return 0; fi
@@ -102,13 +100,13 @@ start() {
     local loops=10
     if [[ "$WAIT_SECS" -gt 0 ]]; then loops=$(( WAIT_SECS * 3 )); fi
     for ((i=1;i<=loops;i++)); do
-      if curl -fsS "http://127.0.0.1:$p/api/tree" >/dev/null 2>&1; then
+      if curl -fsS --max-time 1 "http://127.0.0.1:$p/api/tree" >/dev/null 2>&1; then
         echo "Started on port $p (pid $(cat \"$PID_FILE\")) | logs: $LOG_FILE"; return 0
       fi
-      if grep -q "EADDRINUSE" "$LOG_FILE" 2>/dev/null; then echo "Port $p in use; trying next..."; stop >/dev/null 2>&1 || true; break; fi
+      if grep -q "EADDRINUSE" "$LOG_FILE" 2>/dev/null; then echo "Port $p in use; trying next..."; break; fi
       sleep 0.3
     done
-    stop >/dev/null 2>&1 || true
+    echo "Failed to confirm readiness on $p; check logs: $LOG_FILE"; tail -n 20 "$LOG_FILE" || true
   done
   echo "Failed to start on available ports. Last logs:"
   tail -n 50 "$LOG_FILE" || true
