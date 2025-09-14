@@ -20,11 +20,12 @@ registerVisualizer(VisualizerA)
 registerVisualizer(VisualizerB)
 registerVisualizer(VisualizerD)
 
-function setLabels(vizId, info) {
+function setLabels(_vizId, _info) {
+  // Intentionally blank: no noisy mode/path in header
   const modeLabel = document.getElementById('modeLabel')
   const pathLabel = document.getElementById('pathLabel')
-  if (modeLabel) modeLabel.textContent = vizId ? `Mode ${vizId}` : ''
-  if (pathLabel) pathLabel.textContent = info?.path || ''
+  if (modeLabel) modeLabel.textContent = ''
+  if (pathLabel) pathLabel.textContent = ''
 }
 
 async function loadConfig() {
