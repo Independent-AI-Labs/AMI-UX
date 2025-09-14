@@ -20,7 +20,7 @@ repos:
         language: system
         types: [ python ]
         require_serial: true
-        stages: [ pre-push ]
+        stages: [ pre-commit ]
         pass_filenames: false
 
   - repo: local
@@ -34,20 +34,7 @@ repos:
         stages: [ pre-push ]
         require_serial: true
 
-  # Module-wide ruff on push
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
-    hooks:
-      - id: ruff
-        name: ruff (module-wide)
-        args: [ --fix, --exit-non-zero-on-fix, --force-exclude, --extend-exclude, .venv, . ]
-        pass_filenames: false
-        stages: [ pre-push ]
-      - id: ruff-format
-        name: ruff-format (module-wide)
-        args: [ --force-exclude, --extend-exclude, .venv, . ]
-        pass_filenames: false
-        stages: [ pre-push ]
+  
 
   # Additional useful hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
