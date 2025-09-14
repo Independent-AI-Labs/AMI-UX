@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: scripts/server.sh start|stop|restart|status|logs|doctor|kill-orphans|open [port]
 #   Flags: [--dev] [--nowait] [--kill-orphans] [--anyport] [--wait SECONDS]
 
-PORT="${2:-${PORT:-46241}}"
+PORT="${2:-${PORT:-3000}}"
 DEV_MODE=0
 NOWAIT=0
 KILL_ORPHANS=0
@@ -95,13 +95,19 @@ start() {
     # Do not rely on transient parent PID; wait for readiness below
     echo "$p" >"${PID_FILE}.port"
     echo "URL: http://$(hostname -I 2>/dev/null | awk '{print $1}'):$p or http://127.0.0.1:$p"
-    if [[ "$NOWAIT" -eq 1 && "$WAIT_SECS" -eq 0 ]]; then echo "Started (no-wait) on port $p (pid $(cat \"$PID_FILE\")) | logs: $LOG_FILE"; return 0; fi
+    if [[ "$NOWAIT" -eq 1 && "$WAIT_SECS" -eq 0 ]]; then
+      local pidval=""
+      [[ -f "$PID_FILE" ]] && pidval=$(cat "$PID_FILE" 2>/dev/null || true)
+      echo "Started (no-wait) on port $p (pid ${pidval}) | logs: $LOG_FILE"; return 0
+    fi
     # Wait for readiness (fast and bounded)
     local loops=10
     if [[ "$WAIT_SECS" -gt 0 ]]; then loops=$(( WAIT_SECS * 3 )); fi
     for ((i=1;i<=loops;i++)); do
       if curl -fsS --max-time 1 "http://127.0.0.1:$p/api/tree" >/dev/null 2>&1; then
-        echo "Started on port $p (pid $(cat \"$PID_FILE\")) | logs: $LOG_FILE"; return 0
+        local pidval=""
+        [[ -f "$PID_FILE" ]] && pidval=$(cat "$PID_FILE" 2>/dev/null || true)
+        echo "Started on port $p (pid ${pidval}) | logs: $LOG_FILE"; return 0
       fi
       if grep -q "EADDRINUSE" "$LOG_FILE" 2>/dev/null; then echo "Port $p in use; trying next..."; break; fi
       sleep 0.3
@@ -135,7 +141,8 @@ stop() {
 status() {
   if is_running; then
     local p="unknown"; [[ -f "${PID_FILE}.port" ]] && p=$(cat "${PID_FILE}.port")
-    echo "Running (pid $(cat \"$PID_FILE\")) on port ${p} (base $PORT)"; echo "Log: $LOG_FILE"; tail -n 5 "$LOG_FILE" 2>/dev/null || true
+    local pidval=""; [[ -f "$PID_FILE" ]] && pidval=$(cat "$PID_FILE" 2>/dev/null || true)
+    echo "Running (pid ${pidval}) on port ${p} (base $PORT)"; echo "Log: $LOG_FILE"; tail -n 5 "$LOG_FILE" 2>/dev/null || true
   else
     echo "Not running on port $PORT"; echo "Recent log (if any):"; tail -n 5 "$LOG_FILE" 2>/dev/null || true
   fi
