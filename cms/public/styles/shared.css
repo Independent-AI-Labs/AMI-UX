@@ -1,0 +1,86 @@
+/* Shared UI variables and header/button styling used by shell and docs */
+:root {
+  --bg: #0b0c0f;
+  --panel: #111319;
+  --text: #e6e9ef;
+  --muted: #9aa3b2;
+  --accent: #7aa2f7;
+  --link: #7dcfff;
+  --border: #242832;
+  --code-bg: #0d1117;
+}
+[data-theme="light"] {
+  --bg: #ffffff;
+  --panel: #f7f7f9;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --accent: #1d4ed8;
+  --link: #2563eb;
+  --border: #e5e7eb;
+  --code-bg: #f3f4f6;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Header bar (precisely matched) */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 44px;
+}
+header h1 { font-size: 16px; margin: 0 8px 0 0; font-weight: 600; }
+header input[type="search"] {
+  flex: 1;
+  min-width: 120px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+}
+header .btn {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+}
+header .btn:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+header .btn:hover { filter: brightness(1.05); }
+
+.muted { color: var(--muted); }
+
+/* Generic button style (matches header buttons) */
+.btn {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn:hover { filter: brightness(1.05); }
+
+@media (max-width: 960px) { header { flex-wrap: wrap; } }
+
+@media print {
+  header, nav { display: none; }
+}

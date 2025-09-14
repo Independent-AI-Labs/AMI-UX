@@ -97,3 +97,32 @@ init().catch((err) => {
 // Expose helpers for console debugging
 window.__CMS__ = { state, expandCollapseAll }
 
+// Embed messaging API (for shell iframe integration)
+window.addEventListener('message', async (ev) => {
+  const msg = ev && ev.data
+  if (!msg || typeof msg !== 'object') return
+  try {
+    if (msg.type === 'setDocRoot' && msg.path) {
+      await setDocRoot(msg.path)
+      await init(true)
+      return
+    }
+    if (msg.type === 'search') {
+      const q = String(msg.q || '')
+      const search = document.getElementById('search')
+      if (search) { search.value = q; search.dispatchEvent(new Event('input', { bubbles: true })) }
+      return
+    }
+    if (msg.type === 'expandAll') return expandCollapseAll(true)
+    if (msg.type === 'collapseAll') return expandCollapseAll(false)
+    if (msg.type === 'applyTheme') {
+      const theme = msg.theme === 'light' ? 'light' : 'dark'
+      state.theme = theme
+      localStorage.setItem('theme', theme)
+      applyTheme(state)
+      return
+    }
+  } catch (e) {
+    console.warn('message handler failed', e)
+  }
+})
