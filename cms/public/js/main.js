@@ -59,11 +59,31 @@ export async function startCms(fromSelect = false) {
   const title = document.getElementById('appTitle')
   title.textContent = humanizeName(tree?.name || 'Docs', 'dir')
   const frag = document.createDocumentFragment()
+  // Ensure root-level Introduction/README is rendered first
+  const children = (tree.children || []).slice()
+  const findIntroIdx = () => children.findIndex((c) => c.type === 'file' && ['readme.md','introduction.md','intro.md'].includes(String(c.name||'').toLowerCase()))
+  const introIdx = findIntroIdx()
+  if (introIdx > 0) { const intro = children.splice(introIdx, 1)[0]; children.unshift(intro) }
   let idx = 1
-  ;(tree.children || []).forEach((child) => frag.appendChild(buildNode(state, child, 0, [idx++])))
+  children.forEach((child) => frag.appendChild(buildNode(state, child, 0, [idx++])))
   root.appendChild(frag)
   updateTOC(state)
   restoreHashTarget()
+  // Auto-expand and preload root-level Introduction/README
+  try {
+    const introIdx2 = findIntroIdx()
+    const intro = introIdx2 >= 0 ? children[introIdx2] : null
+    if (intro && intro.type === 'file') {
+      const sel = document.querySelector(`details.file[data-path="${CSS.escape(intro.path)}"]`)
+      if (sel) {
+        sel.setAttribute('open', '')
+        const body = sel.querySelector('.body')
+        const node = { name: intro.name, path: intro.path, type: 'file' }
+        const { loadFileNode } = await import('./ui.js')
+        await loadFileNode(state, sel, node, body)
+      }
+    }
+  } catch {}
   connectSSE(state, {
     onConfig: () => {
       debounceRefreshTree()
