@@ -162,6 +162,10 @@ doctor() {
   if [[ -f "${PID_FILE}.port" ]]; then P=$(cat "${PID_FILE}.port"); else P=$PORT; fi
   echo -n "Health /api/tree: "; curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:$P/api/tree" || true
   echo -n "Health /index.html: "; curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:$P/index.html" || true
+  if command -v node >/dev/null 2>&1 && [[ -f "$APP_DIR/scripts/health.mjs" ]]; then
+    echo "Running detailed health.mjs..."
+    node "$APP_DIR/scripts/health.mjs" "http://127.0.0.1:$P" || true
+  fi
 }
 
 open_url() {
