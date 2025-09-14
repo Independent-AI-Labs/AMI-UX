@@ -148,6 +148,25 @@
       return 'file-' + relPath.replace(/[^a-zA-Z0-9]+/g, '-')
     }
 
+    // Convert snake_case, kebab-case, and camelCase to Human Readable Title
+    function humanizeName(name, type = 'file') {
+      let base = String(name || '')
+      if (type === 'file') {
+        const dot = base.lastIndexOf('.')
+        if (dot > 0) base = base.slice(0, dot)
+      }
+      // Replace separators with spaces
+      base = base.replace(/[_\-]+/g, ' ')
+      // Insert spaces between camelCase and numbers
+      base = base.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      base = base.replace(/([A-Z]+)([A-Z][a-z0-9]+)/g, '$1 $2')
+      // Collapse whitespace
+      base = base.replace(/\s+/g, ' ').trim()
+      // Title case words
+      base = base.split(' ').map(w => w ? (w[0].toUpperCase() + w.slice(1)) : w).join(' ')
+      return base
+    }
+
     // Renderers
     function renderMarkdown(md, relPath) {
       const raw = marked.parse(md)
@@ -269,7 +288,8 @@
       details.style.setProperty('--depth', String(depth))
       details.dataset.path = node.path
       const sum = document.createElement('summary')
-      sum.innerHTML = `<span class="indent"></span>${node.name}${node.type==='file'?` <span class="meta">(${node.path})</span>`:''}`
+      const label = humanizeName(node.name, node.type)
+      sum.innerHTML = `<span class="indent"></span>${label}${node.type==='file'?` <span class="meta">(${node.path})</span>`:''}`
       details.appendChild(sum)
       const body = document.createElement('div')
       body.className = 'body'
@@ -332,14 +352,14 @@
       function addStruct(node, depth=0) {
         if (node.type === 'dir') {
           const a = document.createElement('a')
-          a.textContent = node.name + '/'
+          a.textContent = humanizeName(node.name, 'dir') + '/'
           a.href = '#' + ('dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root'))
           a.style.paddingLeft = depth * 12 + 'px'
           struct.appendChild(a)
           ;(node.children||[]).forEach(ch => addStruct(ch, depth+1))
         } else {
           const a = document.createElement('a')
-          a.textContent = node.name
+          a.textContent = humanizeName(node.name, 'file')
           a.href = '#' + pathAnchor(node.path)
           a.style.paddingLeft = depth * 12 + 'px'
           struct.appendChild(a)
@@ -505,7 +525,7 @@
       const root = document.getElementById('content')
       root.innerHTML = ''
       const title = document.getElementById('appTitle')
-      title.textContent = (tree?.name || 'Docs')
+      title.textContent = humanizeName((tree?.name || 'Docs'), 'dir')
       const frag = document.createDocumentFragment()
       ;(tree.children || []).forEach(child => frag.appendChild(buildNode(child, 0)))
       root.appendChild(frag)
