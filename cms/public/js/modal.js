@@ -31,14 +31,34 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     return React.createElement('span', { dangerouslySetInnerHTML: { __html: `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>` } })
   }
 
-  function Row({ entry, status, selected, busy, onOpen, onContext }) {
+  function Row({ entry, status, selected, busy, onOpen, onContext, onStart, onStop }) {
     const base = entry.path.split('/').pop() || entry.path
     const label = entry.label || (entry.kind === 'file' ? humanizeName(base, 'file') : base)
     const kind = entry.kind
     const pill = (() => {
-      const map = { running: { text: 'Serving', bg: '#065f46' }, starting: { text: 'Starting', bg: '#92400e' }, stopped: { text: 'Stopped', bg: '#374151' }, idle: { text: kind === 'file' ? 'File' : (kind === 'dir' ? 'Folder' : 'App'), bg: '#374151' } }
-      const k = map[status || 'idle'] || map.idle
-      return React.createElement('span', { style: { fontSize: 9, padding: '2px 6px', borderRadius: 999, background: k.bg, color: 'white', whiteSpace: 'nowrap' } }, k.text)
+      const isStarting = status === 'starting'
+      const isOn = status === 'running'
+      const canToggle = !isStarting && !busy
+      const sizeW = 46, sizeH = 22
+      const knob = React.createElement('span', { style: { display: 'inline-block', width: 16, height: 16, borderRadius: 999, background: isOn ? '#d1fae5' : 'var(--muted)' } })
+      const spinner = React.createElement('svg', { viewBox: '0 0 50 50', width: 14, height: 14, style: { animation: 'spin 1s linear infinite' } },
+        React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })
+      )
+      const onToggle = (e) => { e.stopPropagation(); if (!canToggle) return; isOn ? onStop(entry) : onStart(entry) }
+      const title = isOn ? 'Click to stop serving' : (isStarting ? 'Starting…' : 'Click to start serving')
+      return React.createElement('button', {
+        className: 'switch-pill',
+        onClick: onToggle,
+        disabled: !canToggle,
+        title,
+        style: {
+          position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: isOn ? 'flex-end' : 'flex-start',
+          width: sizeW, height: sizeH, padding: '0 4px',
+          borderRadius: 999, border: '1px solid var(--border)',
+          background: isOn ? 'var(--ok)' : 'var(--panel)', color: isOn ? '#052e21' : 'var(--text)',
+          opacity: canToggle ? 1 : 0.6, cursor: canToggle ? 'pointer' : 'default'
+        }
+      }, isStarting ? spinner : knob)
     })()
     const spinner = React.createElement('svg', { viewBox: '0 0 50 50', width: 16, height: 16, style: { marginLeft: 8, animation: 'spin 1s linear infinite' } },
       React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })
@@ -253,7 +273,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           ...filtered.map((e) => React.createElement(Row, {
             key: e.id, entry: e,
             status: servingMap.get(e.id) || 'idle', selected: selectedId === e.id, busy: busyId === e.id,
-            onOpen: openEntry, onContext: ctx
+            onOpen: openEntry, onContext: ctx,
+            onStart: startServing, onStop: stopServing,
           })),
         ),
         toast && React.createElement('div', { style: { padding: '8px 10px', borderTop: '1px solid var(--border)', background: toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: 'var(--text)' } }, toast.text),
