@@ -57,10 +57,57 @@ export async function GET(req: Request, { params }: { params: { id: string, path
     const target = p ? path.resolve(base, p) : entry.path
     if (!target.startsWith(base)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     try {
-      const data = await fs.readFile(target)
+      const raw = await fs.readFile(target)
+      let data: Buffer | string = raw
+      // If this is an HTML, handle Cocoa-exported entity-encoded snippets similarly to /api/media
+      const ext = (target.toLowerCase().split('.').pop() || '')
+      if (ext === 'html' || ext === 'htm') {
+        let text = ''
+        // BOM-aware decode
+        if (raw.length >= 2 && raw[0] === 0xFF && raw[1] === 0xFE) {
+          text = raw.slice(2).toString('utf16le')
+        } else if (raw.length >= 2 && raw[0] === 0xFE && raw[1] === 0xFF) {
+          const swapped = Buffer.allocUnsafe(raw.length - 2)
+          for (let i = 2; i + 1 < raw.length; i += 2) { swapped[i - 2] = raw[i + 1]; swapped[i - 1] = raw[i] }
+          text = swapped.toString('utf16le')
+        } else if (raw.length >= 3 && raw[0] === 0xEF && raw[1] === 0xBB && raw[2] === 0xBF) {
+          text = raw.slice(3).toString('utf8')
+        } else {
+          text = raw.toString('utf8')
+        }
+        // Extract potential entity-encoded body and decode
+        const m = text.match(/<body[^>]*>([\s\s\S]*?)<\/body>/i)
+        if (m) {
+          let inner = m[1]
+          inner = inner.replace(/<\/(?:p|span)(?:\s[^>]*)?>/gi, '')
+          inner = inner.replace(/<(?:p|span)(?:\s[^>]*)?>/gi, '')
+          inner = inner.replace(/<br\s*\/?>(\r?\n)?/gi, '')
+          inner = inner.replace(/\u00a0/g, ' ')
+          if (/&lt;.*?&gt;/.test(inner)) {
+            const decoded = inner
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"')
+              .replace(/&#39;/g, "'")
+              .replace(/&amp;/g, '&')
+              .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+              .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+            if (/<\s*style[\s>]/i.test(decoded) || /<\s*div[\s>]/i.test(decoded) || /<\s*section[\s>]/i.test(decoded)) {
+              const shell = `<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Snippet</title>\n</head>\n<body>\n${decoded}\n</body>\n</html>`
+              data = shell
+            } else {
+              data = text
+            }
+          } else {
+            data = text
+          }
+        } else {
+          data = text
+        }
+      }
       const headers = new Headers({ 'Content-Type': guessMime(target) })
       csp(headers)
-      return new NextResponse(data, { headers })
+      return new NextResponse(typeof data === 'string' ? data : data as any, { headers })
     } catch { return NextResponse.json({ error: 'not found' }, { status: 404 }) }
   }
   if (inst.kind === 'dir') {
@@ -71,4 +118,3 @@ export async function GET(req: Request, { params }: { params: { id: string, path
   }
   return NextResponse.json({ error: 'unsupported' }, { status: 400 })
 }
-

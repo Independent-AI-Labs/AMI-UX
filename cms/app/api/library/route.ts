@@ -72,8 +72,16 @@ export async function POST(req: Request) {
     const list = await listLibrary()
     if (!list.find((e) => e.id === id)) {
       const entry: LibraryEntry = { id, path: abs, kind, createdAt: Date.now() }
+      if (typeof body.label === 'string') entry.label = body.label
       list.push(entry)
       await saveLibrary(list)
+    } else {
+      // If exists and label provided, update label
+      const idx = list.findIndex((e) => e.id === id)
+      if (idx !== -1 && typeof body.label === 'string') {
+        list[idx] = { ...list[idx], label: body.label }
+        await saveLibrary(list)
+      }
     }
     return NextResponse.json({ ok: true, id })
   } catch (e: any) {
