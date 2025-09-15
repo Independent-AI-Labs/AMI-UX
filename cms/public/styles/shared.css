@@ -66,6 +66,11 @@ header .btn {
   color: var(--text);
   border-radius: 6px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
 }
 header .btn:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 header .btn:hover { filter: brightness(1.05); }
@@ -80,7 +85,13 @@ header .btn:hover { filter: brightness(1.05); }
   color: var(--text);
   border-radius: 6px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
 }
+.btn svg, header .btn svg { display: block; }
 .btn:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .btn:hover { filter: brightness(1.05); }
 
