@@ -27,10 +27,11 @@
     #pathLabel { color: var(--muted); max-width: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     /* Branding */
     .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 280px; }
-    .brand-logo { height: 42px; width: auto; object-fit: contain; display: block; }
+    .brand-logo { height: 42px; width: auto; object-fit: contain; display: block; animation: logo-spin 120s linear infinite; will-change: transform; }
     .brand-text { display: flex; flex-direction: column; gap: 2px; }
     .brand-text h1 { margin: 0; font-size: 20px; font-weight: 800; }
     .brand-text .subtitle { font-size: 12px; line-height: 1; }
+    @keyframes logo-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
   </style>
   <script>
     (function() {
