@@ -84,3 +84,92 @@ header .btn:hover { filter: brightness(1.05); }
 @media print {
   header, nav { display: none; }
 }
+
+/* Laser Glow effect (CSS-only). Enabled by adding the class `fx-glow` to
+   the document root (e.g., <html class="fx-glow">) or body. The effect is
+   theme-aware via --accent. */
+.fx-glow summary,
+.fx-glow .md p, .fx-glow .md li, .fx-glow .md pre,
+.fx-glow .md h1, .fx-glow .md h2, .fx-glow .md h3, .fx-glow .md h4 {
+  position: relative;
+  transition: filter 0.6s ease-out, text-shadow 0.6s ease-out, background-color 0.6s ease-out;
+}
+
+/* Underline laser for summaries (tree/file rows) */
+.fx-glow summary::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: 6px;
+  height: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 4px color-mix(in oklab, var(--accent) 60%, transparent),
+              0 0 12px color-mix(in oklab, var(--accent) 40%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease-out, box-shadow 0.6s ease-out, transform 0.2s ease;
+  border-radius: 2px;
+}
+
+/* Ancestors in the tree (details) get a faint trace when a descendant hovers */
+.fx-glow #content details:has(:hover) > summary::before {
+  opacity: 0.25;
+  box-shadow: 0 0 3px color-mix(in oklab, var(--accent) 45%, transparent),
+              0 0 10px color-mix(in oklab, var(--accent) 30%, transparent);
+}
+.fx-glow summary:hover::before,
+.fx-glow summary:focus-visible::before {
+  opacity: 0.6;
+  box-shadow: 0 0 6px color-mix(in oklab, var(--accent) 70%, transparent),
+              0 0 18px color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+/* Headings: underline laser to avoid crossing text */
+.fx-glow .md h1, .fx-glow .md h2, .fx-glow .md h3, .fx-glow .md h4,
+.fx-glow #content h1, .fx-glow #content h2, .fx-glow #content h3, .fx-glow #content h4 { padding-bottom: 2px; }
+.fx-glow .md h1::after, .fx-glow .md h2::after, .fx-glow .md h3::after, .fx-glow .md h4::after,
+.fx-glow #content h1::after, .fx-glow #content h2::after, .fx-glow #content h3::after, .fx-glow #content h4::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: -2px;
+  height: 3px;
+  background: var(--accent);
+  opacity: 0;
+  border-radius: 2px;
+  box-shadow: 0 0 4px color-mix(in oklab, var(--accent) 50%, transparent), 0 0 12px color-mix(in oklab, var(--accent) 35%, transparent);
+  transition: opacity 0.6s ease-out, box-shadow 0.6s ease-out;
+  pointer-events: none;
+}
+.fx-glow .md h1:hover::after, .fx-glow .md h2:hover::after, .fx-glow .md h3:hover::after, .fx-glow .md h4:hover::after,
+.fx-glow #content h1:hover::after, .fx-glow #content h2:hover::after, .fx-glow #content h3:hover::after, .fx-glow #content h4:hover::after {
+  opacity: 0.5;
+  box-shadow: 0 0 6px color-mix(in oklab, var(--accent) 60%, transparent), 0 0 16px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+
+/* Soft glow on hovered markdown blocks (reduced opacity) */
+.fx-glow .md p:hover, .fx-glow .md li:hover, .fx-glow .md pre:hover,
+.fx-glow #content p:hover, .fx-glow #content li:hover, .fx-glow #content pre:hover {
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--accent) 45%, transparent))
+          drop-shadow(0 0 9px color-mix(in oklab, var(--accent) 30%, transparent));
+  text-shadow: 0 0 3px color-mix(in oklab, var(--accent) 40%, transparent);
+  background-color: color-mix(in oklab, var(--accent) 3%, transparent);
+}
+
+/* Broader HTML coverage for non-Markdown content in the viewer */
+.fx-glow #content :is(blockquote, dt, dd, code, kbd, samp, table, tr):hover {
+  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--accent) 35%, transparent));
+}
+
+/* List ancestry: slightly tint ancestor li when child is hovered */
+.fx-glow #content li:has(:hover) {
+  background-color: color-mix(in oklab, var(--accent) 2%, transparent);
+}
+
+/* TOC links glow */
+.fx-glow nav .toc a:hover {
+  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--accent) 40%, transparent));
+  text-shadow: 0 0 3px color-mix(in oklab, var(--accent) 35%, transparent);
+}
