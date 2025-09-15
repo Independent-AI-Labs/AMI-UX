@@ -39,12 +39,21 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const controls = (() => {
       const isStarting = status === 'starting'
       const isOn = status === 'running'
-      const label = isStarting ? 'Starting…' : (isOn ? 'Stop' : 'Serve')
       const onClick = (e) => { e.stopPropagation(); if (isStarting) return; (isOn ? onStop : onStart)(entry) }
+      if (isStarting) {
+        return React.createElement('span', { className: 'muted', title: 'Starting…', style: { display: 'inline-flex', alignItems: 'center' } },
+          React.createElement('svg', { viewBox: '0 0 50 50', width: 16, height: 16, style: { animation: 'spin 1s linear infinite' } },
+            React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })
+          )
+        )
+      }
+      const svg = isOn
+        ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="8 5 19 12 8 19 8 5"/></svg>'
       return React.createElement('button', {
-        className: 'btn', onClick, disabled: isStarting, title: isOn ? 'Stop serving' : 'Start serving',
-        style: { fontSize: 12, padding: '2px 8px', borderRadius: 999 }
-      }, label)
+        className: 'btn', onClick, title: isOn ? 'Stop serving' : 'Start serving',
+        style: { padding: '4px 6px', borderRadius: 999 }
+      }, React.createElement('span', { dangerouslySetInnerHTML: { __html: svg } }))
     })()
     const [hovered, setHovered] = useState(false)
     const spinner = React.createElement('svg', { viewBox: '0 0 50 50', width: 16, height: 16, style: { marginLeft: 8, animation: 'spin 1s linear infinite' } },
@@ -263,9 +272,15 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '10px', borderBottom: '1px solid var(--border)' } },
           React.createElement('strong', null, 'Media Library'),
           React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
-          React.createElement('button', { className: 'btn', onClick: uploadNew, title: 'Upload New' }, '+'),
-          React.createElement('button', { className: 'btn', onClick: addExisting, title: 'Add Existing' }, '…'),
-          React.createElement('button', { className: 'btn', onClick: onClose }, 'Close'),
+          React.createElement('button', { className: 'btn', onClick: uploadNew, title: 'Upload New', 'aria-label': 'Upload New' },
+            React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>' } })
+          ),
+          React.createElement('button', { className: 'btn', onClick: addExisting, title: 'Add Existing', 'aria-label': 'Add Existing' },
+            React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="9" x2="12" y2="15"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>' } })
+          ),
+          React.createElement('button', { className: 'btn', onClick: onClose, title: 'Close', 'aria-label': 'Close' },
+            React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' } })
+          ),
         ),
         React.createElement('div', { style: { flex: 1, overflow: 'auto' } },
           ...filtered.map((e) => React.createElement(Row, {
