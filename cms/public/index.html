@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>INTELLIGENT DATA MANAGEMENT</title>
+  <title>AMI DATA PORTAL</title>
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
     /* Shell-specific layout */
@@ -11,9 +11,10 @@
     .tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; cursor: pointer; }
     .tab.active { outline: 2px solid var(--accent); }
     .tab .icon { width: 16px; height: 16px; }
-    /* Served: bump icon size and make green */
-    .tab.served .icon { width: 26px; height: 26px; color: var(--ok); }
-    .tab .pill { margin-left: 6px; font-size: 14px; color: var(--ok); line-height: 1; }
+    /* Served: bump icon size; keep default color */
+    .tab.served .icon { width: 24px; height: 24px; color: inherit; }
+    /* Served indicator dot rendered as tiny circle */
+    .tab .pill { margin-left: 6px; display: inline-block; width: 10px; height: 10px; background: var(--ok); border-radius: 999px; vertical-align: middle; }
     .tab .close { margin-left: 8px; opacity: 0.7; }
     .frame-wrap { position: relative; height: calc(100vh - 44px - 40px); background: #111; }
     /* Default dark; for file modes (A/B) use a light gray gradient */
@@ -39,7 +40,10 @@
 </head>
 <body>
   <header>
-    <h1>INTELLIGENT DATA MANAGEMENT</h1>
+    <div style="display:flex; flex-direction:column; gap:2px;">
+      <h1 style="margin:0;">AMI DATA PORTAL</h1>
+      <div class="muted" style="font-size:12px; margin:0; line-height:1;">SMART CONTENT DISTRIBUTION</div>
+    </div>
     <input id="globalSearch" type="search" placeholder="Search (/)" />
     <button class="btn" id="btnExpand" title="Expand All" aria-label="Expand All">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>

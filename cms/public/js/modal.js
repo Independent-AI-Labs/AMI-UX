@@ -28,38 +28,25 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       app: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"><\/path>'
     }
     const svg = paths[name] || paths.file
-    return React.createElement('span', { dangerouslySetInnerHTML: { __html: `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>` } })
+    return React.createElement('span', { dangerouslySetInnerHTML: { __html: `<svg class="icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>` } })
   }
 
   function Row({ entry, status, selected, busy, onOpen, onContext, onStart, onStop }) {
     const base = entry.path.split('/').pop() || entry.path
     const label = entry.label || (entry.kind === 'file' ? humanizeName(base, 'file') : base)
     const kind = entry.kind
-    const pill = (() => {
+    // Controls: fast, compact buttons with optimistic UI
+    const controls = (() => {
       const isStarting = status === 'starting'
       const isOn = status === 'running'
-      const canToggle = !isStarting && !busy
-      const sizeW = 46, sizeH = 22
-      const knob = React.createElement('span', { style: { display: 'inline-block', width: 16, height: 16, borderRadius: 999, background: isOn ? '#d1fae5' : 'var(--muted)' } })
-      const spinner = React.createElement('svg', { viewBox: '0 0 50 50', width: 14, height: 14, style: { animation: 'spin 1s linear infinite' } },
-        React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })
-      )
-      const onToggle = (e) => { e.stopPropagation(); if (!canToggle) return; isOn ? onStop(entry) : onStart(entry) }
-      const title = isOn ? 'Click to stop serving' : (isStarting ? 'Starting…' : 'Click to start serving')
+      const label = isStarting ? 'Starting…' : (isOn ? 'Stop' : 'Serve')
+      const onClick = (e) => { e.stopPropagation(); if (isStarting) return; (isOn ? onStop : onStart)(entry) }
       return React.createElement('button', {
-        className: 'switch-pill',
-        onClick: onToggle,
-        disabled: !canToggle,
-        title,
-        style: {
-          position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: isOn ? 'flex-end' : 'flex-start',
-          width: sizeW, height: sizeH, padding: '0 4px',
-          borderRadius: 999, border: '1px solid var(--border)',
-          background: isOn ? 'var(--ok)' : 'var(--panel)', color: isOn ? '#052e21' : 'var(--text)',
-          opacity: canToggle ? 1 : 0.6, cursor: canToggle ? 'pointer' : 'default'
-        }
-      }, isStarting ? spinner : knob)
+        className: 'btn', onClick, disabled: isStarting, title: isOn ? 'Stop serving' : 'Start serving',
+        style: { fontSize: 12, padding: '2px 8px', borderRadius: 999 }
+      }, label)
     })()
+    const [hovered, setHovered] = useState(false)
     const spinner = React.createElement('svg', { viewBox: '0 0 50 50', width: 16, height: 16, style: { marginLeft: 8, animation: 'spin 1s linear infinite' } },
       React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })
     )
@@ -67,17 +54,19 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       className: 'row',
       onDoubleClick: () => onOpen(entry),
       onContextMenu: (e) => { e.preventDefault(); onContext(e, entry) },
+      onMouseEnter: () => setHovered(true),
+      onMouseLeave: () => setHovered(false),
       style: {
         display: 'flex', alignItems: 'center', gap: '10px', padding: '10px',
         borderBottom: '1px solid var(--border)', cursor: 'default',
-        background: selected ? 'color-mix(in oklab, var(--accent) 12%, transparent)' : 'transparent'
+        background: selected ? 'color-mix(in oklab, var(--accent) 12%, transparent)' : (hovered ? 'color-mix(in oklab, var(--accent) 6%, transparent)' : 'transparent')
       }
     },
       React.createElement(Icon, { name: kind === 'dir' ? 'folder' : (kind === 'app' ? 'app' : 'file') }),
       React.createElement('div', { style: { flex: 1, minWidth: 0 } },
         React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
           React.createElement('div', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 } }, label),
-          pill,
+          controls,
           busy && spinner,
         ),
         React.createElement('div', { style: { color: 'var(--muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, entry.path),
@@ -225,25 +214,34 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       refreshServing()
     }
 
+    function updateServing(id, status) {
+      setServingMap((prev) => { const next = new Map(prev); next.set(id, status); return next })
+    }
     async function startServing(entry) {
-      setBusyId(entry.id)
+      // Optimistic update for snappy UX
+      updateServing(entry.id, 'starting')
       try {
         const r = await fetch('/api/serve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entryId: entry.id }) })
         if (!r.ok) throw new Error('start failed')
+        updateServing(entry.id, 'running')
         setToast({ kind: 'ok', text: 'Serving started' })
-      } catch { setToast({ kind: 'err', text: 'Failed to start' }) }
-      finally { setBusyId(null) }
+      } catch {
+        updateServing(entry.id, 'stopped')
+        setToast({ kind: 'err', text: 'Failed to start' })
+      }
     }
     async function stopServing(entry) {
-      setBusyId(entry.id)
+      updateServing(entry.id, 'stopped')
       try {
         const list = await fetch('/api/serve').then(r => r.json()).catch(() => ({ instances: [] }))
         const inst = (list.instances || []).find((i) => i.entryId === entry.id)
-        if (!inst) throw new Error('not running')
+        if (!inst) return
         await fetch(`/api/serve/${inst.id}`, { method: 'DELETE' })
         setToast({ kind: 'ok', text: 'Serving stopped' })
-      } catch { setToast({ kind: 'err', text: 'Failed to stop' }) }
-      finally { setBusyId(null) }
+      } catch {
+        updateServing(entry.id, 'running')
+        setToast({ kind: 'err', text: 'Failed to stop' })
+      }
     }
     async function delLib(entry) {
       setBusyId(entry.id)
