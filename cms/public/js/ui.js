@@ -73,8 +73,8 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
   btnSearch.addEventListener('click', (e) => {
     e.stopPropagation()
     try {
-      const inp = document.getElementById('search') as HTMLInputElement | null
-      if (inp) {
+      const inp = document.getElementById('search')
+      if (inp && 'value' in inp) {
         inp.value = label
         inp.dispatchEvent(new Event('input', { bubbles: true }))
         inp.focus()
