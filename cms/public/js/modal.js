@@ -46,16 +46,41 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     )
   }
 
-  function ContextMenu({ x, y, onClose, onPick, onStart, onStop, onDeleteLib, onDeleteDisk }) {
-    const items = [
-      { key: 'open', label: 'Open', action: onPick },
-      { key: 'start', label: 'Start Serving', action: onStart },
-      { key: 'stop', label: 'Stop Serving', action: onStop },
-      { key: 'del', label: 'Delete from Library', action: onDeleteLib },
-      { key: 'deld', label: 'Delete from Disk', action: onDeleteDisk },
-    ]
-    return React.createElement('div', { style: { position: 'fixed', left: x, top: y, zIndex: 1002, background: 'var(--panel)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' } },
-      ...items.map(it => React.createElement('div', { key: it.key, className: 'ctx', onClick: () => { it.action(); onClose() }, style: { padding: '8px 10px', cursor: 'pointer' } }, it.label))
+  function ContextMenu({ x, y, serving, onClose, onPick, onStart, onStop, onRename, onCopyPath, onDeleteLib, onDeleteDisk }) {
+    const startDisabled = !!serving
+    const stopDisabled = !serving
+    const vpW = window.innerWidth || 1200
+    const vpH = window.innerHeight || 800
+    const left = Math.min(x, vpW - 220)
+    const top = Math.min(y, vpH - 180)
+    const mkItem = (key, label, action, disabled = false) => React.createElement(
+      'div',
+      {
+        key,
+        className: 'ctx',
+        onClick: (e) => { e.stopPropagation(); if (!disabled) { action(); onClose() } },
+        style: { padding: '8px 10px', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1 }
+      },
+      label,
+    )
+    return React.createElement('div', {
+      className: 'media-ctx',
+      style: {
+        position: 'fixed', left, top, zIndex: 1002,
+        background: 'var(--panel)', color: 'var(--text)',
+        border: '1px solid var(--border)', borderRadius: 6, minWidth: 220,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+      },
+      onContextMenu: (e) => e.preventDefault(),
+    },
+      mkItem('open', 'Open', onPick),
+      mkItem('start', 'Start Serving', onStart, startDisabled),
+      mkItem('stop', 'Stop Serving', onStop, stopDisabled),
+      mkItem('rename', 'Rename…', onRename, false),
+      mkItem('copy', 'Copy Path', onCopyPath, false),
+      React.createElement('div', { style: { height: 1, background: 'var(--border)', margin: '4px 0' } }),
+      mkItem('del', 'Delete from Library', onDeleteLib, false),
+      mkItem('deld', 'Delete from Disk', onDeleteDisk, false),
     )
   }
 
@@ -63,6 +88,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const [entries, setEntries] = useState([])
     const [filter, setFilter] = useState('')
     const [menu, setMenu] = useState(null)
+    const [servingIds, setServingIds] = useState(new Set())
     useEffect(() => { let alive = true; (async () => { const r = await fetch('/api/library'); const j = r.ok ? await r.json() : { entries: [] }; if (alive) setEntries(j.entries || []) })(); return () => { alive = false } }, [])
     const filtered = entries.filter(e => !filter || (e.path.toLowerCase().includes(filter.toLowerCase()) || (e.label||'').toLowerCase().includes(filter.toLowerCase())))
 
@@ -74,6 +100,29 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         const j = await fetch('/api/library').then(r => r.json()).catch(() => ({ entries: [] }))
         setEntries(j.entries || [])
       } else alert('Failed to add')
+    }
+
+    // Close context menu on Escape or click outside
+    useEffect(() => {
+      if (!menu) return
+      const onKey = (e) => { if (e.key === 'Escape') setMenu(null) }
+      const onClick = (e) => {
+        const t = e.target
+        const inMenu = t && typeof t.closest === 'function' && t.closest('.media-ctx')
+        if (!inMenu) setMenu(null)
+      }
+      window.addEventListener('keydown', onKey)
+      window.addEventListener('mousedown', onClick)
+      return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onClick) }
+    }, [menu])
+
+    async function refreshServing() {
+      try {
+        const r = await fetch('/api/serve')
+        const j = r.ok ? await r.json() : { instances: [] }
+        const ids = new Set((j.instances || []).map(i => i.entryId))
+        setServingIds(ids)
+      } catch { setServingIds(new Set()) }
     }
 
     async function uploadNew() {
@@ -110,7 +159,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }
 
     function ctx(e, entry) {
+      e.preventDefault()
       setMenu({ x: e.clientX, y: e.clientY, entry })
+      refreshServing()
     }
 
     async function startServing(entry) {
@@ -140,12 +191,26 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           ...filtered.map((e) => React.createElement(Row, { key: e.id, entry: e, onOpen: openEntry, onContext: ctx })),
         ),
       ),
+      menu && React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1001 }, onClick: () => setMenu(null) }),
       menu && React.createElement(ContextMenu, {
         x: menu.x, y: menu.y,
+        serving: servingIds.has(menu.entry.id),
         onClose: () => setMenu(null),
         onPick: () => openEntry(menu.entry),
-        onStart: () => startServing(menu.entry),
-        onStop: () => stopServing(menu.entry),
+        onStart: async () => { await startServing(menu.entry); await refreshServing() },
+        onStop: async () => { await stopServing(menu.entry); await refreshServing() },
+        onRename: async () => {
+          const cur = menu.entry.label || ''
+          const next = prompt('New label:', cur)
+          if (next == null) return
+          await fetch(`/api/library/${menu.entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: next }) })
+          const j = await fetch('/api/library').then(r => r.json()).catch(() => ({ entries: [] }))
+          setEntries(j.entries || [])
+        },
+        onCopyPath: async () => {
+          const p = menu.entry.path
+          try { await navigator.clipboard.writeText(p) } catch {}
+        },
         onDeleteLib: () => delLib(menu.entry),
         onDeleteDisk: () => delDisk(menu.entry),
       })
