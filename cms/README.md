@@ -11,12 +11,18 @@ npm install
 npm run dev   # defaults to http://localhost:3000
 ```
 
-Helper script (detached):
+Runners
 
-```
-scripts/server.sh start --dev [port]
-scripts/server.sh status|logs|stop
-```
+- Bash helper (detached):
+  - `scripts/server.sh start --dev [port] [--anyport] [--wait SECS]`
+  - `scripts/server.sh status|logs|stop|kill-orphans`
+
+- JS launcher (non-blocking):
+  - `npm run serve -- start --dev --port 3000 --wait 10` — start and wait until ready
+  - `npm run serve -- status --port 3000` — print readiness and PID
+  - `npm run serve -- stop --port 3000` — stop by PID and listener
+  - `npm run serve -- logs --port 3000` — print recent log
+  - `npm run serve -- kill-orphans` — kill stray Next processes bound to this app dir
 
 ## Configuration
 
