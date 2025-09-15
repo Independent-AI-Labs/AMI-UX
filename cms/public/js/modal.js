@@ -38,7 +38,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const pill = (() => {
       const map = { running: { text: 'Serving', bg: '#065f46' }, starting: { text: 'Starting', bg: '#92400e' }, stopped: { text: 'Stopped', bg: '#374151' }, idle: { text: kind === 'file' ? 'File' : (kind === 'dir' ? 'Folder' : 'App'), bg: '#374151' } }
       const k = map[status || 'idle'] || map.idle
-      return React.createElement('span', { style: { fontSize: 11, padding: '2px 6px', borderRadius: 999, background: k.bg, color: 'white', whiteSpace: 'nowrap' } }, k.text)
+      return React.createElement('span', { style: { fontSize: 10, padding: '2px 6px', borderRadius: 999, background: k.bg, color: 'white', whiteSpace: 'nowrap' } }, k.text)
     })()
     const spinner = React.createElement('svg', { viewBox: '0 0 50 50', width: 16, height: 16, style: { marginLeft: 8, animation: 'spin 1s linear infinite' } },
       React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })

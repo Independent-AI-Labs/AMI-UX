@@ -92,9 +92,10 @@ function renderTabs() {
   bar.innerHTML = ''
   tabsState.tabs.forEach((t) => {
     const el = document.createElement('button')
-    el.className = 'tab' + (tabsState.active === t.id ? ' active' : '')
     const isRunningApp = t.kind === 'app' && !!appRunning.get(t.path)
     const showPill = !!t.servedId || isRunningApp
+    const isServed = showPill
+    el.className = 'tab' + (tabsState.active === t.id ? ' active' : '') + (isServed ? ' served' : '')
     const pillTitle = t.kind === 'app' ? (isRunningApp ? 'App running' : '') : (t.servedId ? 'Served' : '')
     const baseName = (t.path.split('/').pop() || t.path)
     const tabLabel = t.label || (t.kind === 'file' ? humanizeName(baseName, 'file') : baseName)
