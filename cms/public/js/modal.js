@@ -69,7 +69,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         position: 'fixed', left, top, zIndex: 1002,
         background: 'var(--panel)', color: 'var(--text)',
         border: '1px solid var(--border)', borderRadius: 6, minWidth: 220,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+        pointerEvents: 'auto'
       },
       onContextMenu: (e) => e.preventDefault(),
     },
@@ -191,7 +192,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           ...filtered.map((e) => React.createElement(Row, { key: e.id, entry: e, onOpen: openEntry, onContext: ctx })),
         ),
       ),
-      menu && React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1001 }, onClick: () => setMenu(null) }),
+      menu && React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1001, pointerEvents: 'auto' }, onClick: () => setMenu(null) }),
       menu && React.createElement(ContextMenu, {
         x: menu.x, y: menu.y,
         serving: servingIds.has(menu.entry.id),
