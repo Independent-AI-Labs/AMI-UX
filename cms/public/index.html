@@ -25,6 +25,12 @@
     header .right { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
     #modeLabel { color: var(--muted); }
     #pathLabel { color: var(--muted); max-width: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Branding */
+    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 280px; }
+    .brand-logo { height: 32px; width: auto; object-fit: contain; display: block; }
+    .brand-text { display: flex; flex-direction: column; gap: 2px; }
+    .brand-text h1 { margin: 0; font-size: 20px; font-weight: 800; }
+    .brand-text .subtitle { font-size: 12px; line-height: 1; }
   </style>
   <script>
     (function() {
@@ -40,9 +46,12 @@
 </head>
 <body>
   <header>
-    <div style="display:flex; flex-direction:column; gap:2px; min-width: 280px;">
-      <h1 style="margin:0; font-size:20px;">AMI DATA PORTAL</h1>
-      <div class="muted" style="font-size:12px; margin:0; line-height:1;">DISTRIBUTED CONTENT DIRECTORY</div>
+    <div class="brand">
+      <img class="brand-logo" src="/res/AMI%20LOGO.png" alt="AMI Logo" />
+      <div class="brand-text">
+        <h1>AMI DATA PORTAL</h1>
+        <div class="muted subtitle">DISTRIBUTED CONTENT DIRECTORY</div>
+      </div>
     </div>
     <input id="globalSearch" type="search" placeholder="Search (/)" />
     <button class="btn" id="btnExpand" title="Expand All" aria-label="Expand All">
