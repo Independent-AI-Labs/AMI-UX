@@ -118,10 +118,28 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
     details.addEventListener(
       'toggle',
       async () => {
-        if (details.open && !state.cache.has(node.path)) {
-          await loadFileNode(state, details, node, body)
+        if (!details.open) return
+        if (state.cache.has(node.path)) {
+          const cached = state.cache.get(node.path)
+          try {
+            body.innerHTML = ''
+            const anchor = document.createElement('a')
+            anchor.id = pathAnchor(node.path)
+            body.appendChild(anchor)
+            // Use a cloned node to avoid detaching existing instances
+            const cloned = cached && cached.html && typeof cached.html.cloneNode === 'function'
+              ? cached.html.cloneNode(true)
+              : cached.html || document.createTextNode('')
+            body.appendChild(cloned)
+          } catch {
+            // Fallback to reload if cloning/rendering fails
+            await loadFileNode(state, details, node, body)
+          }
           restoreHashTarget()
+          return
         }
+        await loadFileNode(state, details, node, body)
+        restoreHashTarget()
       },
       { once: false },
     )
@@ -315,9 +333,13 @@ function initHoverActions() {
   )
   overlay.appendChild(btnComment)
   overlay.appendChild(btnSearch)
-  document.body.appendChild(overlay)
 
   let anchorEl = null
+  let anchorHadPosition = ''
+  let showTimer = null
+  let hideTimer = null
+  let initialLeft = null
+  let isShown = false
   function labelFor(el) {
     try { return (el.textContent || '').trim().slice(0, 200) } catch { return '' }
   }
@@ -337,40 +359,95 @@ function initHoverActions() {
   btnComment.addEventListener('click', (e) => { e.stopPropagation(); if (anchorEl) sendComment(anchorEl) })
   btnSearch.addEventListener('click', (e) => { e.stopPropagation(); if (anchorEl) performSearch(anchorEl) })
 
+  // Exclude '#content summary' to avoid duplicate icons on file titles;
+  // summaries already render embedded .row-actions.
   const selector = [
-    '#content summary',
     '#content .md p', '#content .md li', '#content .md pre',
     '#content .md h1', '#content .md h2', '#content .md h3', '#content .md h4',
     'nav .toc a'
   ].join(', ')
 
-  function placeOverlay(el) {
-    anchorEl = el
-    overlay.style.display = 'inline-flex'
-    // Place on same baseline (vertical center) and right aligned to element box
-    const rect = el.getBoundingClientRect()
-    const ow = overlay.offsetWidth || 40
-    const oh = overlay.offsetHeight || 22
-    const top = Math.round(rect.top + (rect.height - oh) / 2)
-    const left = Math.round(Math.min(rect.right - ow - 8, window.innerWidth - ow - 8))
-    overlay.style.top = top + 'px'
-    overlay.style.left = left + 'px'
+  function ensureOverlayParent(el) {
+    if (overlay.parentElement !== el) {
+      // Restore prior anchor position if we modified it
+      if (anchorEl && anchorHadPosition) {
+        anchorEl.style.position = anchorHadPosition
+      }
+      // Ensure el is positioning context
+      const cs = window.getComputedStyle(el)
+      anchorHadPosition = el.style.position
+      if (cs.position === 'static') {
+        el.style.position = 'relative'
+      }
+      el.appendChild(overlay)
+    }
   }
-  function hideOverlay() { overlay.style.display = 'none'; anchorEl = null }
+
+  function placeOverlay(el, mouseX) {
+    // If we're already showing for this element, do nothing
+    if ((isShown || showTimer) && anchorEl === el) return
+    anchorEl = el
+    ensureOverlayParent(el)
+    // Prepare for static positioning and delayed fade-in
+    overlay.classList.remove('show')
+    if (showTimer) { clearTimeout(showTimer); showTimer = null }
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+    overlay.style.top = '50%'
+    overlay.style.transform = 'translateY(-50%)'
+    // Compute initial horizontal placement near the mouse, clamped within element
+    const ow = overlay.offsetWidth || 40
+    const rect = el.getBoundingClientRect()
+    const maxLeft = Math.max(8, el.clientWidth - ow - 8)
+    if (typeof mouseX === 'number') {
+      const rel = Math.max(8, Math.min(Math.round(mouseX - rect.left + 16), maxLeft))
+      initialLeft = rel
+      overlay.style.left = rel + 'px'
+      overlay.style.right = 'auto'
+    } else if (initialLeft != null) {
+      const rel = Math.max(8, Math.min(initialLeft, maxLeft))
+      overlay.style.left = rel + 'px'
+      overlay.style.right = 'auto'
+    } else {
+      overlay.style.left = 'auto'
+      overlay.style.right = '8px'
+    }
+    // Fade in after the highlight animation completes
+    showTimer = setTimeout(() => {
+      // Faster fade-in
+      overlay.style.setProperty('--hover-fade', '120ms')
+      overlay.classList.add('show')
+      isShown = true
+    }, 120)
+  }
+  function cleanupOverlay() {
+    // Restore anchor inline position if we modified it
+    if (anchorEl && anchorHadPosition) {
+      anchorEl.style.position = anchorHadPosition
+    }
+    anchorEl = null
+    anchorHadPosition = ''
+    initialLeft = null
+    isShown = false
+  }
+  function hideOverlay() {
+    if (!isShown && !showTimer) return
+    if (showTimer) { clearTimeout(showTimer); showTimer = null }
+    // Slow fade-out; keep position static until it completes
+    overlay.style.setProperty('--hover-fade', '450ms')
+    overlay.classList.remove('show')
+    isShown = false
+    if (hideTimer) clearTimeout(hideTimer)
+    hideTimer = setTimeout(() => {
+      hideTimer = null
+      cleanupOverlay()
+    }, 470)
+  }
   document.addEventListener('mouseover', (e) => {
     const t = e.target
     const el = t && typeof t.closest === 'function' ? t.closest(selector) : (t && t.parentElement ? t.parentElement.closest(selector) : null)
-    if (el) placeOverlay(el)
+    if (el) placeOverlay(el, e.clientX)
   })
-  document.addEventListener('mousemove', (e) => {
-    if (!anchorEl) return
-    const t = e.target
-    const within = t && typeof t.closest === 'function' ? (t.closest(selector) === anchorEl) : false
-    if (!within) return
-    placeOverlay(anchorEl)
-  })
-  document.addEventListener('scroll', () => { if (anchorEl) placeOverlay(anchorEl) }, true)
-  window.addEventListener('resize', () => { if (anchorEl) placeOverlay(anchorEl) })
+  // No mouse-following; overlay remains static until hover ends
   document.addEventListener('mouseout', (e) => {
     if (!anchorEl) return
     const toEl = e.relatedTarget || null
