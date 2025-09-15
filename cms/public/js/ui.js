@@ -285,4 +285,99 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
     document.querySelectorAll('#content details').forEach((d) => d.removeAttribute('open'))
     prevOpen.forEach((d) => d.setAttribute('open', ''))
   })
+
+  // Floating hover actions for highlighted elements (headings, lines, TOC links)
+  initHoverActions()
+}
+
+function initHoverActions() {
+  const overlay = document.createElement('div')
+  overlay.className = 'hover-actions'
+  overlay.setAttribute('aria-hidden', 'true')
+  const mkBtn = (cls, title, svg) => {
+    const b = document.createElement('button')
+    b.className = 'act ' + cls
+    b.title = title
+    b.setAttribute('aria-label', title)
+    b.innerHTML = svg
+    b.addEventListener('mousedown', (e) => e.preventDefault())
+    return b
+  }
+  const btnComment = mkBtn(
+    'act-comment',
+    'Comment',
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
+  )
+  const btnSearch = mkBtn(
+    'act-search',
+    'Search',
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+  )
+  overlay.appendChild(btnComment)
+  overlay.appendChild(btnSearch)
+  document.body.appendChild(overlay)
+
+  let anchorEl = null
+  function labelFor(el) {
+    try { return (el.textContent || '').trim().slice(0, 200) } catch { return '' }
+  }
+  function sendComment(el) {
+    const label = labelFor(el)
+    try { window.parent?.postMessage?.({ type: 'addComment', path: el?.id || '', label }, '*') } catch {}
+  }
+  function performSearch(el) {
+    const label = labelFor(el)
+    const inp = document.getElementById('search')
+    if (inp && 'value' in inp) {
+      inp.value = label
+      inp.dispatchEvent(new Event('input', { bubbles: true }))
+      inp.focus()
+    }
+  }
+  btnComment.addEventListener('click', (e) => { e.stopPropagation(); if (anchorEl) sendComment(anchorEl) })
+  btnSearch.addEventListener('click', (e) => { e.stopPropagation(); if (anchorEl) performSearch(anchorEl) })
+
+  const selector = [
+    '#content summary',
+    '#content .md p', '#content .md li', '#content .md pre',
+    '#content .md h1', '#content .md h2', '#content .md h3', '#content .md h4',
+    'nav .toc a'
+  ].join(', ')
+
+  function placeOverlay(el) {
+    anchorEl = el
+    overlay.style.display = 'inline-flex'
+    // Place on same baseline (vertical center) and right aligned to element box
+    const rect = el.getBoundingClientRect()
+    const ow = overlay.offsetWidth || 40
+    const oh = overlay.offsetHeight || 22
+    const top = Math.round(rect.top + (rect.height - oh) / 2)
+    const left = Math.round(Math.min(rect.right - ow - 8, window.innerWidth - ow - 8))
+    overlay.style.top = top + 'px'
+    overlay.style.left = left + 'px'
+  }
+  function hideOverlay() { overlay.style.display = 'none'; anchorEl = null }
+  document.addEventListener('mouseover', (e) => {
+    const t = e.target
+    const el = t && typeof t.closest === 'function' ? t.closest(selector) : (t && t.parentElement ? t.parentElement.closest(selector) : null)
+    if (el) placeOverlay(el)
+  })
+  document.addEventListener('mousemove', (e) => {
+    if (!anchorEl) return
+    const t = e.target
+    const within = t && typeof t.closest === 'function' ? (t.closest(selector) === anchorEl) : false
+    if (!within) return
+    placeOverlay(anchorEl)
+  })
+  document.addEventListener('scroll', () => { if (anchorEl) placeOverlay(anchorEl) }, true)
+  window.addEventListener('resize', () => { if (anchorEl) placeOverlay(anchorEl) })
+  document.addEventListener('mouseout', (e) => {
+    if (!anchorEl) return
+    const toEl = e.relatedTarget || null
+    const inAnchor = toEl && typeof toEl.closest === 'function' && toEl.closest(selector) === anchorEl
+    const inOverlay = toEl && typeof toEl.closest === 'function' && !!toEl.closest('.hover-actions')
+    if (!inAnchor && !inOverlay) {
+      hideOverlay()
+    }
+  })
 }

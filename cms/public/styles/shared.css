@@ -210,3 +210,24 @@ details:focus-within > summary .row-actions {
 }
 .row-actions .act:hover { color: var(--text); filter: brightness(1.05); }
 .row-actions .act:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Global floating hover actions (for headings, paragraphs, TOC links, etc.) */
+.hover-actions {
+  position: fixed;
+  z-index: 1000;
+  display: none;
+  gap: 6px;
+  align-items: center;
+  padding: 0;
+}
+.hover-actions .act {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.hover-actions .act:hover { color: var(--text); filter: brightness(1.05); }
+.hover-actions .act:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
