@@ -10,6 +10,7 @@ const state = {
   theme: localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
   sse: null,
   refreshTimer: null,
+  treeContainer: null,
 }
 
 // Theme
@@ -18,13 +19,60 @@ applyTheme(state)
 // Markdown config
 marked.setOptions({ gfm: true, breaks: false, headerIds: false, mangle: false })
 
+function ensureTreeContainer() {
+  if (state.treeContainer && document.body.contains(state.treeContainer)) return state.treeContainer
+  const content = document.getElementById('content')
+  if (!content) return null
+  content.innerHTML = ''
+
+  const toolbar = document.createElement('div')
+  toolbar.className = 'tree-toolbar'
+  toolbar.id = 'treeToolbar'
+
+  const titleWrap = document.createElement('div')
+  titleWrap.className = 'tree-toolbar__title'
+  titleWrap.textContent = 'Document Tree'
+  toolbar.appendChild(titleWrap)
+
+  const actions = document.createElement('div')
+  actions.className = 'tree-toolbar__actions'
+
+  const expandBtn = document.createElement('button')
+  expandBtn.className = 'btn'
+  expandBtn.id = 'treeExpandAll'
+  expandBtn.type = 'button'
+  expandBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="12" y1="7" x2="12" y2="17"></line><line x1="7" y1="12" x2="17" y2="12"></line></svg><span>Expand All</span>'
+  expandBtn.addEventListener('click', () => expandCollapseAll(true))
+
+  const collapseBtn = document.createElement('button')
+  collapseBtn.className = 'btn'
+  collapseBtn.id = 'treeCollapseAll'
+  collapseBtn.type = 'button'
+  collapseBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="7" y1="12" x2="17" y2="12"></line></svg><span>Collapse All</span>'
+  collapseBtn.addEventListener('click', () => expandCollapseAll(false))
+
+  actions.appendChild(expandBtn)
+  actions.appendChild(collapseBtn)
+  toolbar.appendChild(actions)
+
+  const container = document.createElement('div')
+  container.id = 'treeRoot'
+
+  content.appendChild(toolbar)
+  content.appendChild(container)
+
+  state.treeContainer = container
+  return container
+}
+
 function debounceRefreshTree() {
   if (state.refreshTimer) clearTimeout(state.refreshTimer)
   state.refreshTimer = setTimeout(async () => {
     try {
       const newTree = await fetchTree()
       state.tree = newTree
-      const root = document.getElementById('content')
+      const root = ensureTreeContainer()
+      if (!root) return
       const scrollY = window.scrollY
       root.innerHTML = ''
       const frag = document.createDocumentFragment()
@@ -54,7 +102,8 @@ export async function startCms(fromSelect = false) {
   }
   const tree = await fetchTree()
   state.tree = tree
-  const root = document.getElementById('content')
+  const root = ensureTreeContainer()
+  if (!root) return
   root.innerHTML = ''
   const title = document.getElementById('appTitle')
   title.textContent = humanizeName(tree?.name || 'Docs', 'dir')

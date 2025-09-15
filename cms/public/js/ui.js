@@ -10,7 +10,40 @@ function isIntroFile(name) {
 export function applyTheme(state) {
   document.documentElement.setAttribute('data-theme', state.theme)
   if (window.mermaid) {
-    window.mermaid.initialize({ startOnLoad: false, theme: state.theme === 'dark' ? 'dark' : 'default' })
+    // Re-initialize Mermaid with the current theme
+    const themeName = state.theme === 'dark' ? 'dark' : 'default'
+    window.mermaid.initialize({ startOnLoad: false, theme: themeName })
+    // Re-render any already-rendered Mermaid diagrams with the new theme
+    try {
+      const blocks = document.querySelectorAll('.md .mermaid')
+      if (blocks && blocks.length) {
+        blocks.forEach((el) => {
+          try {
+            // Use preserved source if available
+            const src = el.dataset?.src || el.__mermaidSrc || null
+            if (src) {
+              // Reset content to original source and clear processed flag
+              el.textContent = src
+              el.removeAttribute('data-processed')
+              // Remove any child nodes left by prior renders
+              // (textContent assignment above should clear children, but be safe)
+              while (el.firstChild && el.childNodes.length > 1) {
+                el.removeChild(el.firstChild)
+              }
+            } else {
+              // No preserved source; attempt to force re-processing by removing flag
+              el.removeAttribute('data-processed')
+            }
+          } catch {}
+        })
+        try {
+          if (window.mermaid.run) window.mermaid.run({ nodes: blocks })
+          else if (window.mermaid.init) window.mermaid.init(undefined, blocks)
+        } catch (e) {
+          console.warn('Mermaid re-render failed', e)
+        }
+      }
+    } catch {}
   }
 }
 
@@ -226,7 +259,15 @@ export function updateTOC(state) {
 }
 
 export function expandCollapseAll(expand = true) {
-  document.querySelectorAll('#content details, #toc details').forEach((d) => {
+  const treeRoot = document.getElementById('treeRoot') || document.getElementById('content')
+  if (treeRoot) {
+    treeRoot.querySelectorAll('details').forEach((d) => {
+      const isOpen = d.hasAttribute('open')
+      if (expand && !isOpen) d.setAttribute('open', '')
+      if (!expand && isOpen) d.removeAttribute('open')
+    })
+  }
+  document.querySelectorAll('#toc details').forEach((d) => {
     const isOpen = d.hasAttribute('open')
     if (expand && !isOpen) d.setAttribute('open', '')
     if (!expand && isOpen) d.removeAttribute('open')
@@ -285,7 +326,9 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
   })
   if (search && typeof search.addEventListener === 'function') search.addEventListener('input', () => {
     const q = search.value.toLowerCase()
-    document.querySelectorAll('#content details').forEach((d) => {
+    const scope = document.getElementById('treeRoot') || document.getElementById('content')
+    if (!scope) return
+    scope.querySelectorAll('details').forEach((d) => {
       const title = d.querySelector('summary')?.textContent?.toLowerCase() || ''
       const match = !q || title.includes(q)
       d.classList.toggle('hidden', !match)
@@ -296,11 +339,13 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
   // Expand all for print and restore after
   let prevOpen = []
   window.addEventListener('beforeprint', () => {
-    prevOpen = Array.from(document.querySelectorAll('#content details[open]'))
+    const scope = document.getElementById('treeRoot') || document.getElementById('content')
+    prevOpen = scope ? Array.from(scope.querySelectorAll('details[open]')) : []
     expandCollapseAll(true)
   })
   window.addEventListener('afterprint', () => {
-    document.querySelectorAll('#content details').forEach((d) => d.removeAttribute('open'))
+    const scope = document.getElementById('treeRoot') || document.getElementById('content')
+    if (scope) scope.querySelectorAll('details').forEach((d) => d.removeAttribute('open'))
     prevOpen.forEach((d) => d.setAttribute('open', ''))
   })
 
@@ -361,9 +406,10 @@ function initHoverActions() {
 
   // Exclude '#content summary' to avoid duplicate icons on file titles;
   // summaries already render embedded .row-actions.
+  const treeScope = document.getElementById('treeRoot') ? '#treeRoot' : '#content'
   const selector = [
-    '#content .md p', '#content .md li', '#content .md pre',
-    '#content .md h1', '#content .md h2', '#content .md h3', '#content .md h4',
+    `${treeScope} .md p`, `${treeScope} .md li`, `${treeScope} .md pre`,
+    `${treeScope} .md h1`, `${treeScope} .md h2`, `${treeScope} .md h3`, `${treeScope} .md h4`,
     'nav .toc a'
   ].join(', ')
 

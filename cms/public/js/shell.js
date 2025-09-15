@@ -80,6 +80,35 @@ async function saveTabs() {
   } catch {}
 }
 
+function collectDocContexts() {
+  const contexts = []
+  try {
+    const frame = document.getElementById('vizFrame')
+    const topWin = frame?.contentWindow || null
+    if (topWin) {
+      contexts.push({ win: topWin, doc: topWin.document || null })
+      try {
+        const inner = topWin.document?.getElementById('d')
+        if (inner && inner.contentWindow) {
+          contexts.push({ win: inner.contentWindow, doc: inner.contentWindow.document || null })
+        }
+      } catch {}
+    }
+  } catch {}
+  return contexts
+}
+
+function postToDoc(msg) {
+  const delays = [0, 100, 250, 500, 1000, 1600]
+  for (const d of delays) {
+    setTimeout(() => {
+      collectDocContexts().forEach(({ win }) => {
+        try { win.postMessage(msg, '*') } catch {}
+      })
+    }, d)
+  }
+}
+
 function iconSvg(kind) {
   if (kind === 'dir') return '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path>'
   if (kind === 'app') return '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"></path>'
@@ -209,6 +238,10 @@ async function activateTab(id) {
       iframe.src = 'about:blank'
     }
   }
+  if (tab.kind === 'dir') {
+    const themeNow = document.documentElement.getAttribute('data-theme') || 'dark'
+    setTimeout(() => postToDoc({ type: 'applyTheme', theme: themeNow }), 80)
+  }
   try {
     const vizId = usedServed ? (tab.kind === 'dir' ? 'C' : tab.kind === 'app' ? 'D' : (tab.mode || '')) : (tab.kind === 'dir' ? 'C' : tab.kind === 'app' ? 'D' : (tab.mode || ''))
     setLabels(vizId, { path: tab.path })
@@ -300,23 +333,36 @@ async function boot() {
   const search = document.getElementById('globalSearch')
   if (search) {
     search.addEventListener('input', () => {
-      try { document.getElementById('vizFrame')?.contentWindow?.postMessage({ type: 'search', q: search.value }, '*') } catch {}
+      postToDoc({ type: 'search', q: search.value })
     })
     window.addEventListener('keydown', (e) => { if (e.key === '/' && document.activeElement !== search) { e.preventDefault(); search.focus() } })
   }
 
   // Header buttons: expand/collapse/theme
-  function postToDoc(msg) {
+  function applyThemeIntoIframe(theme) {
     try {
-      const f = document.getElementById('vizFrame')
-      const delays = [0, 150, 400, 800]
-      for (const d of delays) {
-        setTimeout(() => { try { f?.contentWindow?.postMessage(msg, '*') } catch {} }, d)
+      collectDocContexts().forEach(({ doc }) => {
+        if (doc && doc.documentElement) doc.documentElement.setAttribute('data-theme', theme)
+      })
+    } catch {}
+    // Also message the iframe (with retries)
+    postToDoc({ type: 'applyTheme', theme })
+  }
+  // Ensure we re-send theme and docRoot as soon as the embedded doc signals readiness
+  window.addEventListener('message', (ev) => {
+    try {
+      const msg = ev && ev.data
+      if (!msg || typeof msg !== 'object') return
+      if (msg.type === 'docReady') {
+        const active = tabsState.tabs.find((t) => t.id === tabsState.active)
+        const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
+        if (active && active.kind === 'dir') {
+          postToDoc({ type: 'setDocRoot', path: active.path })
+        }
+        postToDoc({ type: 'applyTheme', theme: curTheme })
       }
     } catch {}
-  }
-document.getElementById('btnExpand')?.addEventListener('click', () => postToDoc({ type: 'expandAll' }))
-document.getElementById('btnCollapse')?.addEventListener('click', () => postToDoc({ type: 'collapseAll' }))
+  })
   document.getElementById('btnTheme')?.addEventListener('click', () => {
     try {
       const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
@@ -330,7 +376,7 @@ document.getElementById('btnCollapse')?.addEventListener('click', () => postToDo
           ? '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
           : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
       }
-      postToDoc({ type: 'applyTheme', theme: next })
+      applyThemeIntoIframe(next)
     } catch {}
   })
 
