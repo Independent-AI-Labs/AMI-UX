@@ -31,18 +31,37 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     return React.createElement('span', { dangerouslySetInnerHTML: { __html: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>` } })
   }
 
-  function Row({ entry, onOpen, onContext }) {
+  function Row({ entry, status, selected, busy, onOpen, onContext }) {
     const base = entry.path.split('/').pop() || entry.path
     const label = entry.label || (entry.kind === 'file' ? humanizeName(base, 'file') : base)
     const kind = entry.kind
+    const pill = (() => {
+      const map = { running: { text: 'Serving', bg: '#065f46' }, starting: { text: 'Starting', bg: '#92400e' }, stopped: { text: 'Stopped', bg: '#374151' }, idle: { text: kind === 'file' ? 'File' : (kind === 'dir' ? 'Folder' : 'App'), bg: '#374151' } }
+      const k = map[status || 'idle'] || map.idle
+      return React.createElement('span', { style: { fontSize: 11, padding: '2px 6px', borderRadius: 999, background: k.bg, color: 'white', whiteSpace: 'nowrap' } }, k.text)
+    })()
+    const spinner = React.createElement('svg', { viewBox: '0 0 50 50', width: 16, height: 16, style: { marginLeft: 8, animation: 'spin 1s linear infinite' } },
+      React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })
+    )
     return React.createElement('div', {
       className: 'row',
       onDoubleClick: () => onOpen(entry),
       onContextMenu: (e) => { e.preventDefault(); onContext(e, entry) },
-      style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderBottom: '1px solid var(--border)', cursor: 'default' }
+      style: {
+        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px',
+        borderBottom: '1px solid var(--border)', cursor: 'default',
+        background: selected ? 'color-mix(in oklab, var(--accent) 12%, transparent)' : 'transparent'
+      }
     },
       React.createElement(Icon, { name: kind === 'dir' ? 'folder' : (kind === 'app' ? 'app' : 'file') }),
-      React.createElement('div', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: entry.path }, label),
+      React.createElement('div', { style: { flex: 1, minWidth: 0 } },
+        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+          React.createElement('div', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 } }, label),
+          pill,
+          busy && spinner,
+        ),
+        React.createElement('div', { style: { color: 'var(--muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, entry.path),
+      ),
     )
   }
 
@@ -89,7 +108,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const [entries, setEntries] = useState([])
     const [filter, setFilter] = useState('')
     const [menu, setMenu] = useState(null)
-    const [servingIds, setServingIds] = useState(new Set())
+    const [servingMap, setServingMap] = useState(new Map())
+    const [selectedId, setSelectedId] = useState(null)
+    const [busyId, setBusyId] = useState(null)
+    const [toast, setToast] = useState(null)
     useEffect(() => { let alive = true; (async () => { const r = await fetch('/api/library'); const j = r.ok ? await r.json() : { entries: [] }; if (alive) setEntries(j.entries || []) })(); return () => { alive = false } }, [])
     const filtered = entries.filter(e => !filter || (e.path.toLowerCase().includes(filter.toLowerCase()) || (e.label||'').toLowerCase().includes(filter.toLowerCase())))
 
@@ -117,13 +139,30 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onClick) }
     }, [menu])
 
+    // Toast auto-dismiss
+    useEffect(() => {
+      let t = null
+      if (toast) t = setTimeout(() => setToast(null), 2000)
+      return () => { if (t) clearTimeout(t) }
+    }, [toast])
+
+    // Serving poller
+    useEffect(() => {
+      let alive = true
+      const tick = async () => { if (!alive) return; await refreshServing() }
+      refreshServing()
+      const h = setInterval(tick, 5000)
+      return () => { alive = false; clearInterval(h) }
+    }, [])
+
     async function refreshServing() {
       try {
         const r = await fetch('/api/serve')
         const j = r.ok ? await r.json() : { instances: [] }
-        const ids = new Set((j.instances || []).map(i => i.entryId))
-        setServingIds(ids)
-      } catch { setServingIds(new Set()) }
+        const map = new Map()
+        ;(j.instances || []).forEach(i => { map.set(i.entryId, i.status || 'running') })
+        setServingMap(map)
+      } catch { setServingMap(new Map()) }
     }
 
     async function uploadNew() {
@@ -161,22 +200,44 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
     function ctx(e, entry) {
       e.preventDefault()
+      setSelectedId(entry.id)
       setMenu({ x: e.clientX, y: e.clientY, entry })
       refreshServing()
     }
 
     async function startServing(entry) {
-      const r = await fetch('/api/serve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entryId: entry.id }) })
-      if (!r.ok) alert('Failed to start')
+      setBusyId(entry.id)
+      try {
+        const r = await fetch('/api/serve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entryId: entry.id }) })
+        if (!r.ok) throw new Error('start failed')
+        setToast({ kind: 'ok', text: 'Serving started' })
+      } catch { setToast({ kind: 'err', text: 'Failed to start' }) }
+      finally { setBusyId(null) }
     }
     async function stopServing(entry) {
-      const list = await fetch('/api/serve').then(r => r.json()).catch(() => ({ instances: [] }))
-      const inst = (list.instances || []).find((i) => i.entryId === entry.id)
-      if (!inst) return
-      await fetch(`/api/serve/${inst.id}`, { method: 'DELETE' })
+      setBusyId(entry.id)
+      try {
+        const list = await fetch('/api/serve').then(r => r.json()).catch(() => ({ instances: [] }))
+        const inst = (list.instances || []).find((i) => i.entryId === entry.id)
+        if (!inst) throw new Error('not running')
+        await fetch(`/api/serve/${inst.id}`, { method: 'DELETE' })
+        setToast({ kind: 'ok', text: 'Serving stopped' })
+      } catch { setToast({ kind: 'err', text: 'Failed to stop' }) }
+      finally { setBusyId(null) }
     }
-    async function delLib(entry) { await fetch(`/api/library/${entry.id}`, { method: 'DELETE' }); setEntries((ents) => ents.filter((x) => x.id !== entry.id)) }
-    async function delDisk(entry) { if (!confirm('Delete files from disk?')) return; await fetch(`/api/library/${entry.id}/delete`, { method: 'POST' }); setEntries((ents) => ents.filter((x) => x.id !== entry.id)) }
+    async function delLib(entry) {
+      setBusyId(entry.id)
+      try { await fetch(`/api/library/${entry.id}`, { method: 'DELETE' }); setEntries((ents) => ents.filter((x) => x.id !== entry.id)); setToast({ kind: 'ok', text: 'Removed from Library' }) }
+      catch { setToast({ kind: 'err', text: 'Failed to remove' }) }
+      finally { setBusyId(null) }
+    }
+    async function delDisk(entry) {
+      if (!confirm('Delete files from disk?')) return
+      setBusyId(entry.id)
+      try { await fetch(`/api/library/${entry.id}/delete`, { method: 'POST' }); setEntries((ents) => ents.filter((x) => x.id !== entry.id)); setToast({ kind: 'ok', text: 'Deleted from disk' }) }
+      catch { setToast({ kind: 'err', text: 'Failed to delete' }) }
+      finally { setBusyId(null) }
+    }
 
     return React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
       React.createElement('div', { onClick: onClose, style: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', pointerEvents: 'auto' } }),
@@ -189,13 +250,18 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           React.createElement('button', { className: 'btn', onClick: onClose }, 'Close'),
         ),
         React.createElement('div', { style: { flex: 1, overflow: 'auto' } },
-          ...filtered.map((e) => React.createElement(Row, { key: e.id, entry: e, onOpen: openEntry, onContext: ctx })),
+          ...filtered.map((e) => React.createElement(Row, {
+            key: e.id, entry: e,
+            status: servingMap.get(e.id) || 'idle', selected: selectedId === e.id, busy: busyId === e.id,
+            onOpen: openEntry, onContext: ctx
+          })),
         ),
+        toast && React.createElement('div', { style: { padding: '8px 10px', borderTop: '1px solid var(--border)', background: toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: 'var(--text)' } }, toast.text),
       ),
       menu && React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1001, pointerEvents: 'auto' }, onClick: () => setMenu(null) }),
       menu && React.createElement(ContextMenu, {
         x: menu.x, y: menu.y,
-        serving: servingIds.has(menu.entry.id),
+        serving: (servingMap.get(menu.entry.id) || 'stopped') === 'running',
         onClose: () => setMenu(null),
         onPick: () => openEntry(menu.entry),
         onStart: async () => { await startServing(menu.entry); await refreshServing() },
