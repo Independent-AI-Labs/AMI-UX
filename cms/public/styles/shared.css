@@ -28,6 +28,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Ensure positioning context for row actions regardless of glow toggle */
+details > summary { position: relative; }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
@@ -187,9 +190,12 @@ header .btn:hover { filter: brightness(1.05); }
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.20s ease-in-out;
+  z-index: 2;
 }
 .fx-glow summary:hover .row-actions,
-.fx-glow summary:focus-visible .row-actions {
+.fx-glow summary:focus-visible .row-actions,
+details:hover > summary .row-actions,
+details:focus-within > summary .row-actions {
   opacity: 1;
   pointer-events: auto;
 }
