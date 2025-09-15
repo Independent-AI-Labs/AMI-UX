@@ -183,6 +183,8 @@ async function boot() {
     } catch {}
   })
 
+  // Glow effect is always on; no UI toggle.
+
   // Restore tabs if present, else seed from config/docRoot
   const cfgTabs = await loadConfig()
   if (cfgTabs?.openTabs && Array.isArray(cfgTabs.openTabs) && cfgTabs.openTabs.length) {

@@ -1,9 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="fx-glow">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Docs — Embedded</title>
+  <script>
+    (function(){
+      try {
+        const theme = localStorage.getItem('theme');
+        if (theme) document.documentElement.setAttribute('data-theme', theme);
+        // Always enable glow effect
+        document.documentElement.classList.add('fx-glow');
+      } catch {}
+    })();
+  </script>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
   <link rel="stylesheet" href="/styles/shared.css">
@@ -29,6 +39,8 @@
     .anchor { visibility: hidden; margin-left: 6px; font-size: 12px; }
     .md h1:hover .anchor, .md h2:hover .anchor, .md h3:hover .anchor { visibility: visible; }
     .hidden { display: none !important; }
+
+    /* Laser Glow styles moved to shared.css and toggled via .fx-glow class */
     @media (max-width: 960px) { main { grid-template-columns: 1fr; } nav { display:none; } }
     @media print { main { grid-template-columns: 1fr; } .file, .dir, summary { border: none; } }
   </style>
