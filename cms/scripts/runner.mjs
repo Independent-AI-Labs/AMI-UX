@@ -22,7 +22,7 @@ function usage() {
 const cmd = process.argv[2]
 if (!cmd) { usage(); process.exit(2) }
 
-const port = getPortArg() || process.env.PORT || '46241'
+const port = getPortArg() || process.env.PORT || '3000'
 const flags = process.argv.slice(3).filter(a => !/^\d+$/.test(a)).join(' ')
 
 try {
@@ -40,4 +40,3 @@ try {
 } catch (e) {
   process.exit(typeof e.status === 'number' ? e.status : 1)
 }
-
