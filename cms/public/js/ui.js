@@ -51,6 +51,39 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
   const label = displayName(node)
   const num = indexPath.length ? indexPath.join('.') + '. ' : ''
   sum.innerHTML = '<span class="indent"></span>' + num + label + (node.type === 'file' ? ' <span class="meta">(' + node.path + ')</span>' : '')
+  // Floating actions on the same baseline as the highlighted line
+  const actions = document.createElement('span')
+  actions.className = 'row-actions'
+  const btnComment = document.createElement('button')
+  btnComment.className = 'act act-comment'
+  btnComment.title = 'Comment'
+  btnComment.setAttribute('aria-label', 'Add comment')
+  btnComment.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
+  btnComment.addEventListener('click', (e) => {
+    e.stopPropagation()
+    try {
+      window.parent?.postMessage?.({ type: 'addComment', path: node.path, label }, '*')
+    } catch {}
+  })
+  const btnSearch = document.createElement('button')
+  btnSearch.className = 'act act-search'
+  btnSearch.title = 'Search'
+  btnSearch.setAttribute('aria-label', 'Search for this item')
+  btnSearch.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+  btnSearch.addEventListener('click', (e) => {
+    e.stopPropagation()
+    try {
+      const inp = document.getElementById('search') as HTMLInputElement | null
+      if (inp) {
+        inp.value = label
+        inp.dispatchEvent(new Event('input', { bubbles: true }))
+        inp.focus()
+      }
+    } catch {}
+  })
+  actions.appendChild(btnComment)
+  actions.appendChild(btnSearch)
+  sum.appendChild(actions)
   details.appendChild(sum)
   const body = document.createElement('div')
   body.className = 'body'
