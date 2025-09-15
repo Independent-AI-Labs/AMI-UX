@@ -94,6 +94,8 @@ header .btn:hover { filter: brightness(1.05); }
   position: relative;
   transition: filter 0.6s ease-out, text-shadow 0.6s ease-out, background-color 0.6s ease-out;
 }
+/* Provide room on the right for row actions */
+.fx-glow summary { padding-right: 56px; }
 
 /* Underline laser for summaries (tree/file rows) */
 .fx-glow summary::before {
@@ -173,3 +175,32 @@ header .btn:hover { filter: brightness(1.05); }
   filter: drop-shadow(0 0 4px color-mix(in oklab, var(--accent) 40%, transparent));
   text-shadow: 0 0 3px color-mix(in oklab, var(--accent) 35%, transparent);
 }
+
+/* Floating row actions for tree rows */
+.row-actions {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.20s ease-in-out;
+}
+.fx-glow summary:hover .row-actions,
+.fx-glow summary:focus-visible .row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.row-actions .act {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.row-actions .act:hover { color: var(--text); filter: brightness(1.05); }
+.row-actions .act:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
