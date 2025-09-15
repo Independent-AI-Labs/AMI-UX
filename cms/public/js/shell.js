@@ -1,5 +1,6 @@
 import { registerVisualizer, detectVisualizer, VisualizerA, VisualizerB, VisualizerD } from './visualizers.js'
 import { openSelectMediaModal } from './modal.js'
+import { humanizeName } from './utils.js'
 
 // Visualizer C: iframe to doc.html embed
 const VisualizerC = {
@@ -95,7 +96,9 @@ function renderTabs() {
     const isRunningApp = t.kind === 'app' && !!appRunning.get(t.path)
     const showPill = !!t.servedId || isRunningApp
     const pillTitle = t.kind === 'app' ? (isRunningApp ? 'App running' : '') : (t.servedId ? 'Served' : '')
-    el.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconSvg(t.kind)}</svg><span>${(t.label || t.path.split('/').pop() || t.path)}</span>${showPill ? `<span class="pill" title="${pillTitle}">●</span>` : ''}<span class="close" title="Close">×</span>`
+    const baseName = (t.path.split('/').pop() || t.path)
+    const tabLabel = t.label || (t.kind === 'file' ? humanizeName(baseName, 'file') : baseName)
+    el.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconSvg(t.kind)}</svg><span>${tabLabel}</span>${showPill ? `<span class="pill" title="${pillTitle}">●</span>` : ''}<span class="close" title="Close">×</span>`
     el.addEventListener('click', (e) => { if ((e.target).classList && (e.target).classList.contains('close')) { closeTab(t.id) } else { activateTab(t.id) } })
     el.addEventListener('contextmenu', (e) => { e.preventDefault(); openTabContextMenu(e.clientX, e.clientY, t) })
     bar.appendChild(el)
@@ -157,6 +160,13 @@ async function activateTab(id) {
       if (r.ok) { const inst = await r.json(); if (inst?.status === 'running') { iframe.src = `/api/served/${tab.servedId}/`; usedServed = true } }
     } catch {}
   }
+  // Always set a mode class so background styling applies, even when served
+  try {
+    document.body.classList.remove('mode-dir', 'mode-file', 'mode-app')
+    if (tab.kind === 'dir') document.body.classList.add('mode-dir')
+    else if (tab.kind === 'file') document.body.classList.add('mode-file')
+    else if (tab.kind === 'app') document.body.classList.add('mode-app')
+  } catch {}
   if (!usedServed) {
     if (tab.servedId) { tab.servedId = null; renderTabs() }
     if (tab.kind === 'dir') {
@@ -164,7 +174,25 @@ async function activateTab(id) {
       setTimeout(() => { try { iframe.contentWindow.postMessage({ type: 'setDocRoot', path: tab.path }, '*') } catch {} }, 50)
     } else if (tab.kind === 'file') {
       const mode = tab.mode || 'A'
-      iframe.src = `/api/media?path=${encodeURIComponent(tab.path)}&mode=${mode}`
+      let rel = tab.path || ''
+      let root = 'docRoot'
+      const idx = rel.indexOf('files/uploads/')
+      if (idx !== -1) {
+        rel = rel.slice(idx + 'files/uploads/'.length)
+        root = 'uploads'
+      } else if (rel.startsWith('/')) {
+        try {
+          const cfg = await loadConfig()
+          const docRoot = cfg?.docRoot || ''
+          if (docRoot && rel.startsWith(docRoot)) {
+            const cut = docRoot.endsWith('/') ? docRoot.length : (docRoot + '/').length
+            rel = rel.slice(cut)
+            root = 'docRoot'
+          }
+        } catch {}
+      }
+      const qp = new URLSearchParams({ path: rel, mode, root })
+      iframe.src = `/api/media?${qp.toString()}`
     } else if (tab.kind === 'app') {
       iframe.src = 'about:blank'
     }

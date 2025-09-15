@@ -1,4 +1,5 @@
 // React-based Select Media Modal
+import { humanizeName } from './utils.js'
 async function ensureReact() {
   if (window.React && window.ReactDOM) return { React: window.React, ReactDOM: window.ReactDOM }
   const load = (src) => new Promise((resolve, reject) => {
@@ -31,7 +32,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
   }
 
   function Row({ entry, onOpen, onContext }) {
-    const label = entry.label || entry.path.split('/').pop()
+    const base = entry.path.split('/').pop() || entry.path
+    const label = entry.label || (entry.kind === 'file' ? humanizeName(base, 'file') : base)
     const kind = entry.kind
     return React.createElement('div', {
       className: 'row',
@@ -84,8 +86,17 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         const up = await fetch('/api/upload', { method: 'POST', body: fd })
         const j = up.ok ? await up.json() : null
         if (j) {
-          const path = `files/uploads/${j.uploadedAt}`
-          await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) })
+          const files = Array.isArray(j.files) ? j.files : []
+          if (files.length === 1) {
+            const file = files[0]
+            const path = String(file.path || '')
+            const name = String(file.name || '')
+            const label = humanizeName(name, 'file')
+            await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path, label, kind: 'file' }) })
+          } else {
+            const path = `files/uploads/${j.uploadedAt}`
+            await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) })
+          }
           const j2 = await fetch('/api/library').then(r => r.json()).catch(() => ({ entries: [] }))
           setEntries(j2.entries || [])
         }
