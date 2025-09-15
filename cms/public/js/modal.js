@@ -74,7 +74,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       React.createElement(Icon, { name: kind === 'dir' ? 'folder' : (kind === 'app' ? 'app' : 'file') }),
       React.createElement('div', { style: { flex: 1, minWidth: 0 } },
         React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-          React.createElement('div', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 } }, label),
+          React.createElement('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden' } },
+            React.createElement('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 } }, label),
+            (status === 'running') && React.createElement('span', { className: 'serve-dot', title: 'Served' }),
+          ),
           controls,
           busy && spinner,
         ),
@@ -117,7 +120,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       mkItem('rename', 'Rename…', onRename, false),
       mkItem('copy', 'Copy Path', onCopyPath, false),
       React.createElement('div', { style: { height: 1, background: 'var(--border)', margin: '4px 0' } }),
-      mkItem('del', 'Delete from Library', onDeleteLib, false),
+      mkItem('del', 'Remove from Directory', onDeleteLib, false),
       mkItem('deld', 'Delete from Disk', onDeleteDisk, false),
     )
   }
@@ -270,7 +273,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       React.createElement('div', { onClick: onClose, style: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', pointerEvents: 'auto' } }),
       React.createElement('div', { style: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '560px', maxWidth: '95vw', background: 'var(--panel)', color: 'var(--text)', borderLeft: '1px solid var(--border)', boxShadow: '0 0 30px rgba(0,0,0,0.4)', pointerEvents: 'auto', display: 'flex', flexDirection: 'column' } },
         React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '10px', borderBottom: '1px solid var(--border)' } },
-          React.createElement('strong', null, 'Media Library'),
+          React.createElement('strong', null, 'Content Directory'),
           React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
           React.createElement('button', { className: 'btn', onClick: uploadNew, title: 'Upload New', 'aria-label': 'Upload New' },
             React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>' } })

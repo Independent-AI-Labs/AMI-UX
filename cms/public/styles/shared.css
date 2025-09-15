@@ -239,3 +239,13 @@ details:focus-within > summary .row-actions {
 }
 .hover-actions .act:hover { color: var(--text); filter: brightness(1.05); }
 .hover-actions .act:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Unified served indicator dot */
+.serve-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: var(--ok);
+  border-radius: 999px;
+  vertical-align: middle;
+}

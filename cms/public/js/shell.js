@@ -99,7 +99,7 @@ function renderTabs() {
     const pillTitle = t.kind === 'app' ? (isRunningApp ? 'App running' : '') : (t.servedId ? 'Served' : '')
     const baseName = (t.path.split('/').pop() || t.path)
     const tabLabel = t.label || (t.kind === 'file' ? humanizeName(baseName, 'file') : baseName)
-    el.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconSvg(t.kind)}</svg><span>${tabLabel}</span>${showPill ? `<span class="pill" title="${pillTitle}">SERVING</span>` : ''}<span class="close" title="Close">×</span>`
+    el.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconSvg(t.kind)}</svg><span>${tabLabel}</span>${showPill ? `<span class="pill serve-dot" title="${pillTitle}"></span>` : ''}<span class="close" title="Close">×</span>`
     el.addEventListener('click', (e) => { if ((e.target).classList && (e.target).classList.contains('close')) { closeTab(t.id) } else { activateTab(t.id) } })
     el.addEventListener('contextmenu', (e) => { e.preventDefault(); openTabContextMenu(e.clientX, e.clientY, t) })
     bar.appendChild(el)
