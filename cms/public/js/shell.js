@@ -172,7 +172,18 @@ async function activateTab(id) {
     if (tab.servedId) { tab.servedId = null; renderTabs() }
     if (tab.kind === 'dir') {
       iframe.src = '/doc.html?embed=1'
-      setTimeout(() => { try { iframe.contentWindow.postMessage({ type: 'setDocRoot', path: tab.path }, '*') } catch {} }, 50)
+      try {
+        iframe.addEventListener('load', () => {
+          postToDoc({ type: 'setDocRoot', path: tab.path })
+          const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
+          postToDoc({ type: 'applyTheme', theme: curTheme })
+        }, { once: true })
+      } catch {}
+      setTimeout(() => {
+        postToDoc({ type: 'setDocRoot', path: tab.path })
+        const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
+        postToDoc({ type: 'applyTheme', theme: curTheme })
+      }, 60)
     } else if (tab.kind === 'file') {
       const mode = tab.mode || 'A'
       let rel = tab.path || ''
@@ -295,14 +306,15 @@ async function boot() {
   }
 
   // Header buttons: expand/collapse/theme
-function postToDoc(msg) {
-  try {
-    const f = document.getElementById('vizFrame')
-    f?.contentWindow?.postMessage(msg, '*')
-    // Retry shortly to catch late listeners in the iframe
-    setTimeout(() => { try { f?.contentWindow?.postMessage(msg, '*') } catch {} }, 250)
-  } catch {}
-}
+  function postToDoc(msg) {
+    try {
+      const f = document.getElementById('vizFrame')
+      const delays = [0, 150, 400, 800]
+      for (const d of delays) {
+        setTimeout(() => { try { f?.contentWindow?.postMessage(msg, '*') } catch {} }, d)
+      }
+    } catch {}
+  }
 document.getElementById('btnExpand')?.addEventListener('click', () => postToDoc({ type: 'expandAll' }))
 document.getElementById('btnCollapse')?.addEventListener('click', () => postToDoc({ type: 'collapseAll' }))
   document.getElementById('btnTheme')?.addEventListener('click', () => {
