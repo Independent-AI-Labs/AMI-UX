@@ -42,14 +42,17 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
-      background: radial-gradient(circle at top, color-mix(in oklab, var(--accent) 12%, transparent) 0%, transparent 55%);
+      background: radial-gradient(circle at top, color-mix(in oklab, var(--accent) 14%, transparent) 0%, transparent 60%);
     }
     .welcome-card {
       width: min(480px, 100%);
       padding: 48px 36px;
       border-radius: 18px;
       border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
-      background: color-mix(in srgb, var(--panel) 96%, black 4%);
+      background-color: color-mix(in oklab, var(--panel) 88%, black 6%);
+      background-image: var(--chrome-grid);
+      background-size: 32px 32px;
+      background-blend-mode: soft-light;
       box-shadow: 0 32px 90px rgba(0,0,0,0.35);
       text-align: center;
       display: flex;
@@ -71,47 +74,34 @@
       letter-spacing: 0.03em;
     }
     .welcome-card .welcome-hint { font-size: 12px; }
-    header { position: relative; overflow: hidden; }
-    .welcome-screen { position: relative; overflow: hidden; }
+    :root {
+      --chrome-grid-dark: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjMWYyNDJkIi8+CiAgPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjMjkzMDNkIj4KICAgIDxhbmltYXRlIGF0dHJpYnV0ZU5hbWU9ImZpbGwiIHZhbHVlcz0iIzJlMzU0MjsjMzYzZDRjOyMyOTMwM2Q7IzJlMzU0MiIgZHVyPSIxNHMiIHJlcGVhdENvdW50PSJpbmRlZmluaXRlIi8+CiAgPC9yZWN0PgogIDxyZWN0IHg9IjE2IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIGZpbGw9IiMyNTJjMzgiPgogICAgPGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iZmlsbCIgdmFsdWVzPSIjMmIzMjQwOyMyNTJjMzg7IzM0M2I0YTsjMmIzMjQwIiBkdXI9IjE2cyIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiIGJlZ2luPSItNHMiLz4KICA8L3JlY3Q+CiAgPHJlY3QgeT0iMTYiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iIzI0MmIzNCI+CiAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPSJmaWxsIiB2YWx1ZXM9IiMyNDJiMzQ7IzJmMzY0MzsjMmEzMTNjOyMyNDJiMzQiIGR1cj0iMTVzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgYmVnaW49Ii05cyIvPgogIDwvcmVjdD4KICA8cmVjdCB4PSIxNiIgeT0iMTYiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iIzFkMjQyZSI+CiAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPSJmaWxsIiB2YWx1ZXM9IiMxZDI0MmU7IzI5MzAzYzsjMjMyYTM1OyMxZDI0MmUiIGR1cj0iMThzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgYmVnaW49Ii02cyIvPgogIDwvcmVjdD4KPC9zdmc+');
+      --chrome-grid-light: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjZWNlZmY0Ii8+CiAgPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZGZlM2ViIj4KICAgIDxhbmltYXRlIGF0dHJpYnV0ZU5hbWU9ImZpbGwiIHZhbHVlcz0iI2RmZTNlYjsjZWVmMWY2OyNlNGU4ZWY7I2RmZTNlYiIgZHVyPSIxNXMiIHJlcGVhdENvdW50PSJpbmRlZmluaXRlIi8+CiAgPC9yZWN0PgogIDxyZWN0IHg9IjE2IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIGZpbGw9IiNlN2VhZjEiPgogICAgPGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iZmlsbCIgdmFsdWVzPSIjZTdlYWYxOyNmMWY0Zjk7I2RkZTJlYTsjZTdlYWYxIiBkdXI9IjE3cyIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiIGJlZ2luPSItNXMiLz4KICA8L3JlY3Q+CiAgPHJlY3QgeT0iMTYiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iI2UzZTdlZSI+CiAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPSJmaWxsIiB2YWx1ZXM9IiNlM2U3ZWU7I2YwZjNmNzsjZDhkZGU2OyNlM2U3ZWUiIGR1cj0iMTZzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgYmVnaW49Ii04cyIvPgogIDwvcmVjdD4KICA8cmVjdCB4PSIxNiIgeT0iMTYiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iI2RkZTJlYSI+CiAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPSJmaWxsIiB2YWx1ZXM9IiNkZGUyZWE7I2VlZjFmNjsjZTZlYWYxOyNkZGUyZWEiIGR1cj0iMTlzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgYmVnaW49Ii0zcyIvPgogIDwvcmVjdD4KPC9zdmc+');
+    }
+    [data-theme="dark"] { --chrome-grid: var(--chrome-grid-dark); }
+    [data-theme="light"] { --chrome-grid: var(--chrome-grid-light); }
+    header {
+      position: relative;
+      overflow: hidden;
+      background-color: var(--panel);
+      background-image:
+        linear-gradient(180deg, color-mix(in oklab, var(--panel) 90%, transparent) 0%, color-mix(in oklab, var(--panel) 96%, var(--accent) 6%) 100%),
+        var(--chrome-grid);
+      background-size: 100% 100%, 32px 32px;
+      background-blend-mode: soft-light, normal;
+    }
+    .welcome-screen {
+      position: relative;
+      overflow: hidden;
+      background-color: color-mix(in oklab, var(--panel) 92%, white 8%);
+      background-image:
+        radial-gradient(circle at top, color-mix(in oklab, var(--accent) 16%, transparent) 0%, transparent 58%),
+        var(--chrome-grid);
+      background-size: 100% 100%, 32px 32px;
+      background-blend-mode: soft-light, normal;
+    }
     header > *, .welcome-screen > * { position: relative; z-index: 1; }
     .welcome-card { position: relative; z-index: 2; }
-    header::before,
-    .welcome-screen::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 16px),
-        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 16px),
-        repeating-conic-gradient(from 45deg,
-          color-mix(in oklab, #d4d8dd 88%, rgba(0, 0, 0, 0.08)) 0% 25%,
-          color-mix(in oklab, #d4d8dd 94%, rgba(255, 255, 255, 0.06)) 25% 50%,
-          color-mix(in oklab, #d4d8dd 90%, rgba(0, 0, 0, 0.1)) 50% 75%,
-          color-mix(in oklab, #d4d8dd 98%, rgba(255, 255, 255, 0.04)) 75% 100%);
-      background-size: 16px 16px, 16px 16px, 16px 16px;
-      background-position: 0 0, 0 0, 0 0;
-      opacity: 0.35;
-      mix-blend-mode: soft-light;
-      animation: pixelShift 22s steps(10) infinite, pixelTint 18s ease-in-out infinite;
-      pointer-events: none;
-      z-index: 0;
-    }
-    header::before { opacity: 0.45; }
-    @keyframes pixelShift {
-      0% { background-position: 0 0, 0 0, 0 0; }
-      20% { background-position: 4px 3px, -3px 2px, 6px -2px; }
-      40% { background-position: -2px 6px, 5px -4px, -5px 3px; }
-      60% { background-position: 3px -5px, -6px 4px, 4px 5px; }
-      80% { background-position: -5px -3px, 4px 6px, -3px -4px; }
-      100% { background-position: 0 0, 0 0, 0 0; }
-    }
-    @keyframes pixelTint {
-      0% { filter: hue-rotate(-6deg) saturate(82%) brightness(0.96); opacity: 0.32; }
-      25% { filter: hue-rotate(4deg) saturate(90%) brightness(1.02); opacity: 0.37; }
-      50% { filter: hue-rotate(8deg) saturate(88%) brightness(0.99); opacity: 0.34; }
-      75% { filter: hue-rotate(-3deg) saturate(92%) brightness(1.04); opacity: 0.38; }
-      100% { filter: hue-rotate(0deg) saturate(86%) brightness(0.97); opacity: 0.35; }
-    }
   </style>
   <script>
     (function() {
