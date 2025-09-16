@@ -1,0 +1,15 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
+  <rect width='32' height='32' fill='#f1f4f9'/>
+  <rect width='16' height='16' fill='#e3e7ef'>
+    <animate attributeName='fill' values='#e3e7ef;#eef2f8;#dce1ea;#e3e7ef' dur='24s' repeatCount='indefinite' begin='0s'/>
+  </rect>
+  <rect x='16' width='16' height='16' fill='#e9edf4'>
+    <animate attributeName='fill' values='#e9edf4;#f5f8fc;#dde2ea;#e9edf4' dur='24s' repeatCount='indefinite' begin='-6s'/>
+  </rect>
+  <rect y='16' width='16' height='16' fill='#e6eaf2'>
+    <animate attributeName='fill' values='#e6eaf2;#f1f5fa;#d9dee8;#e6eaf2' dur='24s' repeatCount='indefinite' begin='-6s'/>
+  </rect>
+  <rect x='16' y='16' width='16' height='16' fill='#dde2ea'>
+    <animate attributeName='fill' values='#dde2ea;#eef2f8;#e6eaf1;#dde2ea' dur='24s' repeatCount='indefinite' begin='-12s'/>
+  </rect>
+</svg>

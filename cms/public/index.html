@@ -42,22 +42,54 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
-      background: radial-gradient(circle at top, color-mix(in oklab, var(--accent) 14%, transparent) 0%, transparent 60%);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top, color-mix(in oklab, var(--accent) 18%, transparent) 0%, transparent 62%),
+        color-mix(in oklab, var(--panel) 94%, transparent);
     }
     .welcome-card {
+      position: relative;
       width: min(480px, 100%);
+      margin: auto;
       padding: 48px 36px;
       border-radius: 18px;
-      border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
-      background-color: color-mix(in oklab, var(--panel) 88%, black 6%);
-      background-image: var(--chrome-grid);
-      background-size: 32px 32px;
-      background-blend-mode: soft-light;
-      box-shadow: 0 32px 90px rgba(0,0,0,0.35);
+      border: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+      background-color: color-mix(in oklab, var(--panel) 58%, white 42%);
+      background-image:
+        linear-gradient(155deg, color-mix(in oklab, var(--accent) 16%, transparent) 0%, transparent 68%),
+        var(--chrome-grid);
+      background-size: 100% 100%, 32px 32px;
+      background-repeat: no-repeat, repeat;
+      background-blend-mode: screen, normal;
+      box-shadow: 0 32px 90px rgba(0,0,0,0.32);
       text-align: center;
       display: flex;
       flex-direction: column;
       gap: 18px;
+      overflow: hidden;
+    }
+    .welcome-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: var(--chrome-grid);
+      background-size: 32px 32px;
+      opacity: 0.5;
+      mix-blend-mode: color-dodge;
+      filter: hue-rotate(0deg);
+      animation: pixel-drift 28s linear infinite, pixel-spectrum 48s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .welcome-card > * { position: relative; z-index: 1; }
+    @keyframes pixel-drift {
+      0% { background-position: 0 0; }
+      50% { background-position: 16px 12px; }
+      100% { background-position: 0 0; }
+    }
+    @keyframes pixel-spectrum {
+      0% { filter: hue-rotate(0deg); }
+      50% { filter: hue-rotate(180deg); }
+      100% { filter: hue-rotate(360deg); }
     }
     .welcome-card h2 {
       margin: 0;
@@ -75,8 +107,8 @@
     }
     .welcome-card .welcome-hint { font-size: 12px; }
     :root {
-      --chrome-grid-dark: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjMWYyNDJkIi8+CiAgPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjMjkzMDNkIj4KICAgIDxhbmltYXRlIGF0dHJpYnV0ZU5hbWU9ImZpbGwiIHZhbHVlcz0iIzJlMzU0MjsjMzYzZDRjOyMyOTMwM2Q7IzJlMzU0MiIgZHVyPSIxNHMiIHJlcGVhdENvdW50PSJpbmRlZmluaXRlIi8+CiAgPC9yZWN0PgogIDxyZWN0IHg9IjE2IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIGZpbGw9IiMyNTJjMzgiPgogICAgPGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iZmlsbCIgdmFsdWVzPSIjMmIzMjQwOyMyNTJjMzg7IzM0M2I0YTsjMmIzMjQwIiBkdXI9IjE2cyIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiIGJlZ2luPSItNHMiLz4KICA8L3JlY3Q+CiAgPHJlY3QgeT0iMTYiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iIzI0MmIzNCI+CiAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPSJmaWxsIiB2YWx1ZXM9IiMyNDJiMzQ7IzJmMzY0MzsjMmEzMTNjOyMyNDJiMzQiIGR1cj0iMTVzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgYmVnaW49Ii05cyIvPgogIDwvcmVjdD4KICA8cmVjdCB4PSIxNiIgeT0iMTYiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iIzFkMjQyZSI+CiAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPSJmaWxsIiB2YWx1ZXM9IiMxZDI0MmU7IzI5MzAzYzsjMjMyYTM1OyMxZDI0MmUiIGR1cj0iMThzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgYmVnaW49Ii02cyIvPgogIDwvcmVjdD4KPC9zdmc+');
-      --chrome-grid-light: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjZWNlZmY0Ii8+CiAgPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSIjZGZlM2ViIj4KICAgIDxhbmltYXRlIGF0dHJpYnV0ZU5hbWU9ImZpbGwiIHZhbHVlcz0iI2RmZTNlYjsjZWVmMWY2OyNlNGU4ZWY7I2RmZTNlYiIgZHVyPSIxNXMiIHJlcGVhdENvdW50PSJpbmRlZmluaXRlIi8+CiAgPC9yZWN0PgogIDxyZWN0IHg9IjE2IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIGZpbGw9IiNlN2VhZjEiPgogICAgPGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iZmlsbCIgdmFsdWVzPSIjZTdlYWYxOyNmMWY0Zjk7I2RkZTJlYTsjZTdlYWYxIiBkdXI9IjE3cyIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiIGJlZ2luPSItNXMiLz4KICA8L3JlY3Q+CiAgPHJlY3QgeT0iMTYiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iI2UzZTdlZSI+CiAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPSJmaWxsIiB2YWx1ZXM9IiNlM2U3ZWU7I2YwZjNmNzsjZDhkZGU2OyNlM2U3ZWUiIGR1cj0iMTZzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgYmVnaW49Ii04cyIvPgogIDwvcmVjdD4KICA8cmVjdCB4PSIxNiIgeT0iMTYiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iI2RkZTJlYSI+CiAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPSJmaWxsIiB2YWx1ZXM9IiNkZGUyZWE7I2VlZjFmNjsjZTZlYWYxOyNkZGUyZWEiIGR1cj0iMTlzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgYmVnaW49Ii0zcyIvPgogIDwvcmVjdD4KPC9zdmc+');
+      --chrome-grid-dark: url('/res/patterns/chrome-grid-dark.svg');
+      --chrome-grid-light: url('/res/patterns/chrome-grid-light.svg');
     }
     [data-theme="dark"] { --chrome-grid: var(--chrome-grid-dark); }
     [data-theme="light"] { --chrome-grid: var(--chrome-grid-light); }
@@ -86,16 +118,6 @@
       background-color: var(--panel);
       background-image:
         linear-gradient(180deg, color-mix(in oklab, var(--panel) 90%, transparent) 0%, color-mix(in oklab, var(--panel) 96%, var(--accent) 6%) 100%),
-        var(--chrome-grid);
-      background-size: 100% 100%, 32px 32px;
-      background-blend-mode: soft-light, normal;
-    }
-    .welcome-screen {
-      position: relative;
-      overflow: hidden;
-      background-color: color-mix(in oklab, var(--panel) 92%, white 8%);
-      background-image:
-        radial-gradient(circle at top, color-mix(in oklab, var(--accent) 16%, transparent) 0%, transparent 58%),
         var(--chrome-grid);
       background-size: 100% 100%, 32px 32px;
       background-blend-mode: soft-light, normal;
