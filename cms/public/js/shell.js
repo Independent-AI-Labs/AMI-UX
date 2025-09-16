@@ -64,6 +64,23 @@ async function updateStatusPillForTab(tab) {
   }
 }
 
+function updateWelcomeVisibility() {
+  const frame = document.getElementById('vizFrame')
+  const welcome = document.getElementById('welcomeScreen')
+  const hasActive = !!(tabsState.active && tabsState.tabs.find((t) => t.id === tabsState.active))
+  if (frame) {
+    frame.classList.toggle('is-hidden', !hasActive)
+    if (!hasActive) {
+      try { frame.src = 'about:blank' } catch {}
+    }
+  }
+  if (welcome) welcome.classList.toggle('is-hidden', !!hasActive)
+  if (!hasActive) {
+    updateStatusPillForTab(null)
+    try { document.body.classList.remove('mode-dir', 'mode-file', 'mode-app') } catch {}
+  }
+}
+
 async function loadConfig() {
   try { const r = await fetch('/api/config'); if (r.ok) return r.json() } catch {}
   return null
@@ -133,6 +150,7 @@ function renderTabs() {
     el.addEventListener('contextmenu', (e) => { e.preventDefault(); openTabContextMenu(e.clientX, e.clientY, t) })
     bar.appendChild(el)
   })
+  updateWelcomeVisibility()
 }
 
 function openTabContextMenu(x, y, tab) {
@@ -172,7 +190,6 @@ function closeTab(id) {
   if (tabsState.active === id) tabsState.active = tabsState.tabs[0]?.id || null
   renderTabs()
   if (tabsState.active) activateTab(tabsState.active)
-  else document.getElementById('vizFrame').src = 'about:blank'
   saveTabs()
 }
 
@@ -303,6 +320,28 @@ async function openEntry(entry) {
   } catch {}
 }
 
+async function handleEntrySelection(entry) {
+  if (entry && entry.id) {
+    await openEntry(entry)
+    return
+  }
+  if (entry && entry.path) {
+    try { await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: entry.path }) }) } catch {}
+    try {
+      const r = await fetch('/api/library')
+      if (r.ok) {
+        const j = await r.json()
+        const found = (j.entries || []).find((e) => e.path === entry.path)
+        if (found) await openEntry(found)
+      }
+    } catch {}
+  }
+}
+
+function openContentDirectory() {
+  openSelectMediaModal({ onSelect: (entry) => handleEntrySelection(entry) })
+}
+
 async function boot() {
   // Theme init
   try {
@@ -390,24 +429,9 @@ async function boot() {
     renderTabs()
     if (tabsState.active) activateTab(tabsState.active)
   } else {
-    const cfg2 = await loadConfig()
-    let p = ''
-    let kind = 'dir'
-    let mode = undefined
-    if (cfg2?.selected && cfg2.selected.path) {
-      p = cfg2.selected.path
-      try { const r = await fetch(`/api/pathinfo?path=${encodeURIComponent(p)}`); if (r.ok) { const j = await r.json(); if (j.type === 'file') { kind = 'file'; mode = await ensureModeForFile(p) } else if (j.type === 'app') { kind = 'app' } else { kind = 'dir' } } } catch {}
-    } else { p = cfg2?.docRoot || ''; kind = 'dir' }
-    const tab = { id: `seed-${Date.now()}`, entryId: null, kind, path: p, label: null, servedId: null, mode }
-    tabsState.tabs = [tab]
-    tabsState.active = tab.id
+    tabsState.tabs = []
+    tabsState.active = null
     renderTabs()
-    activateTab(tab.id)
-    if (kind === 'dir') { try { await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ docRoot: p }) }) } catch {} }
-    // Record in recents
-    try {
-      await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recentsAdd: { type: kind, path: p, mode: mode || (kind === 'dir' ? 'C' : kind === 'app' ? 'D' : undefined) } }) })
-    } catch {}
   }
 
   // Background refresh of served instances and app statuses
@@ -418,16 +442,9 @@ async function boot() {
 document.addEventListener('DOMContentLoaded', () => {
   boot().catch((err) => console.error('boot failed', err))
   const btn = document.getElementById('selectMediaBtn')
-  if (btn) btn.addEventListener('click', async () => {
-    openSelectMediaModal({ onSelect: async (entry) => {
-      if (entry && entry.id) return openEntry(entry)
-      if (entry && entry.path) {
-        // Fallback for non-library selection: add to library and open
-        try { await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: entry.path }) }) } catch {}
-        try { const r = await fetch('/api/library'); if (r.ok) { const j = await r.json(); const found = (j.entries||[]).find((e) => e.path === entry.path); if (found) return openEntry(found) } } catch {}
-      }
-    } })
-  })
+  if (btn) btn.addEventListener('click', () => { openContentDirectory() })
+  const welcomeBtn = document.getElementById('welcomeOpenBtn')
+  if (welcomeBtn) welcomeBtn.addEventListener('click', () => { openContentDirectory() })
 })
 
 async function refreshServed() {
