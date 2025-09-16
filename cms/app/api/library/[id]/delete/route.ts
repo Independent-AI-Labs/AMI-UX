@@ -10,8 +10,8 @@ async function rmrf(p: string) {
   try { await fs.rm(p, { recursive: true, force: true }) } catch {}
 }
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
-  const { id } = params
+export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params
   const entries = await listLibrary()
   const entry = entries.find((e) => e.id === id)
   if (!entry) return NextResponse.json({ error: 'not found' }, { status: 404 })
@@ -27,4 +27,3 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   await saveLibrary(next)
   return NextResponse.json({ ok: true })
 }
-

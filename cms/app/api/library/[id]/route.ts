@@ -4,8 +4,8 @@ import { listLibrary, saveLibrary } from '../../../lib/store'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const { id } = params
+export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params
   const body = await req.json().catch(() => ({}))
   const list = await listLibrary()
   const idx = list.findIndex((e) => e.id === id)
@@ -16,12 +16,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   return NextResponse.json({ ok: true })
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const { id } = params
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params
   const list = await listLibrary()
   const next = list.filter((e) => e.id !== id)
   if (next.length === list.length) return NextResponse.json({ error: 'not found' }, { status: 404 })
   await saveLibrary(next)
   return NextResponse.json({ ok: true })
 }
-

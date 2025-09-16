@@ -40,15 +40,16 @@ const MIME: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 }
 
-export async function GET(_req: Request, { params }: { params: { root: string, path?: string[] } }) {
+export async function GET(_req: Request, context: { params: Promise<{ root: string, path?: string[] }> }) {
+  const { root, path: pathParts } = await context.params
   const { docRoot } = await loadCfg()
   const cwd = process.cwd()
   const roots: Record<string, string> = {
     docRoot: path.resolve(cwd, docRoot),
     uploads: path.resolve(cwd, 'files/uploads'),
   }
-  const baseRoot = roots[params.root] || roots.docRoot
-  const relPath = (params.path || []).join('/')
+  const baseRoot = roots[root] || roots.docRoot
+  const relPath = (pathParts || []).join('/')
   const targetAbs = path.resolve(baseRoot, relPath)
   if (!withinRoot(baseRoot, targetAbs)) return new NextResponse('Forbidden', { status: 403 })
   try {
@@ -60,9 +61,9 @@ export async function GET(_req: Request, { params }: { params: { root: string, p
       'Cache-Control': 'no-cache',
       'X-Content-Type-Options': 'nosniff',
     })
-    return new NextResponse(data, { status: 200, headers })
+    const body = new Uint8Array(data)
+    return new NextResponse(body, { status: 200, headers })
   } catch {
     return new NextResponse('Not found', { status: 404 })
   }
 }
-

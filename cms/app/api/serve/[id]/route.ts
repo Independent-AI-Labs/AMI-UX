@@ -4,16 +4,16 @@ import { listServed, saveServed } from '../../../lib/store'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const { id } = params
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params
   const list = await listServed()
   const inst = list.find((s) => s.id === id)
   if (!inst) return NextResponse.json({ error: 'not found' }, { status: 404 })
   return NextResponse.json(inst)
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const { id } = params
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params
   const list = await listServed()
   const idx = list.findIndex((s) => s.id === id)
   if (idx === -1) return NextResponse.json({ error: 'not found' }, { status: 404 })
@@ -22,4 +22,3 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   await saveServed(list)
   return NextResponse.json({ ok: true })
 }
-

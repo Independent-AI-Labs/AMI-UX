@@ -224,7 +224,7 @@ header .btn:hover { filter: brightness(1.05); }
 /* Floating row actions for tree rows */
 .row-actions {
   position: absolute;
-  right: 12px;
+  right: 16px;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -244,16 +244,20 @@ details:focus-within > summary .row-actions {
   transition-delay: 0.18s;
 }
 .row-actions .act {
-  width: 22px; height: 22px;
+  width: 28px; height: 28px;
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--muted);
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
 }
 .row-actions .act:hover { color: var(--text); filter: brightness(1.05); }
 .row-actions .act:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row-actions .act svg {
+  width: 18px;
+  height: 18px;
+}
 
 /* Global floating hover actions (for headings, paragraphs, TOC links, etc.) */
 .hover-actions {
@@ -269,16 +273,20 @@ details:focus-within > summary .row-actions {
 }
 .hover-actions.show { opacity: 1; pointer-events: auto; transition-delay: 0.12s; }
 .hover-actions .act {
-  width: 22px; height: 22px;
+  width: 28px; height: 28px;
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--muted);
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
 }
 .hover-actions .act:hover { color: var(--text); filter: brightness(1.05); }
 .hover-actions .act:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hover-actions .act svg {
+  width: 18px;
+  height: 18px;
+}
 
 /* Unified served indicator dot */
 .serve-dot {

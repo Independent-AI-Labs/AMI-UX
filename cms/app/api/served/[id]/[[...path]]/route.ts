@@ -38,9 +38,9 @@ function guessMime(p: string) {
   }
 }
 
-export async function GET(req: Request, { params }: { params: { id: string, path?: string[] } }) {
-  const id = params.id
-  const p = (params.path || []).join('/')
+export async function GET(req: Request, context: { params: Promise<{ id: string, path?: string[] }> }) {
+  const { id, path: pathParts } = await context.params
+  const p = (pathParts || []).join('/')
   const served = await listServed()
   const inst = served.find((s) => s.id === id)
   if (!inst) return NextResponse.json({ error: 'not found' }, { status: 404 })
