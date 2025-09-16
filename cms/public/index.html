@@ -71,6 +71,47 @@
       letter-spacing: 0.03em;
     }
     .welcome-card .welcome-hint { font-size: 12px; }
+    header { position: relative; overflow: hidden; }
+    .welcome-screen { position: relative; overflow: hidden; }
+    header > *, .welcome-screen > * { position: relative; z-index: 1; }
+    .welcome-card { position: relative; z-index: 2; }
+    header::before,
+    .welcome-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 16px),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 16px),
+        repeating-conic-gradient(from 45deg,
+          color-mix(in oklab, #d4d8dd 88%, rgba(0, 0, 0, 0.08)) 0% 25%,
+          color-mix(in oklab, #d4d8dd 94%, rgba(255, 255, 255, 0.06)) 25% 50%,
+          color-mix(in oklab, #d4d8dd 90%, rgba(0, 0, 0, 0.1)) 50% 75%,
+          color-mix(in oklab, #d4d8dd 98%, rgba(255, 255, 255, 0.04)) 75% 100%);
+      background-size: 16px 16px, 16px 16px, 16px 16px;
+      background-position: 0 0, 0 0, 0 0;
+      opacity: 0.35;
+      mix-blend-mode: soft-light;
+      animation: pixelShift 22s steps(10) infinite, pixelTint 18s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    header::before { opacity: 0.45; }
+    @keyframes pixelShift {
+      0% { background-position: 0 0, 0 0, 0 0; }
+      20% { background-position: 4px 3px, -3px 2px, 6px -2px; }
+      40% { background-position: -2px 6px, 5px -4px, -5px 3px; }
+      60% { background-position: 3px -5px, -6px 4px, 4px 5px; }
+      80% { background-position: -5px -3px, 4px 6px, -3px -4px; }
+      100% { background-position: 0 0, 0 0, 0 0; }
+    }
+    @keyframes pixelTint {
+      0% { filter: hue-rotate(-6deg) saturate(82%) brightness(0.96); opacity: 0.32; }
+      25% { filter: hue-rotate(4deg) saturate(90%) brightness(1.02); opacity: 0.37; }
+      50% { filter: hue-rotate(8deg) saturate(88%) brightness(0.99); opacity: 0.34; }
+      75% { filter: hue-rotate(-3deg) saturate(92%) brightness(1.04); opacity: 0.38; }
+      100% { filter: hue-rotate(0deg) saturate(86%) brightness(0.97); opacity: 0.35; }
+    }
   </style>
   <script>
     (function() {
