@@ -1,6 +1,14 @@
 # Docs Shell (Next.js + Vanilla JS)
 
-A minimal Next.js app that serves a fast docs shell with iframed visualizers. Rendering (Markdown, Mermaid, KaTeX) runs client-side; the server provides a small API for tree/file access, library management, and media serving.
+A Next.js 15.5 service that hosts the docs shell UI and JSON-backed APIs. Rendering (Markdown, Mermaid, KaTeX) runs client-side via vanilla modules under `public/js/`; the Next runtime provides file/tree/media APIs, config persistence, and upload endpoints.
+
+## Tech Stack
+
+- Next.js `15.5.x` with app-router route handlers only (no React pages)
+- React `19.1.x` runtime loaded via CDN for the library modal
+- TypeScript API handlers compiled by Next (see `app/api/**`)
+- File-system helpers in `app/lib/store.ts`
+- Optional long-lived runner managed by `scripts/server.mjs`
 
 ## Run
 
@@ -8,8 +16,15 @@ From `ux/cms/`:
 
 ```
 npm install
-npm run dev   # defaults to http://localhost:3000
+npm run dev   # defaults to http://localhost:3000; run in background or separate terminal
 ```
+
+> Tip: Use `npm run dev &` (or a dedicated terminal) so the watcher doesn't block your current shell; stop it when finished.
+
+- Scripts:
+  - `npm run lint` — ESLint 9 against the entire repo
+  - `npm run build` — Next production build (ensures API routes compile)
+  - `npm run start` — serve the production build
 
 - Runner (non-blocking, cross‑platform):
   - `npm run serve -- start --dev --port 3000 --wait 10` — start and wait until ready
@@ -29,6 +44,12 @@ Environment (`.env.local`) or process env:
 Config persistence lives under `ux/cms/data/` as JSON files. The `/api/config` endpoint reads/writes:
 
 - `docRoot`, `selected`, `openTabs`, `activeTabId`, `preferredMode`, `recents`, `allowed`
+
+Data directories checked into git:
+
+- `data/` — persisted config (`config.json` created on first run)
+- `files/uploads/` — uploaded assets bucketed by timestamp
+- `public/res/` — static assets bundled with the shell
 
 ## UI Overview
 

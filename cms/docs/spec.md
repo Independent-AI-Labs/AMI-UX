@@ -6,8 +6,8 @@
 - Highlight integration points and guardrails (path handling, security posture, tooling expectations).
 
 ## 2. System Overview
-- **Runtime**: Next.js 14 (app router disabled aside from root layout) running serverless-style handlers at `app/api/**`.
-- **Client**: Static shell in `public/index.html` controlling an iframe-based docs viewer (`public/doc.html`). Vanilla JS modules in `public/js/` coordinate tabs, state restore, library CRUD, and modal flows.
+- **Runtime**: Next.js 15.5 (app router limited to root `layout.tsx`; all behaviour lives in route handlers under `app/api/**`).
+- **Client**: Static shell in `public/index.html` controlling an iframe-based docs viewer (`public/doc.html`). Vanilla JS modules in `public/js/` orchestrate tabs, persistence, uploads, and modal flows; React/ReactDOM 19 are pulled from CDN for the library modal only.
 - **State**: JSON files under `data/` persist doc-root config, library entries, and served instances. Uploads live under `files/uploads/` with timestamped directories.
 - **Theme/Branding**: Shared palette and "laser" hover effects defined in `public/styles/shared.css`; theme toggled via localStorage across shell + iframe.
 
@@ -50,7 +50,8 @@
 - SSE hook (`public/js/sse.js`) listens for backend change events (currently heartbeats) for live refresh.
 
 ## 5. Tooling & Ops
-- `npm run dev` runs Next.js dev server. `npm run build` & `npm run start` for production.
+- `npm run dev` runs the Next.js dev server (background it or use another terminal so it doesn't block the current shell). `npm run build` & `npm run start` for production.
+- `npm run lint` executes ESLint 9 using the Next.js config.
 - `scripts/server.mjs` & `scripts/runner.mjs` manage long-lived dev instances via PID files, logs, and readiness polling.
 - `scripts/health.mjs` performs quick HTTP checks against key endpoints; `scripts/validate-ui.mjs` is a headless integration test that exercises config persistence, library flows, serving, and uploads.
 
