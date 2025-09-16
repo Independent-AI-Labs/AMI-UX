@@ -16,7 +16,12 @@ export function renderMarkdown(md, relPath) {
     ) {
       const div = document.createElement('div')
       div.className = 'mermaid'
-      div.textContent = code.textContent || ''
+      // Preserve original diagram source for reliable re-render on theme changes
+      const src = code.textContent || ''
+      div.textContent = src
+      div.dataset.src = src
+      // Also stash on an expando for older DOM query patterns
+      try { div.__mermaidSrc = src } catch {}
       const pre = code.parentElement
       pre?.replaceWith(div)
     }
@@ -121,4 +126,3 @@ export function renderCSV(text) {
   table.style.overflowX = 'auto'
   return table
 }
-

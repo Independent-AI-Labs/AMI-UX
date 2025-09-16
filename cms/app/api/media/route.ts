@@ -115,7 +115,7 @@ export async function GET(req: Request) {
       }
 
       // Heuristic for Cocoa-exported HTML: body contains entity-encoded snippet
-      function extractEncodedBodyText(src) {
+      function extractEncodedBodyText(src: string): string {
         const m = src.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
         if (!m) return ''
         let inner = m[1]
@@ -125,7 +125,7 @@ export async function GET(req: Request) {
         inner = inner.replace(/\u00a0/g, ' ')
         return inner
       }
-      function decodeEntities(s) {
+      function decodeEntities(s: string): string {
         return s
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')

@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   // Accept multiple fields named 'file'; optional companion 'path' per file, or a common 'prefix'
   const prefix = sanitizeRel(String(form.get('prefix') || ''))
 
-  for (const [key, val] of Array.from(form.entries())) {
+  for (const [key, val] of form.entries()) {
     if (key !== 'file') continue
     const file = val as unknown as File
     if (!file || typeof (file as any).arrayBuffer !== 'function') continue

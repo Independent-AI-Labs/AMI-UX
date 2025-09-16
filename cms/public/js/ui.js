@@ -91,7 +91,7 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
   btnComment.className = 'act act-comment'
   btnComment.title = 'Comment'
   btnComment.setAttribute('aria-label', 'Add comment')
-  btnComment.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
+  btnComment.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
   btnComment.addEventListener('click', (e) => {
     e.stopPropagation()
     try {
@@ -102,7 +102,7 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
   btnSearch.className = 'act act-search'
   btnSearch.title = 'Search'
   btnSearch.setAttribute('aria-label', 'Search for this item')
-  btnSearch.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+  btnSearch.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
   btnSearch.addEventListener('click', (e) => {
     e.stopPropagation()
     try {
@@ -197,16 +197,24 @@ export function updateTOC(state) {
   toc.appendChild(structHdr)
 
   const struct = document.createElement('div')
+  struct.className = 'structure-nav'
   function addStruct(node, indexPath = []) {
     if (node.type === 'dir') {
       const det = document.createElement('details')
       det.open = indexPath.length <= 1
+      det.dataset.path = node.path || ''
       const sum = document.createElement('summary')
       const num = indexPath.length ? indexPath.join('.') + '. ' : ''
       const label = displayName(node)
+      const toggle = document.createElement('span')
+      toggle.className = 'struct-toggle'
+      toggle.setAttribute('aria-hidden', 'true')
+      sum.appendChild(toggle)
       const a = document.createElement('a')
       a.textContent = num + label + '/'
       a.href = '#' + ('dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root'))
+      a.dataset.path = node.path || ''
+      a.dataset.type = 'dir'
       sum.appendChild(a)
       det.appendChild(sum)
       const container = document.createElement('div')
@@ -232,6 +240,8 @@ export function updateTOC(state) {
       a.href = '#' + pathAnchor(node.path)
       a.style.display = 'block'
       a.style.paddingLeft = indexPath.length * 12 + 'px'
+      a.dataset.path = node.path || ''
+      a.dataset.type = 'file'
       return a
     }
   }
@@ -256,6 +266,8 @@ export function updateTOC(state) {
     hnav.appendChild(a)
   })
   toc.appendChild(hnav)
+
+  if (state && state._structureWatcher) state._structureWatcher.refresh(true)
 }
 
 export function expandCollapseAll(expand = true) {
@@ -351,6 +363,9 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
 
   // Floating hover actions for highlighted elements (headings, lines, TOC links)
   initHoverActions()
+
+  if (!state._structureWatcher) state._structureWatcher = createStructureWatcher(state)
+  else state._structureWatcher.refresh(true)
 }
 
 function initHoverActions() {
@@ -369,12 +384,12 @@ function initHoverActions() {
   const btnComment = mkBtn(
     'act-comment',
     'Comment',
-    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
   )
   const btnSearch = mkBtn(
     'act-search',
     'Search',
-    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
   )
   overlay.appendChild(btnComment)
   overlay.appendChild(btnSearch)
@@ -503,4 +518,90 @@ function initHoverActions() {
       hideOverlay()
     }
   })
+}
+
+function setsEqual(a, b) {
+  if (a.size !== b.size) return false
+  for (const item of a) if (!b.has(item)) return false
+  return true
+}
+
+function createStructureWatcher(state) {
+  const content = document.getElementById('content')
+  const tocRoot = document.querySelector('nav .toc')
+  if (!content || !tocRoot) return null
+
+  const watcher = {
+    content,
+    tocRoot,
+    links: [],
+    lastActive: new Set(),
+    ignoreHashClearUntil: 0,
+    refresh(force = false) {
+      this.links = Array.from(this.tocRoot.querySelectorAll('a[data-path]'))
+      if (force) this.lastActive = new Set()
+      this.updateActive(true)
+    },
+    updateActive(force = false) {
+      const contentRect = this.content.getBoundingClientRect()
+      const top = contentRect.top
+      const bottom = contentRect.bottom
+      const visible = new Set()
+      const details = this.content.querySelectorAll('details[data-path]')
+      details.forEach((det) => {
+        const path = det.dataset?.path || ''
+        const summary = det.querySelector(':scope > summary')
+        if (!summary) return
+        const hidden = det.classList?.contains('hidden') || summary.offsetParent === null
+        let isVisible = false
+        if (!hidden) {
+          const rect = summary.getBoundingClientRect()
+          isVisible = rect.bottom >= top && rect.top <= bottom
+        }
+        summary.classList.toggle('is-visible', isVisible && !!path)
+        if (isVisible && path) visible.add(path)
+      })
+      const changed = force || !setsEqual(this.lastActive, visible)
+      if (changed) {
+        this.links.forEach((link) => {
+          const path = link.dataset?.path || ''
+          const isActive = !!path && visible.has(path)
+          link.classList.toggle('is-active', isActive)
+          const parent = link.parentElement
+          if (parent && parent.tagName === 'SUMMARY') parent.classList.toggle('is-active', isActive)
+          else if (parent && parent !== this.tocRoot) parent.classList.toggle('is-active', isActive)
+        })
+        if (visible.size) {
+          const firstActive = this.links.find((link) => visible.has(link.dataset?.path || ''))
+          if (firstActive) {
+            try {
+              firstActive.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+            } catch {}
+          }
+        }
+        this.lastActive = new Set(visible)
+      }
+    },
+  }
+
+  const handleScroll = () => {
+    watcher.updateActive()
+    if (location.hash && Date.now() > watcher.ignoreHashClearUntil) {
+      try {
+        history.replaceState(null, '', location.pathname + location.search)
+      } catch {}
+    }
+  }
+
+  content.addEventListener('scroll', handleScroll, { passive: true })
+  tocRoot.addEventListener('click', (e) => {
+    const link = e.target && typeof e.target.closest === 'function' ? e.target.closest('a[data-path]') : null
+    if (link) watcher.ignoreHashClearUntil = Date.now() + 800
+  })
+  tocRoot.addEventListener('toggle', () => watcher.updateActive(true), true)
+  window.addEventListener('resize', () => watcher.updateActive(true))
+
+  watcher.refresh(true)
+
+  return watcher
 }

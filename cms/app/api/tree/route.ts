@@ -43,36 +43,6 @@ async function statSafe(p: string) {
   try { return await fs.stat(p) } catch { return null }
 }
 
-async function readDirTree(dirAbs: string, rel: string = ''): Promise<Node[]> {
-  const entries = await fs.readdir(dirAbs, { withFileTypes: true })
-  const nodes: Node[] = []
-
-  for (const ent of entries) {
-    const name = ent.name
-    if (name.startsWith('.')) continue
-    if (ent.isDirectory() && IGNORED_DIRS.has(name)) continue
-
-    const childRel = path.posix.join(rel, name)
-    const childAbs = path.join(dirAbs, name)
-
-    if (ent.isDirectory()) {
-      const children = await readDirTree(childAbs, childRel)
-      if (children.length > 0) {
-        nodes.push({ name, path: childRel, type: 'dir', children })
-      }
-    } else if (ent.isFile()) {
-      const ext = path.extname(name).toLowerCase()
-      if (ALLOWED.includes(ext)) {
-        nodes.push({ name, path: childRel, type: 'file' })
-      }
-    }
-  }
-
-  // sort: dirs first, then files; alpha
-  nodes.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1))
-  return nodes
-}
-
 export async function GET() {
   const cfg = await loadConfig()
   const ALLOWED = await getAllowed()
@@ -84,7 +54,6 @@ export async function GET() {
   async function readDirTreeWithAllowed(dirAbs: string, rel: string = ''): Promise<Node[]> {
     const entries = await fs.readdir(dirAbs, { withFileTypes: true })
     const nodes: Node[] = []
-    const IGNORED_DIRS = new Set(['.git', '.next', 'node_modules'])
     for (const ent of entries) {
       const name = ent.name
       if (name.startsWith('.')) continue
