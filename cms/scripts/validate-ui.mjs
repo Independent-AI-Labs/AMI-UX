@@ -118,14 +118,30 @@ async function main() {
   form.append('file', tmp2)
   const up = await postForm('/api/upload', form)
   let uploadedOk = false
+  let uploadOpen = false
+  let uploadFilesAnnotated = false
   if (up.status === 200 && Array.isArray(up.json?.files)) {
     // verify on disk
     const root = path.resolve(APP_DIR, 'files', 'uploads', String(up.json.uploadedAt))
     const expect1 = path.join(root, 'demo/sub/a.txt')
     const expect2 = path.join(root, 'demo/sub/b/b.txt')
     try { await fs.stat(expect1); await fs.stat(expect2); uploadedOk = true } catch {}
+    uploadFilesAnnotated = up.json.files.every((file) => typeof file.absolutePath === 'string' && file.absolutePath.length > 0)
+    if (up.json.rootAbsolute) {
+      const added = await post('/api/library', { path: up.json.rootAbsolute })
+      if (added.status === 200) {
+        const libAfter = await get('/api/library')
+        if (libAfter.status === 200) {
+          const normalizedTarget = path.resolve(up.json.rootAbsolute)
+          const match = (libAfter.json?.entries || []).find((e) => path.resolve(e.path) === normalizedTarget)
+          uploadOpen = Boolean(match)
+        }
+      }
+    }
   }
   out.steps.upload = { ok: uploadedOk }
+  out.steps.upload_annotated = { ok: uploadFilesAnnotated }
+  out.steps.upload_open = { ok: uploadOpen }
 
   console.log(JSON.stringify(out, null, 2))
   if (!Object.values(out.steps).every(s => s && s.ok)) process.exit(1)

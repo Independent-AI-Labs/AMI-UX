@@ -96,7 +96,7 @@ export async function startCms(fromSelect = false) {
   } catch {}
   const docRootLabel = document.getElementById('docRootLabel')
   if (cfg && cfg.docRoot) {
-    docRootLabel.textContent = '(' + cfg.docRoot + ')'
+    docRootLabel.textContent = '(' + (cfg.docRootLabel || cfg.docRoot) + ')'
   } else {
     docRootLabel.textContent = ''
   }
@@ -139,7 +139,7 @@ export async function startCms(fromSelect = false) {
       fetchConfig()
         .then((c) => {
           const l = document.getElementById('docRootLabel')
-          l.textContent = '(' + (c.docRoot || '') + ')'
+          l.textContent = '(' + (c.docRootLabel || c.docRoot || '') + ')'
         })
         .catch(() => {})
     },

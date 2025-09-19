@@ -2,7 +2,72 @@ import { NextResponse } from 'next/server'
 import path from 'path'
 import crypto from 'crypto'
 import { listLibrary, saveLibrary, type LibraryEntry, type LibraryKind } from '../../lib/store'
+import { loadDocRootInfo } from '../../lib/doc-root'
 import { promises as fs } from 'fs'
+import type { Dirent } from 'fs'
+
+type EntryMetrics = {
+  items: number
+  bytes: number
+  truncated?: boolean
+}
+
+const ITEM_LIMIT = 10000
+
+async function computeMetrics(absPath: string, kind: LibraryKind): Promise<EntryMetrics | null> {
+  let stat
+  try {
+    stat = await fs.stat(absPath)
+  } catch {
+    return null
+  }
+
+  if (kind === 'file' || stat.isFile()) {
+    return { items: 1, bytes: stat.size }
+  }
+  if (!stat.isDirectory()) {
+    return { items: 1, bytes: stat.size }
+  }
+
+  let items = 0
+  let bytes = 0
+  let truncated = false
+
+  async function walk(dir: string): Promise<void> {
+    if (truncated) return
+    let entries: Dirent[] = []
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const dirent of entries) {
+      if (truncated) break
+      if (dirent.isSymbolicLink()) continue
+      const child = path.join(dir, dirent.name)
+      if (dirent.isDirectory()) {
+        await walk(child)
+      } else {
+        try {
+          const st = await fs.stat(child)
+          if (st.isFile()) {
+            items += 1
+            bytes += st.size
+          }
+        } catch {
+          continue
+        }
+      }
+      if (items >= ITEM_LIMIT) {
+        truncated = true
+        break
+      }
+    }
+  }
+
+  await walk(absPath)
+  return { items, bytes, truncated: truncated || undefined }
+}
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,35 +96,32 @@ function idFromPath(p: string) {
 }
 
 export async function GET() {
-  const list = await listLibrary()
-  // Include configured docRoot as a virtual entry if not present
+  const stored = await listLibrary()
+  const entries: LibraryEntry[] = [...stored]
+  // Include configured docRoot as a virtual entry if not present and ensure label is set
   try {
-    const cfgPath = path.resolve(process.cwd(), 'data/config.json')
-    const raw = await fs.readFile(cfgPath, 'utf8').catch(() => '')
-    let docRoot: string | null = null
-    if (raw) {
-      const cfg = JSON.parse(raw)
-      docRoot = (typeof cfg?.docRoot === 'string' && cfg.docRoot) ? cfg.docRoot : null
-    }
-    if (!docRoot) {
-      docRoot = process.env.DOC_ROOT || ''
-    }
-    if (docRoot) {
-      const abs = path.resolve(process.cwd(), docRoot)
-      const exists = list.some((e) => path.resolve(e.path) === abs)
-      if (!exists) {
-        // Validate it exists and classify
+    const docInfo = await loadDocRootInfo()
+    if (docInfo) {
+      const abs = docInfo.absolute
+      const existingIndex = entries.findIndex((e) => path.resolve(e.path) === abs)
+      if (existingIndex === -1) {
         const st = await fs.stat(abs).catch(() => null)
         if (st) {
           const kind: LibraryKind = st.isFile() ? 'file' : 'dir'
           const id = idFromPath(abs)
-          const virtual: LibraryEntry = { id, path: abs, kind, createdAt: Date.now(), label: 'Configured docRoot' }
-          list.unshift(virtual)
+          const virtual: LibraryEntry = { id, path: abs, kind, createdAt: Date.now(), label: docInfo.label }
+          entries.unshift(virtual)
         }
+      } else if (!entries[existingIndex].label) {
+        entries[existingIndex] = { ...entries[existingIndex], label: docInfo.label }
       }
     }
   } catch {}
-  return NextResponse.json({ entries: list })
+  const augmented = await Promise.all(entries.map(async (entry) => {
+    const metrics = await computeMetrics(entry.path, entry.kind).catch(() => null)
+    return metrics ? { ...entry, metrics } : entry
+  }))
+  return NextResponse.json({ entries: augmented })
 }
 
 export async function POST(req: Request) {
