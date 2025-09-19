@@ -143,6 +143,17 @@ header .btn:hover { filter: brightness(1.05); }
               0 0 18px color-mix(in oklab, var(--accent) 45%, transparent);
 }
 
+.tree-focus-highlight {
+  outline: 2px solid color-mix(in oklab, var(--accent) 80%, transparent);
+  outline-offset: 2px;
+  transition: outline 0.6s ease-out;
+}
+.tree-focus-highlight > summary {
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  border-radius: 6px;
+  transition: background 0.6s ease-out;
+}
+
 /* Headings: underline laser to avoid crossing text */
 .fx-glow .md h1, .fx-glow .md h2, .fx-glow .md h3, .fx-glow .md h4,
 .fx-glow #content h1, .fx-glow #content h2, .fx-glow #content h3, .fx-glow #content h4 { padding-bottom: 2px; }
