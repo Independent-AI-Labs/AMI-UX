@@ -1190,15 +1190,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       return list
     }, [entries, rootOptions])
 
-    async function addExisting() {
-      const p = prompt('Enter absolute or repo-relative path:')
-      if (!p) return
-      const r = await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: p }) })
-      if (r.ok) {
-        await fetchEntries()
-      } else alert('Failed to add')
-    }
-
     function validateFolderNameInput(name) {
       const trimmed = (name || '').trim()
       if (!trimmed) return { ok: false, error: 'Folder name is required.' }
@@ -1413,21 +1404,16 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             React.createElement('strong', null, 'Content Directory'),
             React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
             React.createElement('button', { className: 'btn', onClick: triggerFilePicker, title: 'Select files to upload', 'aria-label': 'Select files' },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"></path><path d="M9 4v16"></path><path d="M15 10l2 2-2 2"></path></svg>' } }),
-            React.createElement('span', { style: { marginLeft: 6 } }, 'Select files')
-          ),
-          React.createElement('button', { className: 'btn', onClick: triggerDirectoryPicker, title: 'Select folder to upload', 'aria-label': 'Select folder' },
-            React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h11v11a2 2 0 0 1-2 2H3z"></path><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h10a2 2 0 0 1 2 2v2"></path></svg>' } }),
-            React.createElement('span', { style: { marginLeft: 6 } }, 'Select folder')
-          ),
-          React.createElement('button', { className: 'btn', onClick: addExisting, title: 'Add Existing', 'aria-label': 'Add Existing' },
-            React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="9" x2="12" y2="15"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>' } })
-          ),
-          React.createElement('button', { className: 'btn', onClick: onClose, title: 'Close', 'aria-label': 'Close' },
-            React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' } })
-          ),
-          React.createElement('input', { type: 'file', ref: fileSelectRef, multiple: true, onChange: handleFileInputChange, style: { display: 'none' } }),
-          React.createElement('input', { type: 'file', ref: dirSelectRef, multiple: true, onChange: handleDirInputChange, webkitdirectory: 'webkitdirectory', mozdirectory: 'mozdirectory', directory: 'directory', style: { display: 'none' } }),
+              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"></path><path d="M9 4v16"></path><path d="M15 10l2 2-2 2"></path></svg>' } })
+            ),
+            React.createElement('button', { className: 'btn', onClick: triggerDirectoryPicker, title: 'Select folder to upload', 'aria-label': 'Select folder' },
+              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h11v11a2 2 0 0 1-2 2H3z"></path><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h10a2 2 0 0 1 2 2v2"></path></svg>' } })
+            ),
+            React.createElement('button', { className: 'btn', onClick: onClose, title: 'Close', 'aria-label': 'Close' },
+              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' } })
+            ),
+            React.createElement('input', { type: 'file', ref: fileSelectRef, multiple: true, onChange: handleFileInputChange, style: { display: 'none' } }),
+            React.createElement('input', { type: 'file', ref: dirSelectRef, multiple: true, onChange: handleDirInputChange, webkitdirectory: 'webkitdirectory', mozdirectory: 'mozdirectory', directory: 'directory', style: { display: 'none' } }),
         ),
         React.createElement('div', {
           style: {
@@ -1492,7 +1478,26 @@ export async function openSelectMediaModal({ onSelect } = {}) {
                   textAlign: 'center',
                   color: 'var(--muted)',
                 },
-              }, `No results for "${trimmedFilter}".`)
+              },
+                React.createElement('div', null, `No results for "${trimmedFilter}".`),
+                React.createElement('div', {
+                  style: {
+                    marginTop: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    justifyContent: 'center',
+                    fontSize: 13,
+                  },
+                },
+                  React.createElement('span', {
+                    style: { display: 'inline-flex', width: 20, height: 20, color: 'var(--accent)' },
+                    dangerouslySetInnerHTML: {
+                      __html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><polyline points="8 11 12 15 16 11"></polyline><rect x="5" y="18" width="14" height="2" rx="1"></rect><animateTransform attributeName="transform" type="translate" values="0 0; 0 2; 0 0" dur="1.4s" repeatCount="indefinite"/></svg>'
+                    }
+                  }),
+                  React.createElement('span', null, 'Drag files & folders here to add content.'),
+                ))
               : null),
         ),
         toast && React.createElement('div', { style: { padding: '8px 10px', borderTop: '1px solid var(--border)', background: toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: 'var(--text)' } }, toast.text),
