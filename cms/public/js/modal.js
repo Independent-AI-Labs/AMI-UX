@@ -520,8 +520,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const [rootOptions, setRootOptions] = useState([])
     const [uploadRoot, setUploadRoot] = useState('docRoot')
     const [pendingSelection, setPendingSelection] = useState(null)
+    const [noResultsToken, setNoResultsToken] = useState(0)
     const fileSelectRef = useRef(null)
     const dirSelectRef = useRef(null)
+    const prevNoResultsRef = useRef(false)
     const rootOptionMap = useMemo(() => {
       const map = new Map()
       if (Array.isArray(rootOptions)) {
@@ -1158,6 +1160,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }
     const trimmedFilter = filter.trim()
     const filtered = entries.filter(e => !trimmedFilter || (e.path.toLowerCase().includes(trimmedFilter.toLowerCase()) || (e.label||'').toLowerCase().includes(trimmedFilter.toLowerCase())))
+    const noResultsActive = !!trimmedFilter && filtered.length === 0 && !uploadJobs.length
     const directoryOptions = useMemo(() => {
       const seen = new Set()
       const list = []
@@ -1189,6 +1192,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         .forEach((opt) => addOption(opt.path, opt.label || opt.key))
       return list
     }, [entries, rootOptions])
+
+    useEffect(() => {
+      if (noResultsActive && !prevNoResultsRef.current) {
+        setNoResultsToken(Date.now())
+      }
+      prevNoResultsRef.current = noResultsActive
+    }, [noResultsActive])
 
     function validateFolderNameInput(name) {
       const trimmed = (name || '').trim()
@@ -1472,6 +1482,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             }))
             : (!uploadJobs.length && trimmedFilter
               ? React.createElement('div', {
+                key: noResultsToken || 0,
+                className: 'no-results-blur',
                 style: {
                   margin: 'auto',
                   padding: '40px',
