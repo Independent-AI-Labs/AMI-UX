@@ -308,3 +308,27 @@ details:focus-within > summary .row-actions {
   border-radius: 999px;
   vertical-align: middle;
 }
+
+.no-results-blur {
+  animation: no-results-blur-in 220ms ease forwards;
+  opacity: 0;
+  filter: blur(10px);
+}
+
+@keyframes no-results-blur-in {
+  0% {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(-8px);
+  }
+  60% {
+    filter: blur(2px);
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
