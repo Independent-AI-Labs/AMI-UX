@@ -1404,10 +1404,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             React.createElement('strong', null, 'Content Directory'),
             React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
             React.createElement('button', { className: 'btn', onClick: triggerFilePicker, title: 'Select files to upload', 'aria-label': 'Select files' },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" opacity="0.15"></path><path d="M4 4h16v16H4z"></path><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>' } })
+              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>' } })
             ),
             React.createElement('button', { className: 'btn', onClick: triggerDirectoryPicker, title: 'Select folder to upload', 'aria-label': 'Select folder' },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h11v11a2 2 0 0 1-2 2H3z"></path><path d="M3 7V5a2 2 0 0 1 2-2h5l2 2h11"></path><path d="M10 14h8"></path><path d="M10 18h4"></path></svg>' } })
+              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h9a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h5l2 2"></path><path d="M12 12v5"></path><path d="M9.5 14.5 12 17l2.5-2.5"></path></svg>' } })
             ),
             React.createElement('button', { className: 'btn', onClick: onClose, title: 'Close', 'aria-label': 'Close' },
               React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' } })
@@ -1489,9 +1489,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
                   },
                 },
                   React.createElement('span', {
-                    style: { display: 'inline-flex', width: 58, height: 58, color: 'var(--accent)' },
+                    style: { display: 'inline-flex', width: 60, height: 60, color: 'var(--accent)' },
                     dangerouslySetInnerHTML: {
-                      __html: '<svg viewBox="0 0 64 64" width="58" height="58" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 12v30"></path><polyline points="22 34 32 44 42 34"></polyline><rect x="16" y="48" width="32" height="6" rx="3"></rect><animateTransform attributeName="transform" type="translate" values="0 0; 0 4; 0 0" dur="1.2s" repeatCount="indefinite"/></svg>'
+                      __html: '<svg viewBox="0 0 80 80" width="60" height="60" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M40 12v32"></path><polyline points="28 36 40 48 52 36"></polyline><path d="M18 50h44"></path><path d="M16 56l4 12h40l4-12"></path><path d="M20 72h40"></path><animateTransform attributeName="transform" type="translate" values="0 0; 0 3; 0 0" dur="1.1s" repeatCount="indefinite"/></svg>'
                     }
                   })
                 ),
