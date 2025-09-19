@@ -179,6 +179,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       else if (uploadStatus === 'finalizing') statusText = 'Finalizing…'
       else if (uploadStatus === 'done') { statusText = 'Upload complete'; statusColor = 'var(--ok)' }
       else if (uploadStatus === 'error') { statusText = upload?.error || 'Upload failed'; statusColor = '#ef4444' }
+    } else if (busy) {
+      statusText = 'Working…'
     }
 
     const detailParts = []
@@ -226,6 +228,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           )
           : React.createElement(React.Fragment, null,
             progressBar,
+            statusText && React.createElement('div', { style: { color: statusColor, fontSize: 12, marginTop: 6 } }, statusText),
             entry.path ? React.createElement('div', { style: { color: 'var(--muted)', fontSize: 12, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, entry.path) : null,
             detailParts.length ? React.createElement('div', { style: { color: 'var(--muted)', fontSize: 12, marginTop: entry.path ? 2 : 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, detailParts.join(' • ')) : null,
           ),
@@ -351,6 +354,157 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     )
   }
 
+  function DestinationModal({ selection, directories, onClose, onStage, validateFolderName }) {
+    const { files = [] } = selection || {}
+    const fileCount = files.length
+    const totalBytes = files.reduce((sum, entry) => sum + (entry?.file?.size || 0), 0)
+    const [createNew, setCreateNew] = useState(directories.length === 0)
+    const [selectedPath, setSelectedPath] = useState(directories[0]?.path || '')
+    const [newFolderName, setNewFolderName] = useState('')
+    const [error, setError] = useState('')
+    const allowCreateToggle = directories.length > 0
+
+    useEffect(() => {
+      const handler = (e) => { if (e.key === 'Escape') onClose() }
+      window.addEventListener('keydown', handler)
+      return () => window.removeEventListener('keydown', handler)
+    }, [onClose])
+
+    useEffect(() => {
+      if (!directories.length) {
+        setCreateNew(true)
+        return
+      }
+      if (!directories.some((dir) => dir.path === selectedPath)) {
+        setSelectedPath(directories[0]?.path || '')
+      }
+    }, [directories, selectedPath])
+
+    function closeOnBackdrop(e) {
+      if (e.target === e.currentTarget) onClose()
+    }
+
+    function toggleCreateNew() {
+      if (!allowCreateToggle) return
+      setError('')
+      setCreateNew((prev) => !prev)
+    }
+
+    function handleNameChange(e) {
+      setNewFolderName(e.target.value)
+      if (error) setError('')
+    }
+
+    function handleSelectChange(e) {
+      setSelectedPath(e.target.value)
+      if (error) setError('')
+    }
+
+    function handleStage() {
+      if (createNew) {
+        const result = validateFolderName(newFolderName)
+        if (!result.ok) {
+          setError(result.error)
+          return
+        }
+        onStage({ kind: 'new', name: result.value })
+        return
+      }
+      if (!selectedPath) {
+        setError('Select a destination.')
+        return
+      }
+      onStage({ kind: 'existing', path: selectedPath })
+    }
+
+    const stageDisabled = createNew
+      ? !newFolderName.trim()
+      : !selectedPath
+
+    return React.createElement('div', {
+      style: {
+        position: 'fixed', inset: 0, zIndex: 1010,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'auto',
+      },
+      onMouseDown: closeOnBackdrop,
+    },
+      React.createElement('div', {
+        style: {
+          background: 'var(--panel)',
+          color: 'var(--text)',
+          borderRadius: '12px',
+          minWidth: '360px',
+          maxWidth: '92vw',
+          padding: '20px',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.45)',
+        },
+        onMouseDown: (e) => e.stopPropagation(),
+      },
+        React.createElement('div', { style: { display: 'flex', alignItems: 'center', marginBottom: '16px' } },
+          React.createElement('strong', { style: { fontSize: '16px' } }, 'Choose Destination'),
+          React.createElement('button', {
+            className: 'btn',
+            onClick: onClose,
+            style: { marginLeft: 'auto', borderRadius: '999px', padding: '2px 8px' },
+            'aria-label': 'Close',
+          }, '×'),
+        ),
+        React.createElement('div', { className: 'muted', style: { marginBottom: '12px', fontSize: '13px' } },
+          `${fileCount} item${fileCount === 1 ? '' : 's'} • ${formatBytes(totalBytes)}`,
+        ),
+        React.createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '13px' } },
+          React.createElement('input', {
+            type: 'checkbox',
+            checked: createNew,
+            onChange: toggleCreateNew,
+            disabled: !allowCreateToggle,
+          }),
+          React.createElement('span', null, 'Create New'),
+        ),
+        createNew
+          ? React.createElement('input', {
+            type: 'text',
+            value: newFolderName,
+            placeholder: 'New folder name',
+            onChange: handleNameChange,
+            style: {
+              width: '100%',
+              padding: '8px 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              color: 'var(--text)'
+            }
+          })
+          : React.createElement('select', {
+            value: selectedPath,
+            onChange: handleSelectChange,
+            style: {
+              width: '100%',
+              padding: '8px 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              color: 'var(--text)'
+            }
+          }, directories.map((dir) => React.createElement('option', {
+            key: dir.path,
+            value: dir.path,
+          }, dir.label || dir.path))),
+        error && React.createElement('div', { style: { marginTop: '8px', fontSize: '12px', color: '#ef4444' } }, error),
+        React.createElement('div', { style: { display: 'flex', justifyContent: 'flex-end', marginTop: '18px' } },
+          React.createElement('button', {
+            className: 'btn',
+            onClick: handleStage,
+            disabled: stageDisabled,
+          }, 'Stage'),
+        ),
+      ),
+    )
+  }
+
   function Drawer({ onClose }) {
     const [entries, setEntries] = useState([])
     const [filter, setFilter] = useState('')
@@ -359,13 +513,15 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const [selectedId, setSelectedId] = useState(null)
     const [busyId, setBusyId] = useState(null)
     const [toast, setToast] = useState(null)
-    const [showUploader, setShowUploader] = useState(false)
     const [uploadJobs, setUploadJobs] = useState([])
     const uploadJobsRef = useRef([])
     const uploadControllers = useRef(new Map())
     const [dropActive, setDropActive] = useState(false)
     const [rootOptions, setRootOptions] = useState([])
     const [uploadRoot, setUploadRoot] = useState('docRoot')
+    const [pendingSelection, setPendingSelection] = useState(null)
+    const fileSelectRef = useRef(null)
+    const dirSelectRef = useRef(null)
     const rootOptionMap = useMemo(() => {
       const map = new Map()
       if (Array.isArray(rootOptions)) {
@@ -1002,11 +1158,37 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }
     const trimmedFilter = filter.trim()
     const filtered = entries.filter(e => !trimmedFilter || (e.path.toLowerCase().includes(trimmedFilter.toLowerCase()) || (e.label||'').toLowerCase().includes(trimmedFilter.toLowerCase())))
-    useEffect(() => {
-      if (trimmedFilter && filtered.length === 0 && !showUploader) {
-        setShowUploader(true)
+    const directoryOptions = useMemo(() => {
+      const seen = new Set()
+      const list = []
+      const addOption = (path, label) => {
+        if (typeof path !== 'string' || !path) return
+        const normalized = normalizeFsPath(path)
+        if (!normalized || seen.has(normalized)) return
+        seen.add(normalized)
+        list.push({ path, label: label || path })
       }
-    }, [trimmedFilter, filtered.length, showUploader])
+      const docRootOpt = rootOptions.find((opt) => opt && opt.key === 'docRoot') || null
+      if (docRootOpt) addOption(docRootOpt.path, docRootOpt.label || 'Doc Root')
+      entries
+        .filter((entry) => entry && entry.kind === 'dir' && typeof entry.path === 'string')
+        .sort((a, b) => {
+          const left = (a.label || a.path || '').toLowerCase()
+          const right = (b.label || b.path || '').toLowerCase()
+          if (left < right) return -1
+          if (left > right) return 1
+          return 0
+        })
+        .forEach((entry) => {
+          const base = entry.path.split('/').pop() || entry.path
+          const label = entry.label || humanizeName(base, 'dir')
+          addOption(entry.path, label)
+        })
+      rootOptions
+        .filter((opt) => opt && opt.key && opt.key !== 'docRoot')
+        .forEach((opt) => addOption(opt.path, opt.label || opt.key))
+      return list
+    }, [entries, rootOptions])
 
     async function addExisting() {
       const p = prompt('Enter absolute or repo-relative path:')
@@ -1015,6 +1197,88 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       if (r.ok) {
         await fetchEntries()
       } else alert('Failed to add')
+    }
+
+    function validateFolderNameInput(name) {
+      const trimmed = (name || '').trim()
+      if (!trimmed) return { ok: false, error: 'Folder name is required.' }
+      if (trimmed === '.' || trimmed === '..') return { ok: false, error: 'Folder name is invalid.' }
+      if (/[\\/]/.test(trimmed)) return { ok: false, error: 'Folder name cannot contain slashes.' }
+      return { ok: true, value: trimmed }
+    }
+
+    function deriveRootForAbsolutePath(absPath) {
+      const normalized = normalizeFsPath(absPath)
+      if (!normalized) return null
+      let best = null
+      for (const opt of rootOptions) {
+        if (!opt || !opt.path || !opt.key) continue
+        const base = normalizeFsPath(opt.path)
+        if (!base) continue
+        if (normalized === base || normalized.startsWith(`${base}/`)) {
+          const prefixRaw = normalized === base ? '' : normalized.slice(base.length + 1)
+          const prefix = prefixRaw.replace(/^\/+/, '')
+          if (!best || base.length > best.baseLength) {
+            best = {
+              root: opt.key,
+              prefix,
+              rootLabel: opt.label || opt.key,
+              baseLength: base.length,
+            }
+          }
+        }
+      }
+      if (!best) return null
+      return { root: best.root, prefix: best.prefix, rootLabel: best.rootLabel }
+    }
+
+    function stageSelectionAt(choice) {
+      const files = pendingSelection?.files || []
+      if (!files.length) {
+        setPendingSelection(null)
+        return
+      }
+      let rootKey = uploadRoot
+      let rootLabel = activeRoot?.label || uploadRoot
+      let prefix = ''
+      if (!choice) {
+        setPendingSelection(null)
+        return
+      }
+      if (choice.kind === 'existing') {
+        const mapping = deriveRootForAbsolutePath(choice.path)
+        if (!mapping) {
+          setToast({ kind: 'err', text: 'Unable to resolve destination path.' })
+          setPendingSelection(null)
+          return
+        }
+        rootKey = mapping.root
+        prefix = mapping.prefix
+        rootLabel = mapping.rootLabel
+      } else if (choice.kind === 'new') {
+        const validation = validateFolderNameInput(choice.name)
+        if (!validation.ok) {
+          setToast({ kind: 'err', text: validation.error })
+          return
+        }
+        const base = rootOptionMap.get('docRoot') || activeRoot || rootOptions[0] || null
+        if (!base) {
+          setToast({ kind: 'err', text: 'No destination roots configured.' })
+          setPendingSelection(null)
+          return
+        }
+        rootKey = base.key
+        rootLabel = base.label || base.key
+        prefix = validation.value
+      }
+      const id = enqueueUpload(files, { prefix, autoStart: false, root: rootKey, rootLabel })
+      if (id) {
+        setUploadRoot(rootKey)
+        setToast({ kind: 'ok', text: `Staged ${files.length} item${files.length === 1 ? '' : 's'}.` })
+      } else {
+        setToast({ kind: 'err', text: 'Failed to stage files.' })
+      }
+      setPendingSelection(null)
     }
 
     // Close context menu on Escape or click outside
@@ -1112,16 +1376,49 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       finally { setBusyId(null) }
     }
 
-    return React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
-      React.createElement('div', { onClick: onClose, style: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', pointerEvents: 'auto' } }),
-      React.createElement('div', { style: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '560px', maxWidth: '95vw', background: 'var(--panel)', color: 'var(--text)', borderLeft: '1px solid var(--border)', boxShadow: '0 0 30px rgba(0,0,0,0.4)', pointerEvents: 'auto', display: 'flex', flexDirection: 'column' } },
-        React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '10px', borderBottom: '1px solid var(--border)' } },
-          React.createElement('strong', null, 'Content Directory'),
-          React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
-          React.createElement('button', { className: 'btn', onClick: () => setShowUploader((v) => !v), title: showUploader ? 'Hide uploader' : 'Upload New', 'aria-label': 'Upload New' },
-            React.createElement('span', { dangerouslySetInnerHTML: { __html: showUploader
-              ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
-              : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>' } })
+    function triggerFilePicker() {
+      try { fileSelectRef.current?.click() } catch {}
+    }
+
+    function triggerDirectoryPicker() {
+      try { dirSelectRef.current?.click() } catch {}
+    }
+
+    function openDestinationPrompt(files) {
+      if (!files || !files.length) return
+      setPendingSelection({ files, id: `selection-${Date.now()}` })
+    }
+
+    function handleFileInputChange(e) {
+      const collected = filesFromFileList(e?.target?.files)
+      if (collected.length) {
+        openDestinationPrompt(collected)
+      }
+      if (e?.target) e.target.value = ''
+    }
+
+    function handleDirInputChange(e) {
+      const collected = filesFromFileList(e?.target?.files)
+      if (collected.length) {
+        openDestinationPrompt(collected)
+      }
+      if (e?.target) e.target.value = ''
+    }
+
+    return React.createElement(React.Fragment, null,
+      React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
+        React.createElement('div', { onClick: onClose, style: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', pointerEvents: 'auto' } }),
+        React.createElement('div', { style: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '560px', maxWidth: '95vw', background: 'var(--panel)', color: 'var(--text)', borderLeft: '1px solid var(--border)', boxShadow: '0 0 30px rgba(0,0,0,0.4)', pointerEvents: 'auto', display: 'flex', flexDirection: 'column' } },
+          React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '10px', borderBottom: '1px solid var(--border)' } },
+            React.createElement('strong', null, 'Content Directory'),
+            React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
+            React.createElement('button', { className: 'btn', onClick: triggerFilePicker, title: 'Select files to upload', 'aria-label': 'Select files' },
+              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"></path><path d="M9 4v16"></path><path d="M15 10l2 2-2 2"></path></svg>' } }),
+            React.createElement('span', { style: { marginLeft: 6 } }, 'Select files')
+          ),
+          React.createElement('button', { className: 'btn', onClick: triggerDirectoryPicker, title: 'Select folder to upload', 'aria-label': 'Select folder' },
+            React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h11v11a2 2 0 0 1-2 2H3z"></path><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h10a2 2 0 0 1 2 2v2"></path></svg>' } }),
+            React.createElement('span', { style: { marginLeft: 6 } }, 'Select folder')
           ),
           React.createElement('button', { className: 'btn', onClick: addExisting, title: 'Add Existing', 'aria-label': 'Add Existing' },
             React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="9" x2="12" y2="15"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>' } })
@@ -1129,21 +1426,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           React.createElement('button', { className: 'btn', onClick: onClose, title: 'Close', 'aria-label': 'Close' },
             React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' } })
           ),
-        ),
-        showUploader && React.createElement('div', { style: { padding: '14px 14px 12px', borderBottom: '1px solid var(--border)', background: 'color-mix(in oklab, var(--panel) 94%, transparent)' } },
-          React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' } },
-            React.createElement('strong', null, 'Upload to Content Directory'),
-            React.createElement('span', { className: 'muted', style: { fontSize: '12px', marginLeft: 'auto' } }, 'Drop anywhere in the list or pick files below.'),
-          ),
-          React.createElement(UploadTab, {
-            jobs: uploadJobs,
-            rootOptions,
-            selectedRoot: uploadRoot,
-            onRootChange: setUploadRoot,
-            onStage: (files, options) => enqueueUpload(files, { ...options, autoStart: false }),
-            onStart: startUploadJob,
-            onRemove: removeUploadJob,
-          }),
+          React.createElement('input', { type: 'file', ref: fileSelectRef, multiple: true, onChange: handleFileInputChange, style: { display: 'none' } }),
+          React.createElement('input', { type: 'file', ref: dirSelectRef, multiple: true, onChange: handleDirInputChange, webkitdirectory: 'webkitdirectory', mozdirectory: 'mozdirectory', directory: 'directory', style: { display: 'none' } }),
         ),
         React.createElement('div', {
           style: {
@@ -1169,7 +1453,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
               setToast({ kind: 'err', text: 'No files detected from drop.' })
               return
             }
-            enqueueUpload(collected, { autoStart: true, root: uploadRoot, rootLabel: activeRoot?.label })
+            openDestinationPrompt(collected)
           },
         },
           ...uploadJobs.map((job) => React.createElement(Row, {
@@ -1212,6 +1496,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
               : null),
         ),
         toast && React.createElement('div', { style: { padding: '8px 10px', borderTop: '1px solid var(--border)', background: toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: 'var(--text)' } }, toast.text),
+        ),
       ),
       menu && React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1001, pointerEvents: 'auto' }, onClick: () => setMenu(null) }),
       menu && React.createElement(ContextMenu, {
@@ -1235,6 +1520,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         },
         onDeleteLib: () => delLib(menu.entry),
         onDeleteDisk: () => delDisk(menu.entry),
+      }),
+      pendingSelection && React.createElement(DestinationModal, {
+        selection: pendingSelection,
+        directories: directoryOptions,
+        onClose: () => setPendingSelection(null),
+        onStage: stageSelectionAt,
+        validateFolderName: validateFolderNameInput,
       })
     )
   }
@@ -1298,142 +1590,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         title: e.path,
         onClick: () => onPick({ type: 'dir', path: e.path, mode: 'C' }),
       }, `[dir] ${[e.label || '', e.path].filter(Boolean).join(' ')}`)),
-    )
-  }
-
-  function UploadTab({ jobs, onStage, onStart, onRemove, rootOptions, selectedRoot, onRootChange }) {
-    const filesRef = useRef(null)
-    const dirRef = useRef(null)
-    const prefixRef = useRef(null)
-    const [currentJobId, setCurrentJobId] = useState(null)
-    const [notice, setNotice] = useState(null)
-    const rootList = Array.isArray(rootOptions) ? rootOptions.filter((opt) => opt && opt.key) : []
-    const effectiveRoot = rootList.some((opt) => opt && opt.key === selectedRoot)
-      ? selectedRoot
-      : (rootList.find((opt) => opt && opt.key === 'docRoot')?.key
-        || rootList.find((opt) => opt && opt.key === 'uploads')?.key
-        || (rootList[0]?.key || 'uploads'))
-    const effectiveRootInfo = rootList.find((opt) => opt && opt.key === effectiveRoot) || null
-
-    useEffect(() => {
-      if (dirRef.current) {
-        try { dirRef.current.webkitdirectory = true } catch {}
-        try { dirRef.current.directory = true } catch {}
-        try { dirRef.current.mozdirectory = true } catch {}
-        try { dirRef.current.multiple = true } catch {}
-      }
-    }, [])
-
-    useEffect(() => {
-      if (!onRootChange) return
-      if (selectedRoot && selectedRoot === effectiveRoot) return
-      if (!selectedRoot && effectiveRoot === 'uploads') return
-      onRootChange(effectiveRoot)
-    }, [effectiveRoot, selectedRoot, onRootChange])
-
-    useEffect(() => {
-      if (!currentJobId) return
-      if (!jobs.some((job) => job.id === currentJobId)) setCurrentJobId(null)
-    }, [jobs, currentJobId])
-
-    function resetInputs() {
-      if (filesRef.current) filesRef.current.value = ''
-      if (dirRef.current) dirRef.current.value = ''
-    }
-
-    function stageFromList(list) {
-      const files = Array.isArray(list) ? list.filter((item) => item && item.file) : []
-      if (!files.length) return
-      const active = jobs.find((job) => job.id === currentJobId) || null
-      const busyStatuses = ['uploading', 'checking', 'queued', 'finalizing']
-      if (active && busyStatuses.includes(active.status)) {
-        setNotice('Pause the current upload before staging another selection.')
-        return
-      }
-      if (active && !busyStatuses.includes(active.status)) {
-        onRemove?.(active.id)
-      }
-      const prefix = prefixRef.current?.value?.trim() || ''
-      const id = onStage?.(files, { prefix, root: effectiveRoot, rootLabel: effectiveRootInfo?.label })
-      if (id) {
-        setCurrentJobId(id)
-        setNotice(null)
-      }
-      resetInputs()
-    }
-
-    function handleFilesChange(e) {
-      stageFromList(filesFromFileList(e?.target?.files))
-    }
-
-    function handleDirChange(e) {
-      stageFromList(filesFromFileList(e?.target?.files))
-    }
-
-    const stagedJob = jobs.find((job) => job.id === currentJobId) || null
-    const busyStatuses = ['uploading', 'checking', 'queued', 'finalizing']
-    const buttonBusy = stagedJob ? busyStatuses.includes(stagedJob.status) : false
-    const buttonDisabled = !stagedJob || buttonBusy
-
-    const uploadIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>'
-    const busyIcon = React.createElement('svg', { viewBox: '0 0 50 50', width: 16, height: 16, style: { animation: 'spin 1s linear infinite' } },
-      React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })
-    )
-
-    const summaryParts = []
-    if (stagedJob) {
-      const count = stagedJob.files?.length || 0
-      if (count) summaryParts.push(`${count} item${count === 1 ? '' : 's'}`)
-      if (stagedJob.totalBytes) summaryParts.push(formatBytes(stagedJob.totalBytes))
-    }
-    const activeUploads = jobs.some((job) => busyStatuses.includes(job.status))
-    const summary = stagedJob
-      ? summaryParts.join(' • ')
-      : activeUploads
-        ? ''
-        : 'No files staged yet.'
-
-    const canRemove = stagedJob && !busyStatuses.includes(stagedJob.status)
-
-    function handleSubmit(e) {
-      e.preventDefault()
-      if (!stagedJob) {
-        setNotice('Select files or folders to stage an upload.')
-        return
-      }
-      if (buttonBusy) return
-      onStart?.(stagedJob.id)
-      setNotice(null)
-    }
-
-    return React.createElement(
-      'form',
-      { onSubmit: handleSubmit },
-      React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' } },
-        React.createElement('label', { className: 'btn', style: { position: 'relative', overflow: 'hidden' } },
-          'Select files',
-          React.createElement('input', { type: 'file', multiple: true, ref: filesRef, style: { position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }, onChange: handleFilesChange }),
-        ),
-        React.createElement('label', { className: 'btn', style: { position: 'relative', overflow: 'hidden' } },
-          'Select folder',
-          React.createElement('input', { type: 'file', ref: dirRef, multiple: true, webkitdirectory: 'webkitdirectory', directory: 'directory', mozdirectory: 'mozdirectory', style: { position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }, onChange: handleDirChange }),
-        ),
-        React.createElement('select', {
-          value: effectiveRoot,
-          onChange: (e) => onRootChange?.(e.target.value),
-          disabled: !rootList.length,
-          style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' },
-        },
-          rootList.map((opt) => React.createElement('option', { key: opt.key, value: opt.key }, opt.label || opt.key)),
-        ),
-        React.createElement('input', { type: 'text', ref: prefixRef, placeholder: 'Optional prefix folder', style: { flex: 1, minWidth: '160px', padding: '6px 8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', borderRadius: '6px' } }),
-        React.createElement('button', { className: 'btn', type: 'submit', disabled: buttonDisabled, title: stagedJob ? 'Start upload' : 'Select files first', 'aria-label': 'Start upload' },
-          buttonBusy ? busyIcon : React.createElement('span', { dangerouslySetInnerHTML: { __html: uploadIcon } })
-        ),
-        canRemove && React.createElement('button', { className: 'btn', type: 'button', onClick: () => { onRemove?.(stagedJob.id); setCurrentJobId(null); resetInputs() } }, 'Clear staged files'),
-      ),
-      summary ? React.createElement('div', { className: 'muted', style: { fontSize: 12 } }, summary) : null,
-      notice && React.createElement('div', { style: { color: '#ef4444', fontSize: 12, marginTop: 6 } }, notice),
     )
   }
 

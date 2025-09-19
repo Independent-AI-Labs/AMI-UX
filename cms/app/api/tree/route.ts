@@ -43,10 +43,19 @@ async function statSafe(p: string) {
   try { return await fs.stat(p) } catch { return null }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const requestedRoot = url.searchParams.get('root') || 'docRoot'
+  const rootKey = requestedRoot === 'uploads' ? 'uploads' : 'docRoot'
   const cfg = await loadConfig()
   const ALLOWED = await getAllowed()
-  const rootAbs = path.resolve(process.cwd(), cfg.docRoot)
+  const cwd = process.cwd()
+  const docRootAbs = path.resolve(cwd, cfg.docRoot)
+  let rootAbs = docRootAbs
+  if (rootKey === 'uploads') {
+    rootAbs = path.resolve(cwd, 'files/uploads')
+    await fs.mkdir(rootAbs, { recursive: true }).catch(() => {})
+  }
   const st = await statSafe(rootAbs)
   if (!st || !st.isDirectory()) {
     return NextResponse.json({ error: 'DOC_ROOT not found', docRoot: cfg.docRoot }, { status: 500 })
@@ -80,6 +89,7 @@ export async function GET() {
       tree.unshift(intro)
     }
   } catch {}
-  const payload: Node = { name: path.basename(rootAbs), path: '', type: 'dir', children: tree }
-  return NextResponse.json({ ...payload, docRoot: cfg.docRoot })
+  const payload: Node = { name: path.basename(rootAbs) || path.basename(docRootAbs), path: '', type: 'dir', children: tree }
+  const docRootSetting = rootKey === 'uploads' ? path.relative(cwd, rootAbs) || 'files/uploads' : cfg.docRoot
+  return NextResponse.json({ ...payload, docRoot: docRootSetting, rootKey, rootAbsolute: rootAbs })
 }

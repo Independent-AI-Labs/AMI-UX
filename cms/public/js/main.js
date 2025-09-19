@@ -11,6 +11,11 @@ const state = {
   sse: null,
   refreshTimer: null,
   treeContainer: null,
+  rootKey: 'docRoot',
+  rootLabelOverride: null,
+  pendingFocus: '',
+  docRootAbsolute: '',
+  eventsAttached: false,
 }
 
 // Theme
@@ -69,7 +74,7 @@ function debounceRefreshTree() {
   if (state.refreshTimer) clearTimeout(state.refreshTimer)
   state.refreshTimer = setTimeout(async () => {
     try {
-      const newTree = await fetchTree()
+      const newTree = await fetchTree(state.rootKey || 'docRoot')
       state.tree = newTree
       const root = ensureTreeContainer()
       if (!root) return
@@ -87,28 +92,83 @@ function debounceRefreshTree() {
   }, 200)
 }
 
+function escapePathSelector(value) {
+  try {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(value)
+    }
+  } catch {}
+  return value.replace(/"/g, '\\"')
+}
+
+function focusTreePath(relativePath) {
+  if (!relativePath) return
+  const parts = String(relativePath).split('/').map((part) => part.trim()).filter(Boolean)
+  if (!parts.length) return
+  let agg = ''
+  let lastDetails = null
+  for (const segment of parts) {
+    agg = agg ? `${agg}/${segment}` : segment
+    const selector = `details[data-path="${escapePathSelector(agg)}"]`
+    const node = document.querySelector(selector)
+    if (!node) break
+    if (!node.open) {
+      try { node.open = true } catch {}
+      try { node.dispatchEvent(new Event('toggle')) } catch {}
+    }
+    lastDetails = node
+  }
+  if (lastDetails) {
+    try { lastDetails.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch {}
+    lastDetails.classList.add('tree-focus-highlight')
+    setTimeout(() => { try { lastDetails.classList.remove('tree-focus-highlight') } catch {} }, 1400)
+  }
+}
+
+async function persistDocRoot(pathStr, options = {}) {
+  await setDocRoot(pathStr, options)
+  state.rootKey = 'docRoot'
+  state.rootLabelOverride = null
+}
+
 export async function startCms(fromSelect = false) {
   restoreState(state)
-  attachEvents(state, setDocRoot, startCms, () => applyTheme(state))
-  let cfg
+  if (!state.eventsAttached) {
+    attachEvents(state, (path) => persistDocRoot(path), startCms, () => applyTheme(state))
+    state.eventsAttached = true
+  }
+  let cfg = null
   try {
     cfg = await fetchConfig()
   } catch {}
-  const docRootLabel = document.getElementById('docRootLabel')
-  if (cfg && cfg.docRoot) {
-    docRootLabel.textContent = '(' + (cfg.docRootLabel || cfg.docRoot) + ')'
-  } else {
-    docRootLabel.textContent = ''
+  if (cfg) {
+    state.docRootAbsolute = cfg.docRootAbsolute || cfg.docRoot || ''
+    try {
+      window.parent?.postMessage?.({ type: 'docConfig', docRoot: cfg.docRoot, docRootLabel: cfg.docRootLabel, docRootAbsolute: state.docRootAbsolute }, '*')
+    } catch {}
   }
-  const tree = await fetchTree()
+  const rootLabelEl = document.getElementById('docRootLabel')
+  const activeRootKey = state.rootKey || 'docRoot'
+  if (rootLabelEl) {
+    if (activeRootKey === 'docRoot') {
+      const label = cfg ? (cfg.docRootLabel || cfg.docRootAbsolute || cfg.docRoot || '') : ''
+      rootLabelEl.textContent = label ? '(' + label + ')' : ''
+    } else {
+      const fallbackLabel = state.rootLabelOverride || (activeRootKey === 'uploads' ? 'Uploads' : '')
+      rootLabelEl.textContent = fallbackLabel ? '(' + fallbackLabel + ')' : ''
+    }
+  }
+  const tree = await fetchTree(activeRootKey)
   state.tree = tree
   const root = ensureTreeContainer()
   if (!root) return
   root.innerHTML = ''
   const title = document.getElementById('appTitle')
-  title.textContent = humanizeName(tree?.name || 'Docs', 'dir')
+  if (title) {
+    const treeName = tree?.name || (activeRootKey === 'uploads' ? 'Uploads' : 'Docs')
+    title.textContent = humanizeName(treeName, 'dir')
+  }
   const frag = document.createDocumentFragment()
-  // Ensure root-level Introduction/README is rendered first
   const children = (tree.children || []).slice()
   const findIntroIdx = () => children.findIndex((c) => c.type === 'file' && ['readme.md','introduction.md','intro.md'].includes(String(c.name||'').toLowerCase()))
   const introIdx = findIntroIdx()
@@ -118,7 +178,6 @@ export async function startCms(fromSelect = false) {
   root.appendChild(frag)
   updateTOC(state)
   restoreHashTarget()
-  // Auto-expand and preload root-level Introduction/README
   try {
     const introIdx2 = findIntroIdx()
     const intro = introIdx2 >= 0 ? children[introIdx2] : null
@@ -133,13 +192,25 @@ export async function startCms(fromSelect = false) {
       }
     }
   } catch {}
+  if (state.pendingFocus) {
+    const pending = state.pendingFocus
+    state.pendingFocus = ''
+    requestAnimationFrame(() => focusTreePath(pending))
+  }
   connectSSE(state, {
     onConfig: () => {
       debounceRefreshTree()
       fetchConfig()
         .then((c) => {
-          const l = document.getElementById('docRootLabel')
-          l.textContent = '(' + (c.docRootLabel || c.docRoot || '') + ')'
+          state.docRootAbsolute = c.docRootAbsolute || c.docRoot || ''
+          try {
+            window.parent?.postMessage?.({ type: 'docConfig', docRoot: c.docRoot, docRootLabel: c.docRootLabel, docRootAbsolute: state.docRootAbsolute }, '*')
+          } catch {}
+          if (state.rootKey === 'docRoot') {
+            const label = c.docRootLabel || c.docRootAbsolute || c.docRoot || ''
+            const labelEl = document.getElementById('docRootLabel')
+            if (labelEl) labelEl.textContent = label ? '(' + label + ')' : ''
+          }
         })
         .catch(() => {})
     },
@@ -150,7 +221,6 @@ export async function startCms(fromSelect = false) {
       if (openFile && openFile.hasAttribute('open')) {
         const body = openFile.querySelector('.body')
         const node = { name: rel.split('/').pop() || rel, path: rel, type: 'file' }
-        // Lazy import to avoid circulars
         import('./ui.js').then(({ loadFileNode }) => loadFileNode(state, openFile, node, body))
       }
       updateTOC(state)
@@ -167,8 +237,37 @@ window.addEventListener('message', async (ev) => {
   const msg = ev && ev.data
   if (!msg || typeof msg !== 'object') return
   try {
-    if (msg.type === 'setDocRoot' && msg.path) {
-      await setDocRoot(msg.path)
+    if (msg.type === 'setDocRoot') {
+      const rootKey = msg.rootKey === 'uploads' ? 'uploads' : 'docRoot'
+      const focus = typeof msg.focus === 'string' ? msg.focus : ''
+      if (rootKey === 'docRoot') {
+        if (typeof msg.path === 'string' && msg.path) {
+          const options = {}
+          if (Object.prototype.hasOwnProperty.call(msg, 'label')) {
+            const incoming = msg.label
+            if (incoming === null) options.label = null
+            else if (typeof incoming === 'string' && incoming.trim()) options.label = incoming.trim()
+          }
+          state.pendingFocus = focus
+          await persistDocRoot(msg.path, options)
+          state.docRootAbsolute = msg.path || state.docRootAbsolute
+          await startCms(true)
+        }
+        return
+      }
+      state.rootKey = rootKey
+      if (Object.prototype.hasOwnProperty.call(msg, 'label')) {
+        if (msg.label === null) {
+          state.rootLabelOverride = null
+        } else if (typeof msg.label === 'string' && msg.label.trim()) {
+          state.rootLabelOverride = msg.label.trim()
+        } else {
+          state.rootLabelOverride = rootKey === 'uploads' ? 'Uploads' : null
+        }
+      } else {
+        state.rootLabelOverride = rootKey === 'uploads' ? 'Uploads' : state.rootLabelOverride
+      }
+      state.pendingFocus = focus
       await startCms(true)
       return
     }

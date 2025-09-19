@@ -2,20 +2,33 @@ import { NextResponse } from 'next/server'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { getConfig, saveConfig, type CmsConfig } from '../../lib/store'
+import { repoRoot, DEFAULT_DOC_ROOT, defaultDocRootLabel, deriveDocRootLabel } from '../../lib/doc-root'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 function defaultDocRoot(): string {
-  return process.env.DOC_ROOT || '../../../AMI-REACH/social'
+  return process.env.DOC_ROOT || DEFAULT_DOC_ROOT
+}
+
+function normalizeDocRootForStorage(absPath: string): string {
+  const relative = path.relative(repoRoot, absPath)
+  const cleaned = relative ? relative.replace(/\\/g, '/') : '.'
+  return cleaned
 }
 
 export async function GET() {
   const cfg = await getConfig()
   // Ensure stable defaults
+  const rawDocRoot = cfg.docRoot || defaultDocRoot()
+  const docRootAbsolute = path.resolve(repoRoot, rawDocRoot)
+  const labelExplicit = (typeof cfg.docRootLabel === 'string' && cfg.docRootLabel.trim())
+    ? cfg.docRootLabel.trim()
+    : (path.resolve(repoRoot, rawDocRoot) === path.resolve(repoRoot, defaultDocRoot()) ? defaultDocRootLabel() : '')
+  const docRootLabel = deriveDocRootLabel(docRootAbsolute, labelExplicit)
   const filled: CmsConfig = {
-    docRoot: cfg.docRoot || defaultDocRoot(),
-    docRootLabel: cfg.docRootLabel || null,
+    docRoot: rawDocRoot,
+    docRootLabel,
     selected: cfg.selected ?? null,
     openTabs: cfg.openTabs ?? [],
     activeTabId: cfg.activeTabId ?? null,
@@ -23,23 +36,32 @@ export async function GET() {
     recents: cfg.recents ?? [],
     allowed: cfg.allowed,
   }
-  return NextResponse.json(filled)
+  return NextResponse.json({ ...filled, docRootAbsolute })
 }
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({} as Partial<CmsConfig>))
   const current = await getConfig()
   const next: CmsConfig = { ...current }
+  let docRootChanged = false
+  let targetAbsolute: string | null = null
 
   // Backward-compatible docRoot update (existing UI)
   if (typeof (body as any).docRoot === 'string') {
     const candidate = String((body as any).docRoot)
     // Validate exists and is a directory
     try {
-      const abs = path.resolve(process.cwd(), candidate)
+      const abs = path.resolve(repoRoot, candidate)
       const st = await fs.stat(abs)
       if (!st.isDirectory()) throw new Error('Not a directory')
-      next.docRoot = candidate
+      const stored = normalizeDocRootForStorage(abs)
+      const prev = current.docRoot ? path.resolve(repoRoot, current.docRoot) : path.resolve(repoRoot, defaultDocRoot())
+      docRootChanged = path.resolve(abs) !== path.resolve(prev)
+      next.docRoot = stored
+      targetAbsolute = abs
+      if (docRootChanged && !('docRootLabel' in body)) {
+        next.docRootLabel = deriveDocRootLabel(abs)
+      }
     } catch (e: any) {
       return NextResponse.json({ error: `Invalid directory: ${e?.message || 'stat failed'}` }, { status: 400 })
     }
@@ -51,6 +73,8 @@ export async function POST(req: Request) {
     else delete next.docRootLabel
   } else if ((body as any).docRootLabel === null) {
     delete next.docRootLabel
+  } else if (docRootChanged && targetAbsolute) {
+    next.docRootLabel = deriveDocRootLabel(targetAbsolute)
   }
 
   if (body.selected !== undefined) next.selected = body.selected as any
@@ -71,7 +95,12 @@ export async function POST(req: Request) {
   }
 
   await saveConfig(next)
-  return NextResponse.json({ ok: true })
+  const storedDocRoot = next.docRoot || defaultDocRoot()
+  const absolute = path.resolve(repoRoot, storedDocRoot)
+  const label = typeof next.docRootLabel === 'string' && next.docRootLabel
+    ? next.docRootLabel
+    : deriveDocRootLabel(absolute)
+  return NextResponse.json({ ok: true, docRoot: next.docRoot, docRootLabel: label, docRootAbsolute: absolute })
 }
 
 export async function PATCH(req: Request) {

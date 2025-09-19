@@ -81,9 +81,19 @@ function updateWelcomeVisibility() {
   }
 }
 
-async function loadConfig() {
-  try { const r = await fetch('/api/config'); if (r.ok) return r.json() } catch {}
-  return null
+let cachedConfig = null
+let lastDocMessage = null
+
+async function loadConfig(force = false) {
+  if (!force && cachedConfig) return cachedConfig
+  try {
+    const r = await fetch('/api/config')
+    if (r.ok) {
+      cachedConfig = await r.json()
+      return cachedConfig
+    }
+  } catch {}
+  return cachedConfig
 }
 
 const tabsState = { tabs: [], active: null }
@@ -124,6 +134,59 @@ function postToDoc(msg) {
       })
     }, d)
   }
+}
+
+function relativeNormalized(baseNormalized, targetNormalized) {
+  const base = baseNormalized.replace(/\/+$/g, '')
+  const target = targetNormalized
+  if (!base) return ''
+  if (target === base) return ''
+  const prefix = base + '/'
+  if (target.startsWith(prefix)) return target.slice(prefix.length)
+  return ''
+}
+
+function uploadsBaseFromPath(originalPath) {
+  const normalized = normalizeFsPath(originalPath)
+  const marker = '/files/uploads'
+  const idx = normalized.indexOf(marker)
+  if (idx === -1) return { baseOriginal: '', baseNormalized: '' }
+  const baseEnd = idx + marker.length
+  const baseOriginal = originalPath.slice(0, baseEnd)
+  const baseNormalized = normalized.slice(0, baseEnd)
+  return { baseOriginal, baseNormalized }
+}
+
+function buildDocMessageForDir(tab, cfg) {
+  if (!tab) return null
+  const originalPath = tab.path || ''
+  const normalizedPath = normalizeFsPath(originalPath)
+  if (!normalizedPath) return null
+
+  const { baseOriginal: uploadsOriginal, baseNormalized: uploadsNormalized } = uploadsBaseFromPath(originalPath)
+  if (uploadsOriginal && uploadsNormalized) {
+    const focus = relativeNormalized(uploadsNormalized, normalizedPath)
+    const msg = { type: 'setDocRoot', rootKey: 'uploads', path: uploadsOriginal, label: 'Uploads' }
+    if (focus) msg.focus = focus
+    return msg
+  }
+
+  const docRootOriginal = cfg?.docRootAbsolute || cfg?.docRoot || ''
+  const docRootNormalized = normalizeFsPath(docRootOriginal).replace(/\/+$/, '')
+  if (docRootNormalized && (normalizedPath === docRootNormalized || normalizedPath.startsWith(docRootNormalized + '/'))) {
+    const focus = relativeNormalized(docRootNormalized, normalizedPath)
+    const msg = { type: 'setDocRoot', rootKey: 'docRoot', path: docRootOriginal }
+    if (focus) msg.focus = focus
+    if (cfg && typeof cfg.docRootLabel === 'string' && cfg.docRootLabel.trim()) {
+      msg.label = cfg.docRootLabel.trim()
+    }
+    return msg
+  }
+
+  const fallbackLabel = tab.label || humanizeName(normalizedPath.split('/').pop() || normalizedPath, 'dir')
+  const msg = { type: 'setDocRoot', rootKey: 'docRoot', path: originalPath }
+  if (fallbackLabel) msg.label = fallbackLabel
+  return msg
 }
 
 function iconSvg(kind) {
@@ -199,6 +262,7 @@ async function activateTab(id) {
   tabsState.active = id
   renderTabs()
   // apply iframe source
+  const cfg = await loadConfig()
   const iframe = document.getElementById('vizFrame')
   let usedServed = false
   if (tab.servedId) {
@@ -217,16 +281,18 @@ async function activateTab(id) {
   if (!usedServed) {
     if (tab.servedId) { tab.servedId = null; renderTabs() }
     if (tab.kind === 'dir') {
+      const docMessage = buildDocMessageForDir(tab, cfg)
+      lastDocMessage = docMessage
       iframe.src = '/doc.html?embed=1'
       try {
         iframe.addEventListener('load', () => {
-          postToDoc({ type: 'setDocRoot', path: tab.path })
+          if (docMessage) postToDoc(docMessage)
           const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
           postToDoc({ type: 'applyTheme', theme: curTheme })
         }, { once: true })
       } catch {}
       setTimeout(() => {
-        postToDoc({ type: 'setDocRoot', path: tab.path })
+        if (docMessage) postToDoc(docMessage)
         const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
         postToDoc({ type: 'applyTheme', theme: curTheme })
       }, 60)
@@ -234,20 +300,23 @@ async function activateTab(id) {
       const mode = tab.mode || 'A'
       let rel = tab.path || ''
       let root = 'docRoot'
-      const idx = rel.indexOf('files/uploads/')
-      if (idx !== -1) {
-        rel = rel.slice(idx + 'files/uploads/'.length)
+      const normalizedPath = normalizeFsPath(rel)
+      const uploadsMarker = '/files/uploads/'
+      const uploadsIdx = normalizedPath.indexOf(uploadsMarker)
+      if (uploadsIdx !== -1) {
+        rel = normalizedPath.slice(uploadsIdx + uploadsMarker.length)
         root = 'uploads'
-      } else if (rel.startsWith('/')) {
-        try {
-          const cfg = await loadConfig()
-          const docRoot = cfg?.docRoot || ''
-          if (docRoot && rel.startsWith(docRoot)) {
-            const cut = docRoot.endsWith('/') ? docRoot.length : (docRoot + '/').length
-            rel = rel.slice(cut)
-            root = 'docRoot'
+      } else if (cfg) {
+        const docRootNormalized = normalizeFsPath((cfg.docRootAbsolute || cfg.docRoot || '')).replace(/\/+$/, '')
+        if (docRootNormalized) {
+          if (normalizedPath === docRootNormalized) {
+            rel = ''
+          } else if (normalizedPath.startsWith(docRootNormalized + '/')) {
+            rel = normalizedPath.slice(docRootNormalized.length + 1)
+          } else {
+            rel = normalizedPath
           }
-        } catch {}
+        }
       }
       const qp = new URLSearchParams({ path: rel, mode, root })
       iframe.src = `/api/media?${qp.toString()}`
@@ -413,10 +482,25 @@ async function boot() {
       if (msg.type === 'docReady') {
         const active = tabsState.tabs.find((t) => t.id === tabsState.active)
         const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
-        if (active && active.kind === 'dir') {
-          postToDoc({ type: 'setDocRoot', path: active.path })
-        }
-        postToDoc({ type: 'applyTheme', theme: curTheme })
+        ;(async () => {
+          if (active && active.kind === 'dir') {
+            const cfgNow = await loadConfig()
+            const docMessage = buildDocMessageForDir(active, cfgNow)
+            lastDocMessage = docMessage
+            if (docMessage) postToDoc(docMessage)
+          } else if (lastDocMessage) {
+            postToDoc(lastDocMessage)
+          }
+          postToDoc({ type: 'applyTheme', theme: curTheme })
+        })()
+        return
+      }
+      if (msg.type === 'docConfig') {
+        if (!cachedConfig) cachedConfig = {}
+        if (typeof msg.docRoot === 'string') cachedConfig.docRoot = msg.docRoot
+        if (typeof msg.docRootLabel === 'string' || msg.docRootLabel === null) cachedConfig.docRootLabel = msg.docRootLabel
+        if (typeof msg.docRootAbsolute === 'string') cachedConfig.docRootAbsolute = msg.docRootAbsolute
+        return
       }
     } catch {}
   })

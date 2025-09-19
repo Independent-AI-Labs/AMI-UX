@@ -6,12 +6,17 @@ export async function fetchConfig() {
   return res.json()
 }
 
-export async function setDocRoot(pathStr) {
+export async function setDocRoot(pathStr, options = {}) {
   // Robust retry: Next.js dev can transiently respond with a placeholder
   // HTML ("missing required error components, refreshing...") during an
   // initial compile/hot-reload window. Retry a few times before surfacing.
   const maxAttempts = 5
   const baseBody = { docRoot: pathStr }
+  if (Object.prototype.hasOwnProperty.call(options, 'label')) {
+    const label = options.label
+    if (label === null) baseBody.docRootLabel = null
+    else if (typeof label === 'string' && label.trim()) baseBody.docRootLabel = label.trim()
+  }
   let lastText = ''
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const res = await fetch('/api/config', {
@@ -31,8 +36,12 @@ export async function setDocRoot(pathStr) {
   throw new Error('Failed to set doc root: ' + lastText)
 }
 
-export async function fetchTree() {
-  const res = await fetch('/api/tree')
+export async function fetchTree(rootKey = 'docRoot') {
+  const params = new URLSearchParams()
+  if (rootKey && rootKey !== 'docRoot') params.set('root', rootKey)
+  const query = params.toString()
+  const url = query ? `/api/tree?${query}` : '/api/tree'
+  const res = await fetch(url)
   if (!res.ok) throw new Error('Failed to fetch tree')
   return res.json()
 }
