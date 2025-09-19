@@ -1404,10 +1404,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             React.createElement('strong', null, 'Content Directory'),
             React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
             React.createElement('button', { className: 'btn', onClick: triggerFilePicker, title: 'Select files to upload', 'aria-label': 'Select files' },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"></path><path d="M9 4v16"></path><path d="M15 10l2 2-2 2"></path></svg>' } })
+              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" opacity="0.15"></path><path d="M4 4h16v16H4z"></path><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>' } })
             ),
             React.createElement('button', { className: 'btn', onClick: triggerDirectoryPicker, title: 'Select folder to upload', 'aria-label': 'Select folder' },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h11v11a2 2 0 0 1-2 2H3z"></path><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h10a2 2 0 0 1 2 2v2"></path></svg>' } })
+              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h11v11a2 2 0 0 1-2 2H3z"></path><path d="M3 7V5a2 2 0 0 1 2-2h5l2 2h11"></path><path d="M10 14h8"></path><path d="M10 18h4"></path></svg>' } })
             ),
             React.createElement('button', { className: 'btn', onClick: onClose, title: 'Close', 'aria-label': 'Close' },
               React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' } })
@@ -1479,25 +1479,29 @@ export async function openSelectMediaModal({ onSelect } = {}) {
                   color: 'var(--muted)',
                 },
               },
-                React.createElement('div', null, `No results for "${trimmedFilter}".`),
+                React.createElement('div', { style: { fontSize: 16, fontWeight: 600 } }, `No results for "${trimmedFilter}".`),
                 React.createElement('div', {
                   style: {
-                    marginTop: 12,
+                    marginTop: 16,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
                     justifyContent: 'center',
-                    fontSize: 13,
                   },
                 },
                   React.createElement('span', {
-                    style: { display: 'inline-flex', width: 20, height: 20, color: 'var(--accent)' },
+                    style: { display: 'inline-flex', width: 58, height: 58, color: 'var(--accent)' },
                     dangerouslySetInnerHTML: {
-                      __html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><polyline points="8 11 12 15 16 11"></polyline><rect x="5" y="18" width="14" height="2" rx="1"></rect><animateTransform attributeName="transform" type="translate" values="0 0; 0 2; 0 0" dur="1.4s" repeatCount="indefinite"/></svg>'
+                      __html: '<svg viewBox="0 0 64 64" width="58" height="58" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 12v30"></path><polyline points="22 34 32 44 42 34"></polyline><rect x="16" y="48" width="32" height="6" rx="3"></rect><animateTransform attributeName="transform" type="translate" values="0 0; 0 4; 0 0" dur="1.2s" repeatCount="indefinite"/></svg>'
                     }
-                  }),
-                  React.createElement('span', null, 'Drag files & folders here to add content.'),
-                ))
+                  })
+                ),
+                React.createElement('div', {
+                  style: {
+                    marginTop: 14,
+                    fontSize: 15,
+                  },
+                }, 'Drag files & folders here to add content.'),
+              )
               : null),
         ),
         toast && React.createElement('div', { style: { padding: '8px 10px', borderTop: '1px solid var(--border)', background: toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: 'var(--text)' } }, toast.text),
