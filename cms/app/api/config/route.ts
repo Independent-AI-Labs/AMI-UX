@@ -15,6 +15,7 @@ export async function GET() {
   // Ensure stable defaults
   const filled: CmsConfig = {
     docRoot: cfg.docRoot || defaultDocRoot(),
+    docRootLabel: cfg.docRootLabel || null,
     selected: cfg.selected ?? null,
     openTabs: cfg.openTabs ?? [],
     activeTabId: cfg.activeTabId ?? null,
@@ -42,6 +43,14 @@ export async function POST(req: Request) {
     } catch (e: any) {
       return NextResponse.json({ error: `Invalid directory: ${e?.message || 'stat failed'}` }, { status: 400 })
     }
+  }
+
+  if (typeof (body as any).docRootLabel === 'string') {
+    const label = (body as any).docRootLabel.trim()
+    if (label) next.docRootLabel = label
+    else delete next.docRootLabel
+  } else if ((body as any).docRootLabel === null) {
+    delete next.docRootLabel
   }
 
   if (body.selected !== undefined) next.selected = body.selected as any

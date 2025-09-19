@@ -35,3 +35,26 @@ export function displayName(node) {
   if (node.type === 'file' && lname === 'readme.md') return 'Introduction'
   return humanizeName(node.name, node.type)
 }
+
+export function normalizeFsPath(value) {
+  if (typeof value !== 'string') return ''
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const swapped = trimmed.replace(/\\/g, '/')
+  let result = ''
+  let lastWasSlash = false
+  for (let i = 0; i < swapped.length; i += 1) {
+    const ch = swapped[i]
+    if (ch === '/') {
+      if (lastWasSlash) continue
+      lastWasSlash = true
+    } else {
+      lastWasSlash = false
+    }
+    result += ch
+  }
+  while (result.length > 1 && result.endsWith('/')) {
+    result = result.slice(0, -1)
+  }
+  return result
+}

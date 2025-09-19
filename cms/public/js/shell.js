@@ -1,6 +1,6 @@
 import { registerVisualizer, detectVisualizer, VisualizerA, VisualizerB, VisualizerD } from './visualizers.js'
 import { openSelectMediaModal } from './modal.js'
-import { humanizeName } from './utils.js'
+import { humanizeName, normalizeFsPath } from './utils.js'
 
 // Visualizer C: iframe to doc.html embed
 const VisualizerC = {
@@ -326,12 +326,30 @@ async function handleEntrySelection(entry) {
     return
   }
   if (entry && entry.path) {
-    try { await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: entry.path }) }) } catch {}
+    let createdId = entry.id && entry.id.length ? entry.id : null
+    try {
+      const payload = { path: entry.path }
+      if (entry.kind) payload.kind = entry.kind
+      if (entry.label) payload.label = entry.label
+      const res = await fetch('/api/library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        const posted = await res.json().catch(() => null)
+        if (posted?.id) createdId = posted.id
+      }
+    } catch {}
     try {
       const r = await fetch('/api/library')
       if (r.ok) {
         const j = await r.json()
-        const found = (j.entries || []).find((e) => e.path === entry.path)
+        const targetPath = normalizeFsPath(entry.path)
+        const found = (j.entries || []).find((e) => {
+          if (createdId && e.id === createdId) return true
+          return normalizeFsPath(e.path) === targetPath
+        })
         if (found) await openEntry(found)
       }
     } catch {}
