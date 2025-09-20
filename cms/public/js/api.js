@@ -46,8 +46,10 @@ export async function fetchTree(rootKey = 'docRoot') {
   return res.json()
 }
 
-export async function fetchFile(relPath) {
-  const res = await fetch('/api/file?path=' + encodeURIComponent(relPath))
+export async function fetchFile(relPath, rootKey = 'docRoot') {
+  const params = new URLSearchParams({ path: relPath })
+  if (rootKey && rootKey !== 'docRoot') params.set('root', rootKey)
+  const res = await fetch('/api/file?' + params.toString())
   if (!res.ok) throw new Error('Failed to fetch file ' + relPath)
   return res.text()
 }

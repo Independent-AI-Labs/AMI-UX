@@ -19,7 +19,7 @@ async function ensureReact() {
 // Overhauled: openSelectMediaModal now opens a Library drawer
 export async function openSelectMediaModal({ onSelect } = {}) {
   const { React, ReactDOM } = await ensureReact()
-  const { useEffect, useRef, useState, useMemo } = React
+  const { useEffect, useRef, useState, useMemo, useCallback } = React
   // Icons
   const Icon = ({ name }) => {
     const paths = {
@@ -507,6 +507,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
   function Drawer({ onClose }) {
     const [entries, setEntries] = useState([])
+    const [loadingEntries, setLoadingEntries] = useState(true)
     const [filter, setFilter] = useState('')
     const [menu, setMenu] = useState(null)
     const [servingMap, setServingMap] = useState(new Map())
@@ -524,6 +525,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const fileSelectRef = useRef(null)
     const dirSelectRef = useRef(null)
     const prevNoResultsRef = useRef(false)
+    const closeTimerRef = useRef(null)
+    const [isVisible, setIsVisible] = useState(false)
     const rootOptionMap = useMemo(() => {
       const map = new Map()
       if (Array.isArray(rootOptions)) {
@@ -532,7 +535,43 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       return map
     }, [rootOptions])
     const activeRoot = rootOptionMap.get(uploadRoot) || null
-    useEffect(() => { let alive = true; (async () => { await fetchEntries(() => alive) })(); return () => { alive = false } }, [])
+    useEffect(() => {
+      const raf = requestAnimationFrame(() => setIsVisible(true))
+      return () => cancelAnimationFrame(raf)
+    }, [])
+    useEffect(() => () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current)
+        closeTimerRef.current = null
+      }
+    }, [])
+    const requestClose = useCallback(() => {
+      if (closeTimerRef.current) return
+      setIsVisible(false)
+      closeTimerRef.current = setTimeout(() => {
+        closeTimerRef.current = null
+        try { onClose?.() } catch {}
+      }, 220)
+    }, [onClose])
+    useEffect(() => {
+      const handler = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          requestClose()
+        }
+      }
+      window.addEventListener('keydown', handler)
+      return () => window.removeEventListener('keydown', handler)
+    }, [requestClose])
+    useEffect(() => {
+      let alive = true
+      ;(async () => {
+        setLoadingEntries(true)
+        await fetchEntries(() => alive)
+        if (alive) setLoadingEntries(false)
+      })()
+      return () => { alive = false }
+    }, [])
     useEffect(() => { uploadJobsRef.current = uploadJobs }, [uploadJobs])
     useEffect(() => {
       let alive = true
@@ -651,7 +690,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           } catch {}
         }
       }
-      const refreshed = await fetchEntries()
+      let refreshed = []
+      try {
+        setLoadingEntries(true)
+        refreshed = await fetchEntries()
+      } finally {
+        setLoadingEntries(false)
+      }
       setFilter('')
       if (createdEntryId) {
         setSelectedId(createdEntryId)
@@ -1324,7 +1369,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
     async function openEntry(e) {
       onSelect?.(e)
-      onClose()
+      requestClose()
     }
 
     function ctx(e, entry) {
@@ -1408,8 +1453,38 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
     return React.createElement(React.Fragment, null,
       React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
-        React.createElement('div', { onClick: onClose, style: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', pointerEvents: 'auto' } }),
-        React.createElement('div', { style: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '560px', maxWidth: '95vw', background: 'var(--panel)', color: 'var(--text)', borderLeft: '1px solid var(--border)', boxShadow: '0 0 30px rgba(0,0,0,0.4)', pointerEvents: 'auto', display: 'flex', flexDirection: 'column' } },
+        React.createElement('div', {
+          onClick: requestClose,
+          style: {
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            pointerEvents: 'auto',
+            opacity: isVisible ? 1 : 0,
+            transition: 'opacity 220ms ease',
+          },
+        }),
+        React.createElement('div', {
+          style: {
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: '560px',
+            maxWidth: '95vw',
+            background: 'var(--panel)',
+            color: 'var(--text)',
+            borderLeft: '1px solid var(--border)',
+            boxShadow: '0 0 30px rgba(0,0,0,0.4)',
+            pointerEvents: (!closeTimerRef.current && isVisible) ? 'auto' : 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            transform: isVisible ? 'translateX(0)' : 'translateX(36px)',
+            opacity: isVisible ? 1 : 0,
+            transition: 'transform 220ms ease, opacity 220ms ease',
+            willChange: 'transform, opacity',
+          },
+        },
           React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '10px', borderBottom: '1px solid var(--border)' } },
             React.createElement('strong', null, 'Content Directory'),
             React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
@@ -1419,7 +1494,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             React.createElement('button', { className: 'btn', onClick: triggerDirectoryPicker, title: 'Select folder to upload', 'aria-label': 'Select folder' },
               React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h9a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h5l2 2"></path><path d="M12 12v5"></path><path d="M9.5 14.5 12 17l2.5-2.5"></path></svg>' } })
             ),
-            React.createElement('button', { className: 'btn', onClick: onClose, title: 'Close', 'aria-label': 'Close' },
+            React.createElement('button', { className: 'btn', onClick: requestClose, title: 'Close', 'aria-label': 'Close' },
               React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' } })
             ),
             React.createElement('input', { type: 'file', ref: fileSelectRef, multiple: true, onChange: handleFileInputChange, style: { display: 'none' } }),
@@ -1468,7 +1543,15 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             onUploadResume: () => resumeUploadJob(job.id),
             onUploadClear: () => removeUploadJob(job.id),
           })),
-          filtered.length
+          (loadingEntries && !uploadJobs.length)
+            ? React.createElement('div', {
+              className: 'loading-indicator loading-indicator--compact drawer-loading',
+              style: { justifyContent: 'center' },
+            },
+              React.createElement('span', { className: 'loading-indicator__spinner', 'aria-hidden': 'true' }),
+              React.createElement('span', null, 'Loading content…'),
+            )
+            : filtered.length
             ? filtered.map((e) => React.createElement(Row, {
               key: e.id,
               entry: e,
@@ -1652,6 +1735,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
   // Mount modal
   const overlay = document.createElement('div')
+  overlay.style.position = 'fixed'
+  overlay.style.inset = '0'
+  overlay.style.zIndex = '1000'
   document.body.appendChild(overlay)
   const root = ReactDOM.createRoot(overlay)
   const onClose = () => { try { root.unmount(); overlay.remove() } catch {} }
