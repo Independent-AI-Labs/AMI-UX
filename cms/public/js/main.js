@@ -15,6 +15,8 @@ const state = {
   rootLabelOverride: null,
   pendingFocus: '',
   docRootAbsolute: '',
+  cacheContext: 'docRoot',
+  isLoading: false,
   eventsAttached: false,
 }
 
@@ -23,6 +25,19 @@ applyTheme(state)
 
 // Markdown config
 marked.setOptions({ gfm: true, breaks: false, headerIds: false, mangle: false })
+
+function createTreeStatusNode(text, variant = 'loading') {
+  const wrap = document.createElement('div')
+  wrap.className = 'loading-indicator tree-loading' + (variant === 'error' ? ' loading-indicator--error' : '')
+  const spinner = document.createElement('span')
+  spinner.className = 'loading-indicator__spinner'
+  spinner.setAttribute('aria-hidden', 'true')
+  wrap.appendChild(spinner)
+  const label = document.createElement('span')
+  label.textContent = text
+  wrap.appendChild(label)
+  return wrap
+}
 
 function ensureTreeContainer() {
   if (state.treeContainer && document.body.contains(state.treeContainer)) return state.treeContainer
@@ -73,12 +88,18 @@ function ensureTreeContainer() {
 function debounceRefreshTree() {
   if (state.refreshTimer) clearTimeout(state.refreshTimer)
   state.refreshTimer = setTimeout(async () => {
+    const root = ensureTreeContainer()
+    let scrollY = window.scrollY
+    if (root) {
+      scrollY = window.scrollY
+      root.innerHTML = ''
+      root.appendChild(createTreeStatusNode('Refreshing…'))
+    }
+    state.isLoading = true
     try {
       const newTree = await fetchTree(state.rootKey || 'docRoot')
       state.tree = newTree
-      const root = ensureTreeContainer()
       if (!root) return
-      const scrollY = window.scrollY
       root.innerHTML = ''
       const frag = document.createDocumentFragment()
       let idx = 1
@@ -87,7 +108,13 @@ function debounceRefreshTree() {
       updateTOC(state)
       window.scrollTo(0, scrollY)
     } catch (e) {
+      if (root) {
+        root.innerHTML = ''
+        root.appendChild(createTreeStatusNode('Failed to refresh content', 'error'))
+      }
       console.warn('Failed to refresh tree', e)
+    } finally {
+      state.isLoading = false
     }
   }, 200)
 }
@@ -147,8 +174,14 @@ export async function startCms(fromSelect = false) {
       window.parent?.postMessage?.({ type: 'docConfig', docRoot: cfg.docRoot, docRootLabel: cfg.docRootLabel, docRootAbsolute: state.docRootAbsolute }, '*')
     } catch {}
   }
-  const rootLabelEl = document.getElementById('docRootLabel')
   const activeRootKey = state.rootKey || 'docRoot'
+  const contextTag = activeRootKey === 'uploads' ? 'uploads' : (state.docRootAbsolute || 'docRoot')
+  const combinedContext = `${activeRootKey}::${contextTag}`
+  if (state.cacheContext !== combinedContext) {
+    state.cache.clear()
+    state.cacheContext = combinedContext
+  }
+  const rootLabelEl = document.getElementById('docRootLabel')
   if (rootLabelEl) {
     if (activeRootKey === 'docRoot') {
       const label = cfg ? (cfg.docRootLabel || cfg.docRootAbsolute || cfg.docRoot || '') : ''
@@ -158,10 +191,23 @@ export async function startCms(fromSelect = false) {
       rootLabelEl.textContent = fallbackLabel ? '(' + fallbackLabel + ')' : ''
     }
   }
-  const tree = await fetchTree(activeRootKey)
-  state.tree = tree
   const root = ensureTreeContainer()
   if (!root) return
+  root.innerHTML = ''
+  root.appendChild(createTreeStatusNode('Loading content…'))
+  state.isLoading = true
+  let tree = null
+  try {
+    tree = await fetchTree(activeRootKey)
+  } catch (err) {
+    state.isLoading = false
+    root.innerHTML = ''
+    root.appendChild(createTreeStatusNode('Failed to load content', 'error'))
+    console.warn('Failed to load tree', err)
+    return
+  }
+  state.isLoading = false
+  state.tree = tree
   root.innerHTML = ''
   const title = document.getElementById('appTitle')
   if (title) {

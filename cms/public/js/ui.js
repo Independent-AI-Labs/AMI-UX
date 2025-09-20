@@ -47,10 +47,20 @@ export function applyTheme(state) {
   }
 }
 
+function cacheKey(state, relPath) {
+  const rootKey = state?.rootKey === 'uploads' ? 'uploads' : 'docRoot'
+  const context = rootKey === 'uploads'
+    ? 'uploads'
+    : (state?.docRootAbsolute || 'docRoot')
+  return `${rootKey}@${context}::${relPath}`
+}
+
 export async function loadFileNode(state, details, node, body) {
-  if (state.cache.has(node.path)) return
+  const key = cacheKey(state, node.path)
+  if (state.cache.has(key)) return
   try {
-    const raw = await fetchFile(node.path)
+    const rootKey = state?.rootKey === 'uploads' ? 'uploads' : 'docRoot'
+    const raw = await fetchFile(node.path, rootKey)
     let contentEl
     let headings = []
     const lname = node.name.toLowerCase()
@@ -64,7 +74,7 @@ export async function loadFileNode(state, details, node, body) {
       contentEl = document.createElement('pre')
       contentEl.textContent = raw
     }
-    state.cache.set(node.path, { html: contentEl, headings })
+    state.cache.set(key, { html: contentEl, headings })
     body.innerHTML = ''
     const anchor = document.createElement('a')
     anchor.id = pathAnchor(node.path)
@@ -152,8 +162,9 @@ export function buildNode(state, node, depth = 0, indexPath = []) {
       'toggle',
       async () => {
         if (!details.open) return
-        if (state.cache.has(node.path)) {
-          const cached = state.cache.get(node.path)
+        const key = cacheKey(state, node.path)
+        if (state.cache.has(key)) {
+          const cached = state.cache.get(key)
           try {
             body.innerHTML = ''
             const anchor = document.createElement('a')

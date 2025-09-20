@@ -1,33 +1,11 @@
 import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
-
-type Config = { docRoot: string, allowed?: string }
+import { loadRuntimeConfig } from '../../lib/runtime-config'
+import { getTextFormats, isAllowedTextFormat } from '../../lib/text-formats'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-async function loadConfig(): Promise<Config> {
-  const dataPath = path.resolve(process.cwd(), 'data/config.json')
-  try {
-    const raw = await fs.readFile(dataPath, 'utf8')
-    const cfg = JSON.parse(raw)
-    return {
-      docRoot: cfg.docRoot || process.env.DOC_ROOT || '../../../AMI-REACH/social',
-      allowed: cfg.allowed || process.env.ALLOWED_EXTENSIONS || '.md,.csv,.txt'
-    }
-  } catch {
-    return {
-      docRoot: process.env.DOC_ROOT || '../../../AMI-REACH/social',
-      allowed: process.env.ALLOWED_EXTENSIONS || '.md,.csv,.txt'
-    }
-  }
-}
-
-async function getAllowed(): Promise<string[]> {
-  const cfg = await loadConfig()
-  return (cfg.allowed || '.md,.csv,.txt').split(',').map(s => s.trim().toLowerCase())
-}
 
 function withinRoot(rootAbs: string, targetAbs: string) {
   const rel = path.relative(rootAbs, targetAbs)
@@ -39,14 +17,19 @@ export async function GET(req: Request) {
   const relPath = url.searchParams.get('path') || ''
   if (!relPath) return new NextResponse('Missing path', { status: 400 })
 
-  const cfg = await loadConfig()
-  const ALLOWED = await getAllowed()
-  const rootAbs = path.resolve(process.cwd(), cfg.docRoot)
+  const cfg = await loadRuntimeConfig()
+  const formats = await getTextFormats(cfg.allowed ?? null)
+  const cwd = process.cwd()
+  const docRootAbs = path.resolve(cwd, cfg.docRoot)
+  const rootParam = (url.searchParams.get('root') || '').toLowerCase()
+  const rootKey = rootParam === 'uploads' ? 'uploads' : 'docRoot'
+  const rootAbs = rootKey === 'uploads' ? path.resolve(cwd, 'files/uploads') : docRootAbs
   const targetAbs = path.resolve(rootAbs, relPath)
   if (!withinRoot(rootAbs, targetAbs)) return new NextResponse('Forbidden', { status: 403 })
 
-  const ext = path.extname(targetAbs).toLowerCase()
-  if (!ALLOWED.includes(ext)) return new NextResponse('Unsupported type', { status: 415 })
+  if (!isAllowedTextFormat(formats, relPath)) {
+    return new NextResponse('Unsupported type', { status: 415 })
+  }
 
   try {
     const st = await fs.stat(targetAbs)
@@ -56,6 +39,7 @@ export async function GET(req: Request) {
       return new NextResponse(null, { status: 304, headers: { ETag: etag, 'Cache-Control': 'no-cache' } })
     }
     const data = await fs.readFile(targetAbs, 'utf8')
+    const ext = path.extname(targetAbs).toLowerCase()
     const type = ext === '.md' ? 'text/markdown; charset=utf-8' : 'text/plain; charset=utf-8'
     return new NextResponse(data, { status: 200, headers: { 'Content-Type': type, ETag: etag, 'Cache-Control': 'no-cache' } })
   } catch (e) {
