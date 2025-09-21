@@ -98,21 +98,12 @@ function idFromPath(p: string) {
 export async function GET() {
   const stored = await listLibrary()
   const entries: LibraryEntry[] = [...stored]
-  // Include configured docRoot as a virtual entry if not present and ensure label is set
   try {
     const docInfo = await loadDocRootInfo()
     if (docInfo) {
-      const abs = docInfo.absolute
+      const abs = path.resolve(docInfo.absolute)
       const existingIndex = entries.findIndex((e) => path.resolve(e.path) === abs)
-      if (existingIndex === -1) {
-        const st = await fs.stat(abs).catch(() => null)
-        if (st) {
-          const kind: LibraryKind = st.isFile() ? 'file' : 'dir'
-          const id = idFromPath(abs)
-          const virtual: LibraryEntry = { id, path: abs, kind, createdAt: Date.now(), label: docInfo.label }
-          entries.unshift(virtual)
-        }
-      } else if (!entries[existingIndex].label) {
+      if (existingIndex !== -1 && !entries[existingIndex].label) {
         entries[existingIndex] = { ...entries[existingIndex], label: docInfo.label }
       }
     }

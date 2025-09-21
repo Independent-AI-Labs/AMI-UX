@@ -7,6 +7,7 @@ import { Transform } from 'stream'
 import { pipeline } from 'stream/promises'
 import { createHash } from 'crypto'
 import { loadDocRootInfo, repoRoot as sharedRepoRoot } from '../../lib/doc-root'
+import { appRoot, uploadsRoot as sharedUploadsRoot } from '../../lib/store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,7 +21,7 @@ type UploadMeta = {
 }
 
 const repoRoot = sharedRepoRoot
-const uploadsRoot = path.resolve(repoRoot, 'files/uploads')
+const uploadsRoot = sharedUploadsRoot
 
 type RootTarget = {
   key: 'uploads' | 'docRoot'
@@ -38,7 +39,7 @@ async function resolveRootTarget(rootParam: string | null | undefined): Promise<
   if (rootParam === 'docRoot') {
     const info = await loadDocRootInfo()
     if (!info) throw new Error('DOC_ROOT not found')
-    const metaBase = path.resolve(repoRoot, 'data/upload-meta/docRoot')
+    const metaBase = path.resolve(appRoot, 'data/upload-meta/docRoot')
     await ensureDir(metaBase)
     return {
       key: 'docRoot',
