@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { repoRoot } from '../../lib/doc-root'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,16 +19,27 @@ export async function GET(req: Request) {
   const input = url.searchParams.get('path') || ''
   if (!input) return NextResponse.json({ error: 'path required' }, { status: 400 })
 
-  const abs = path.resolve(process.cwd(), input)
+  const candidate = path.isAbsolute(input)
+    ? input
+    : path.resolve(repoRoot, input)
+  let abs = candidate
+  let stat = await fs.stat(abs).catch(() => null)
+  if (!stat) {
+    const fallback = path.resolve(process.cwd(), input)
+    if (fallback !== abs) {
+      abs = fallback
+      stat = await fs.stat(abs).catch(() => null)
+    }
+  }
+  if (!stat) return NextResponse.json({ error: 'not found' }, { status: 404 })
   try {
-    const st = await fs.stat(abs)
-    if (st.isFile()) {
+    if (stat.isFile()) {
       const ext = path.extname(abs).toLowerCase()
       const base = abs.slice(0, -ext.length)
       const hasJs = await exists(`${base}.js`) || await exists(path.join(path.dirname(abs), 'index.js'))
       return NextResponse.json({ type: 'file', hasJs, ext })
     }
-    if (st.isDirectory()) {
+    if (stat.isDirectory()) {
       // Next.js app?
       const pkg = await readJson(path.join(abs, 'package.json'))
       const hasNext = !!pkg?.dependencies?.next || !!pkg?.devDependencies?.next
@@ -41,4 +53,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
   }
 }
-

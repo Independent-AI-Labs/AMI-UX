@@ -3,6 +3,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { loadRuntimeConfig } from '../../lib/runtime-config'
 import { getTextFormats, isAllowedTextFormat } from '../../lib/text-formats'
+import { resolveMediaRoot } from '../../lib/media-roots'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,15 +20,15 @@ export async function GET(req: Request) {
 
   const cfg = await loadRuntimeConfig()
   const formats = await getTextFormats(cfg.allowed ?? null)
-  const cwd = process.cwd()
-  const docRootAbs = path.resolve(cwd, cfg.docRoot)
-  const rootParam = (url.searchParams.get('root') || '').toLowerCase()
-  const rootKey = rootParam === 'uploads' ? 'uploads' : 'docRoot'
-  const rootAbs = rootKey === 'uploads' ? path.resolve(cwd, 'files/uploads') : docRootAbs
+  const rootParam = (url.searchParams.get('root') || 'docRoot') as string
+  const allowedRoot = rootParam === 'uploads' ? 'uploads' : 'docRoot'
+  const rootInfo = await resolveMediaRoot(allowedRoot)
+  if (!rootInfo) return new NextResponse('Root unavailable', { status: 404 })
+  const rootAbs = rootInfo.path
   const targetAbs = path.resolve(rootAbs, relPath)
   if (!withinRoot(rootAbs, targetAbs)) return new NextResponse('Forbidden', { status: 403 })
 
-  if (!isAllowedTextFormat(formats, relPath)) {
+  if (allowedRoot === 'docRoot' && !isAllowedTextFormat(formats, relPath)) {
     return new NextResponse('Unsupported type', { status: 415 })
   }
 

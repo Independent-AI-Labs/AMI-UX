@@ -557,6 +557,8 @@ function createStructureWatcher(state) {
       const contentRect = this.content.getBoundingClientRect()
       const top = contentRect.top
       const bottom = contentRect.bottom
+      const anchorOffset = Math.min(Math.max(contentRect.height * 0.15, 56), 200)
+      const anchorY = Math.max(top, Math.min(bottom - 20, top + anchorOffset))
       const visible = new Set()
       const details = this.content.querySelectorAll('details[data-path]')
       details.forEach((det) => {
@@ -566,8 +568,11 @@ function createStructureWatcher(state) {
         const hidden = det.classList?.contains('hidden') || summary.offsetParent === null
         let isVisible = false
         if (!hidden) {
-          const rect = summary.getBoundingClientRect()
-          isVisible = rect.bottom >= top && rect.top <= bottom
+          const sectionRect = det.getBoundingClientRect()
+          const summaryRect = summary.getBoundingClientRect()
+          const intersectsAnchor = sectionRect.top <= anchorY && sectionRect.bottom >= anchorY
+          const summaryInView = summaryRect.bottom >= top && summaryRect.top <= bottom
+          isVisible = intersectsAnchor || summaryInView
         }
         summary.classList.toggle('is-visible', isVisible && !!path)
         if (isVisible && path) visible.add(path)

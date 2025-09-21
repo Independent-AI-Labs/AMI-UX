@@ -82,3 +82,5 @@ dist/
 *.log
 .env.local
 .env.production
+!cms/app/lib/
+!cms/app/lib/*.ts
