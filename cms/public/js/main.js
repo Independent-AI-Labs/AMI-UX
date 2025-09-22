@@ -1,6 +1,7 @@
 import { humanizeName } from './utils.js'
 import { fetchConfig, fetchTree, setDocRoot } from './api.js'
-import { applyTheme, renderTree, updateTOC, expandCollapseAll, restoreState, restoreHashTarget, attachEvents } from './ui.js'
+import { applyTheme, renderTree, updateTOC, expandCollapseAll, restoreState, restoreHashTarget, attachEvents, loadHighlightSettings } from './ui.js'
+import { activateHighlight } from './highlight-effects.js'
 import { connectSSE } from './sse.js'
 
 const state = {
@@ -21,6 +22,8 @@ const state = {
   cacheContext: 'docRoot',
   isLoading: false,
   eventsAttached: false,
+  highlightEffects: null,
+  highlightConfig: loadHighlightSettings(),
 }
 
 // Theme
@@ -219,8 +222,8 @@ function focusTreePath(relativePath) {
   }
   if (lastDetails) {
     try { lastDetails.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch {}
-    lastDetails.classList.add('tree-focus-highlight')
-    setTimeout(() => { try { lastDetails.classList.remove('tree-focus-highlight') } catch {} }, 1400)
+    const summary = lastDetails.querySelector(':scope > summary')
+    if (summary) activateHighlight(summary, 1600)
   }
 }
 
@@ -286,6 +289,9 @@ export async function startCms(fromSelect = false) {
     title.textContent = humanizeName(treeName, 'dir')
   }
   renderTree(state, root, tree)
+  if (state.highlightEffects && typeof state.highlightEffects.refresh === 'function') {
+    state.highlightEffects.refresh()
+  }
   setTreeStatus('idle')
   updateTOC(state)
   restoreHashTarget()

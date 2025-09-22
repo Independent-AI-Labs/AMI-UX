@@ -31,7 +31,6 @@ const HLJS_LANGUAGE_SCRIPTS = [
   'shell',
   'sql',
   'swift',
-  'toml',
   'typescript',
   'yaml',
 ].map((lang) => `${HLJS_BASE}/languages/${lang}.min.js`)
@@ -213,6 +212,10 @@ const LANGUAGE_ALIAS_MAP = {
   powershell: 'powershell',
 }
 
+const LANGUAGE_FALLBACK_MAP = {
+  toml: 'ini',
+}
+
 function escapeHtml(text) {
   return String(text || '')
     .replace(/&/g, '&amp;')
@@ -269,10 +272,15 @@ function highlight(code, languageHint, hljs) {
     return { html: escapeHtml(code), language: languageHint || DEFAULT_LANGUAGE }
   }
   const resolved = normaliseLanguage(languageHint)
+  const fallback = resolved ? LANGUAGE_FALLBACK_MAP[resolved] : null
   try {
     if (resolved && resolved !== 'plaintext' && hljs.getLanguage(resolved)) {
       const res = hljs.highlight(code, { language: resolved, ignoreIllegals: true })
       return { html: res.value, language: res.language || resolved }
+    }
+    if (fallback && hljs.getLanguage(fallback)) {
+      const res = hljs.highlight(code, { language: fallback, ignoreIllegals: true })
+      return { html: res.value, language: resolved || fallback }
     }
     const res = hljs.highlightAuto(code)
     return {

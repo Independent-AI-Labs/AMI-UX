@@ -55,7 +55,7 @@ async function updateStatusPillForTab(tab) {
       return
     }
     if (tab.kind === 'dir') {
-      pill.textContent = 'Docs'
+      pill.textContent = ''
       pill.title = tab.path || ''
       return
     }
@@ -547,6 +547,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btn) btn.addEventListener('click', () => { openContentDirectory() })
   const welcomeBtn = document.getElementById('welcomeOpenBtn')
   if (welcomeBtn) welcomeBtn.addEventListener('click', () => { openContentDirectory() })
+  const highlightBtn = document.getElementById('highlightSettingsBtnShell')
+  if (highlightBtn) highlightBtn.addEventListener('click', (event) => {
+    event.preventDefault()
+    postToDoc({ type: 'highlightSettings', action: 'toggle' })
+  })
 })
 
 async function refreshServed() {
