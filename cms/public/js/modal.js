@@ -73,16 +73,40 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     footerAlign = 'flex-end',
     allowBackdropClose = true,
   }) {
+    const [stage, setStage] = useState('enter')
+    const closeTimeoutRef = useRef(null)
+    useEffect(() => {
+      const id = requestAnimationFrame(() => setStage('open'))
+      return () => cancelAnimationFrame(id)
+    }, [])
+
+    const closeWithAnimation = useCallback(() => {
+      if (stage === 'closing') return
+      setStage('closing')
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = window.setTimeout(() => {
+        closeTimeoutRef.current = null
+        onClose?.()
+      }, 240)
+    }, [stage, onClose])
+
     useEffect(() => {
       const handler = (event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
-          if (onClose) onClose()
+          closeWithAnimation()
         }
       }
       window.addEventListener('keydown', handler)
       return () => window.removeEventListener('keydown', handler)
-    }, [onClose])
+    }, [closeWithAnimation])
+
+    useEffect(() => () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current)
+        closeTimeoutRef.current = null
+      }
+    }, [])
 
     const cappedActions = useMemo(() => {
       if (!Array.isArray(actions)) return []
@@ -125,53 +149,32 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }
 
     const closeButton = React.createElement('button', {
-      className: 'btn',
+      className: 'dialog-close',
       onClick: (e) => {
         e.preventDefault()
-        onClose?.()
+        closeWithAnimation()
       },
       'aria-label': 'Close dialog',
-      style: {
-        width: 36,
-        height: 36,
-        minWidth: 36,
-        borderRadius: 10,
-        fontSize: 24,
-        fontWeight: 600,
-        padding: 0,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'color-mix(in oklab, var(--panel) 70%, transparent)',
-      },
     }, '×')
 
+    const surfaceStyle = {
+      '--dialog-min-width': minWidth,
+      '--dialog-max-width': maxWidth,
+      ...contentStyle,
+    }
+
     return React.createElement('div', {
-      style: {
-        position: 'fixed', inset: 0, zIndex: 1010,
-        background: 'rgba(0,0,0,0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        pointerEvents: 'auto',
-      },
+      className: 'dialog-backdrop',
+      'data-state': stage,
+      hidden: stage === 'closed',
       onMouseDown: (event) => {
-        if (event.target === event.currentTarget && allowBackdropClose) onClose?.()
+        if (event.target === event.currentTarget && allowBackdropClose) closeWithAnimation()
       },
     },
       React.createElement('div', {
-        style: {
-          background: 'var(--panel)',
-          color: 'var(--text)',
-          borderRadius: '12px',
-          minWidth,
-          maxWidth,
-          padding: '20px',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.45)',
-          maxHeight: '85vh',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '14px',
-          ...contentStyle,
-        },
+        className: 'dialog-surface',
+        'data-state': stage,
+        style: surfaceStyle,
         onMouseDown: (event) => event.stopPropagation(),
       },
         React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },

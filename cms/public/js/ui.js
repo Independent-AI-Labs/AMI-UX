@@ -2,6 +2,55 @@ import { displayName, pathAnchor } from './utils.js'
 import { fetchFile } from './api.js'
 import { renderMarkdown, renderCSV } from './renderers.js'
 import { CodeView, guessLanguageFromFilename } from './code-view.js'
+import { initHighlightEffects } from './highlight-effects.js'
+
+const HIGHLIGHT_SETTINGS_KEY = 'highlightSettings'
+
+const BASE_BLOCK_SELECTORS = [
+  '#content .md p',
+  '#content .md li',
+  '#content .md pre',
+  '#content pre',
+  '#content p',
+  '#content li',
+]
+const BASE_INLINE_SELECTORS = ['nav .toc a']
+const BASE_HEADING_SELECTORS = [
+  '#content .md h1',
+  '#content .md h2',
+  '#content .md h3',
+  '#content .md h4',
+]
+const BASE_TREE_SELECTORS = ['#treeRoot summary']
+
+function defaultHighlightSettings() {
+  return {
+    blocks: true,
+    headings: true,
+    inline: true,
+    tree: true,
+    overlay: true,
+    ancestor: true,
+    intensity: 'medium',
+  }
+}
+
+export function loadHighlightSettings() {
+  try {
+    const raw = localStorage.getItem(HIGHLIGHT_SETTINGS_KEY)
+    if (!raw) return defaultHighlightSettings()
+    const parsed = JSON.parse(raw)
+    return { ...defaultHighlightSettings(), ...parsed }
+  } catch {
+    return defaultHighlightSettings()
+  }
+}
+
+function saveHighlightSettings(settings) {
+  try {
+    localStorage.setItem(HIGHLIGHT_SETTINGS_KEY, JSON.stringify(settings))
+  } catch {}
+}
 
 function isIntroFile(name) {
   const n = String(name || '').toLowerCase()
@@ -89,6 +138,9 @@ export async function loadFileNode(state, details, node, body) {
     anchor.id = pathAnchor(node.path)
     body.appendChild(anchor)
     body.appendChild(contentEl)
+    if (state.highlightEffects && typeof state.highlightEffects.refresh === 'function') {
+      state.highlightEffects.refresh()
+    }
   } catch (e) {
     body.textContent = 'Failed to load file.'
   }
@@ -599,169 +651,292 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
     prevOpen.forEach((d) => d.setAttribute('open', ''))
   })
 
-  // Floating hover actions for highlighted elements (headings, lines, TOC links)
-  initHoverActions()
+  setupHighlightPreferences(state, search)
 
   if (!state._structureWatcher) state._structureWatcher = createStructureWatcher(state)
   else state._structureWatcher.refresh(true)
-}
-
-function initHoverActions() {
-  const overlay = document.createElement('div')
-  overlay.className = 'hover-actions'
-  overlay.setAttribute('aria-hidden', 'true')
-  const mkBtn = (cls, title, svg) => {
-    const b = document.createElement('button')
-    b.className = 'act ' + cls
-    b.title = title
-    b.setAttribute('aria-label', title)
-    b.innerHTML = svg
-    b.addEventListener('mousedown', (e) => e.preventDefault())
-    return b
-  }
-  const btnComment = mkBtn(
-    'act-comment',
-    'Comment',
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
-  )
-  const btnSearch = mkBtn(
-    'act-search',
-    'Search',
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
-  )
-  overlay.appendChild(btnComment)
-  overlay.appendChild(btnSearch)
-
-  let anchorEl = null
-  let anchorHadPosition = ''
-  let showTimer = null
-  let hideTimer = null
-  let initialLeft = null
-  let isShown = false
-  function labelFor(el) {
-    try { return (el.textContent || '').trim().slice(0, 200) } catch { return '' }
-  }
-  function sendComment(el) {
-    const label = labelFor(el)
-    try { window.parent?.postMessage?.({ type: 'addComment', path: el?.id || '', label }, '*') } catch {}
-  }
-  function performSearch(el) {
-    const label = labelFor(el)
-    const inp = document.getElementById('search')
-    if (inp && 'value' in inp) {
-      inp.value = label
-      inp.dispatchEvent(new Event('input', { bubbles: true }))
-      inp.focus()
-    }
-  }
-  btnComment.addEventListener('click', (e) => { e.stopPropagation(); if (anchorEl) sendComment(anchorEl) })
-  btnSearch.addEventListener('click', (e) => { e.stopPropagation(); if (anchorEl) performSearch(anchorEl) })
-
-  // Exclude '#content summary' to avoid duplicate icons on file titles;
-  // summaries already render embedded .row-actions.
-  const treeScope = document.getElementById('treeRoot') ? '#treeRoot' : '#content'
-  const selector = [
-    `${treeScope} .md p`, `${treeScope} .md li`, `${treeScope} .md pre`,
-    `${treeScope} .md h1`, `${treeScope} .md h2`, `${treeScope} .md h3`, `${treeScope} .md h4`,
-    'nav .toc a'
-  ].join(', ')
-
-  function ensureOverlayParent(el) {
-    if (overlay.parentElement !== el) {
-      // Restore prior anchor position if we modified it
-      if (anchorEl && anchorHadPosition) {
-        anchorEl.style.position = anchorHadPosition
-      }
-      // Ensure el is positioning context
-      const cs = window.getComputedStyle(el)
-      anchorHadPosition = el.style.position
-      if (cs.position === 'static') {
-        el.style.position = 'relative'
-      }
-      el.appendChild(overlay)
-    }
-  }
-
-  function placeOverlay(el, mouseX) {
-    // If we're already showing for this element, do nothing
-    if ((isShown || showTimer) && anchorEl === el) return
-    anchorEl = el
-    ensureOverlayParent(el)
-    // Prepare for static positioning and delayed fade-in
-    overlay.classList.remove('show')
-    if (showTimer) { clearTimeout(showTimer); showTimer = null }
-    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
-    overlay.style.top = '50%'
-    overlay.style.transform = 'translateY(-50%)'
-    // Compute initial horizontal placement near the mouse, clamped within element
-    const ow = overlay.offsetWidth || 40
-    const rect = el.getBoundingClientRect()
-    const maxLeft = Math.max(8, el.clientWidth - ow - 8)
-    if (typeof mouseX === 'number') {
-      const rel = Math.max(8, Math.min(Math.round(mouseX - rect.left + 16), maxLeft))
-      initialLeft = rel
-      overlay.style.left = rel + 'px'
-      overlay.style.right = 'auto'
-    } else if (initialLeft != null) {
-      const rel = Math.max(8, Math.min(initialLeft, maxLeft))
-      overlay.style.left = rel + 'px'
-      overlay.style.right = 'auto'
-    } else {
-      overlay.style.left = 'auto'
-      overlay.style.right = '8px'
-    }
-    // Fade in after the highlight animation completes
-    showTimer = setTimeout(() => {
-      // Faster fade-in
-      overlay.style.setProperty('--hover-fade', '120ms')
-      overlay.classList.add('show')
-      isShown = true
-    }, 120)
-  }
-  function cleanupOverlay() {
-    // Restore anchor inline position if we modified it
-    if (anchorEl && anchorHadPosition) {
-      anchorEl.style.position = anchorHadPosition
-    }
-    anchorEl = null
-    anchorHadPosition = ''
-    initialLeft = null
-    isShown = false
-  }
-  function hideOverlay() {
-    if (!isShown && !showTimer) return
-    if (showTimer) { clearTimeout(showTimer); showTimer = null }
-    // Slow fade-out; keep position static until it completes
-    overlay.style.setProperty('--hover-fade', '450ms')
-    overlay.classList.remove('show')
-    isShown = false
-    if (hideTimer) clearTimeout(hideTimer)
-    hideTimer = setTimeout(() => {
-      hideTimer = null
-      cleanupOverlay()
-    }, 470)
-  }
-  document.addEventListener('mouseover', (e) => {
-    const t = e.target
-    const el = t && typeof t.closest === 'function' ? t.closest(selector) : (t && t.parentElement ? t.parentElement.closest(selector) : null)
-    if (el) placeOverlay(el, e.clientX)
-  })
-  // No mouse-following; overlay remains static until hover ends
-  document.addEventListener('mouseout', (e) => {
-    if (!anchorEl) return
-    const toEl = e.relatedTarget || null
-    const inAnchor = toEl && typeof toEl.closest === 'function' && toEl.closest(selector) === anchorEl
-    const inOverlay = toEl && typeof toEl.closest === 'function' && !!toEl.closest('.hover-actions')
-    if (!inAnchor && !inOverlay) {
-      hideOverlay()
-    }
-  })
 }
 
 function setsEqual(a, b) {
   if (a.size !== b.size) return false
   for (const item of a) if (!b.has(item)) return false
   return true
+}
+
+function buildOverlaySelectors(settings) {
+  if (!settings.overlay) return []
+  const sources = []
+  if (settings.blocks) sources.push(...BASE_BLOCK_SELECTORS)
+  if (settings.headings) sources.push(...BASE_HEADING_SELECTORS)
+  if (settings.inline) sources.push(...BASE_INLINE_SELECTORS)
+  return Array.from(new Set(sources))
+}
+
+function rebuildHighlightEffects(state, search) {
+  const settings = state.highlightConfig || defaultHighlightSettings()
+  if (state.highlightEffects && typeof state.highlightEffects.disconnect === 'function') {
+    state.highlightEffects.disconnect()
+    state.highlightEffects = null
+  }
+
+  const blockSelectors = settings.blocks ? BASE_BLOCK_SELECTORS : []
+  const inlineSelectors = settings.inline ? BASE_INLINE_SELECTORS : []
+  const headingSelectors = settings.headings ? BASE_HEADING_SELECTORS : []
+  const treeSelectors = settings.tree ? BASE_TREE_SELECTORS : []
+  const overlaySelectors = buildOverlaySelectors(settings)
+
+  const commentHandler = (anchor) => {
+    try {
+      const label = (anchor.textContent || '').trim().slice(0, 200)
+      window.parent?.postMessage?.({ type: 'addComment', path: anchor?.id || '', label }, '*')
+    } catch {}
+  }
+
+  const searchHandler = (anchor) => {
+    if (!settings.overlay || !search || !('value' in search)) return
+    try {
+      search.value = (anchor.textContent || '').trim().slice(0, 200)
+      search.dispatchEvent(new Event('input', { bubbles: true }))
+      if (typeof search.focus === 'function') search.focus()
+    } catch {}
+  }
+
+  state.highlightEffects = initHighlightEffects({
+    document,
+    scopeSelector: '.fx-glow',
+    blockSelectors,
+    inlineSelectors,
+    underlineSelectors: headingSelectors,
+    treeSelectors,
+    overlaySelectors,
+    trackTreeAncestors: settings.ancestor && settings.tree,
+    onComment: settings.overlay ? commentHandler : undefined,
+    onSearch: settings.overlay ? searchHandler : undefined,
+    intensity: settings.intensity,
+  })
+
+  if (state.highlightEffects && typeof state.highlightEffects.refresh === 'function') {
+    state.highlightEffects.refresh()
+  }
+}
+
+function setupHighlightPreferences(state, search) {
+  if (!state.highlightConfig) state.highlightConfig = loadHighlightSettings()
+  rebuildHighlightEffects(state, search)
+
+  const btn = document.getElementById('highlightSettingsBtn')
+
+  let overlay = document.getElementById('highlightSettingsOverlay')
+  if (!overlay) {
+    overlay = document.createElement('div')
+    overlay.id = 'highlightSettingsOverlay'
+    overlay.className = 'dialog-backdrop dialog-backdrop--right'
+    overlay.hidden = true
+    overlay.dataset.state = 'closed'
+    document.body.appendChild(overlay)
+  }
+
+  let panel = overlay.querySelector('.highlight-settings-panel')
+  if (!panel) {
+    panel = document.createElement('div')
+    panel.className = 'dialog-surface highlight-settings-panel'
+    panel.innerHTML = `
+      <div class="highlight-settings__header">
+        <div>
+          <h2>Highlight Settings</h2>
+          <p class="muted">Fine-tune glow targets and intensity.</p>
+        </div>
+        <button type="button" class="highlight-settings__close dialog-close" aria-label="Close highlight settings">✕</button>
+      </div>
+      <div class="highlight-settings__section" data-section="targets">
+        <h3>Highlight Targets</h3>
+        <label class="highlight-settings__item">
+          <input type="checkbox" data-setting="blocks" />
+          <div>
+            <span>Text blocks</span>
+            <p class="muted">Paragraphs, bullet items, and code blocks</p>
+          </div>
+        </label>
+        <label class="highlight-settings__item">
+          <input type="checkbox" data-setting="headings" />
+          <div>
+            <span>Headings</span>
+            <p class="muted">Underline laser for levels 1–4</p>
+          </div>
+        </label>
+        <label class="highlight-settings__item">
+          <input type="checkbox" data-setting="inline" />
+          <div>
+            <span>TOC links</span>
+            <p class="muted">Structure and quick navigation entries</p>
+          </div>
+        </label>
+        <label class="highlight-settings__item">
+          <input type="checkbox" data-setting="tree" />
+          <div>
+            <span>Document tree</span>
+            <p class="muted">Tree rows and file summaries</p>
+          </div>
+        </label>
+        <label class="highlight-settings__item">
+          <input type="checkbox" data-setting="ancestor" />
+          <div>
+            <span>Ancestor trace</span>
+            <p class="muted">Tint parent nodes during hover</p>
+          </div>
+        </label>
+      </div>
+      <div class="highlight-settings__section" data-section="overlay">
+        <h3>Hover Tools</h3>
+        <label class="highlight-settings__item">
+          <input type="checkbox" data-setting="overlay" />
+          <div>
+            <span>Comment &amp; search overlay</span>
+            <p class="muted">Show actions when hovering highlighted content</p>
+          </div>
+        </label>
+      </div>
+      <div class="highlight-settings__section" data-section="style">
+        <h3>Style</h3>
+        <label class="highlight-settings__item highlight-settings__item--select">
+          <div>
+            <span>Glow intensity</span>
+            <p class="muted">Adjust size, blur, and brightness</p>
+          </div>
+          <select data-setting="intensity">
+            <option value="soft">Soft</option>
+            <option value="medium">Balanced</option>
+            <option value="bold">Vibrant</option>
+          </select>
+        </label>
+      </div>
+    `
+    overlay.appendChild(panel)
+    panel.dataset.bound = '0'
+    panel.dataset.state = 'closed'
+    overlay.dataset.bound = '0'
+  }
+
+  const closeBtn = panel.querySelector('.highlight-settings__close')
+  let hideTimer = null
+
+  function renderPanel() {
+    const settings = state.highlightConfig || defaultHighlightSettings()
+    panel.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      const key = input.dataset.setting
+      if (!key) return
+      input.checked = Boolean(settings[key])
+    })
+    const select = panel.querySelector('select[data-setting="intensity"]')
+    if (select) select.value = settings.intensity || 'medium'
+  }
+
+  function hidePanel() {
+    if (overlay.hidden || overlay.dataset.state === 'closing') return
+    if (hideTimer) {
+      clearTimeout(hideTimer)
+      hideTimer = null
+    }
+    overlay.dataset.state = 'closing'
+    panel.dataset.state = 'closing'
+    hideTimer = window.setTimeout(() => {
+      overlay.hidden = true
+      overlay.dataset.state = 'closed'
+      panel.dataset.state = 'closed'
+      if (btn) btn.setAttribute('aria-expanded', 'false')
+      hideTimer = null
+    }, 240)
+  }
+
+  function showPanel() {
+    if (hideTimer) {
+      clearTimeout(hideTimer)
+      hideTimer = null
+    }
+    renderPanel()
+    overlay.hidden = false
+    overlay.dataset.state = 'enter'
+    panel.dataset.state = 'enter'
+    requestAnimationFrame(() => {
+      overlay.dataset.state = 'open'
+      panel.dataset.state = 'open'
+    })
+    if (btn) btn.setAttribute('aria-expanded', 'true')
+  }
+
+  function togglePanel() {
+    const isVisible = !overlay.hidden && overlay.dataset.state !== 'closed' && overlay.dataset.state !== 'closing'
+    if (isVisible) hidePanel()
+    else showPanel()
+  }
+
+  function updateSetting(key, value) {
+    state.highlightConfig = { ...state.highlightConfig, [key]: value }
+    saveHighlightSettings(state.highlightConfig)
+    rebuildHighlightEffects(state, search)
+  }
+
+  if (!panel.dataset.bound || panel.dataset.bound === '0') {
+    panel.addEventListener('change', (event) => {
+      const target = event.target
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return
+      const key = target.dataset.setting
+      if (!key) return
+      if (target.type === 'checkbox') updateSetting(key, target.checked)
+      else if (target.tagName === 'SELECT') updateSetting(key, target.value)
+    })
+    panel.dataset.bound = '1'
+  }
+
+  if (!overlay.dataset.bound || overlay.dataset.bound === '0') {
+    overlay.addEventListener('mousedown', (event) => {
+      if (event.target === overlay) hidePanel()
+    })
+    overlay.dataset.bound = '1'
+  }
+
+  if (btn && !btn.dataset.bound) {
+    btn.addEventListener('click', (event) => {
+      event.preventDefault()
+      togglePanel()
+    })
+    btn.dataset.bound = '1'
+  }
+
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.addEventListener('click', (event) => {
+      event.preventDefault()
+      hidePanel()
+    })
+    closeBtn.dataset.bound = '1'
+  }
+
+  if (!state.highlightKeyHandler) {
+    const keyHandler = (event) => {
+      if (event.key === 'Escape' && !overlay.hidden) hidePanel()
+    }
+    window.addEventListener('keydown', keyHandler)
+    state.highlightKeyHandler = keyHandler
+  }
+
+  state.highlightSettingsControl = {
+    show: showPanel,
+    hide: hidePanel,
+    toggle: togglePanel,
+  }
+
+  if (!state.highlightSettingsMessageHandler) {
+    const handler = (event) => {
+      const data = event?.data
+      if (!data || typeof data !== 'object') return
+      if (data.type !== 'highlightSettings') return
+      if (data.action === 'open') showPanel()
+      else if (data.action === 'close') hidePanel()
+      else togglePanel()
+    }
+    window.addEventListener('message', handler)
+    state.highlightSettingsMessageHandler = handler
+  }
 }
 
 function createStructureWatcher(state) {
