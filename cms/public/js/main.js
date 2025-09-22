@@ -1,6 +1,6 @@
 import { humanizeName } from './utils.js'
 import { fetchConfig, fetchTree, setDocRoot } from './api.js'
-import { applyTheme, buildNode, updateTOC, expandCollapseAll, restoreState, restoreHashTarget, attachEvents } from './ui.js'
+import { applyTheme, renderTree, updateTOC, expandCollapseAll, restoreState, restoreHashTarget, attachEvents } from './ui.js'
 import { connectSSE } from './sse.js'
 
 const state = {
@@ -11,6 +11,9 @@ const state = {
   sse: null,
   refreshTimer: null,
   treeContainer: null,
+  treeShell: null,
+  treeOverlay: null,
+  treeOverlayLabel: null,
   rootKey: 'docRoot',
   rootLabelOverride: null,
   pendingFocus: '',
@@ -26,17 +29,69 @@ applyTheme(state)
 // Markdown config
 marked.setOptions({ gfm: true, breaks: false, headerIds: false, mangle: false })
 
-function createTreeStatusNode(text, variant = 'loading') {
-  const wrap = document.createElement('div')
-  wrap.className = 'loading-indicator tree-loading' + (variant === 'error' ? ' loading-indicator--error' : '')
-  const spinner = document.createElement('span')
-  spinner.className = 'loading-indicator__spinner'
-  spinner.setAttribute('aria-hidden', 'true')
-  wrap.appendChild(spinner)
-  const label = document.createElement('span')
-  label.textContent = text
-  wrap.appendChild(label)
-  return wrap
+function getTreeShell() {
+  if (state.treeShell && document.body.contains(state.treeShell)) return state.treeShell
+  if (state.treeContainer && state.treeContainer.parentElement && document.body.contains(state.treeContainer.parentElement)) {
+    state.treeShell = state.treeContainer.parentElement
+    return state.treeShell
+  }
+  return null
+}
+
+function createTreeSkeleton(rows = 6) {
+  const skeleton = document.createElement('div')
+  skeleton.className = 'tree-skeleton'
+  const widths = [88, 72, 64, 80, 68, 58, 75, 66]
+  for (let i = 0; i < rows; i += 1) {
+    const row = document.createElement('div')
+    row.className = 'tree-skeleton__row'
+    row.style.marginLeft = `${Math.min(i, 3) * 16}px`
+    const width = widths[i % widths.length]
+    row.style.setProperty('--tree-skeleton-width', `${width}%`)
+    skeleton.appendChild(row)
+  }
+  return skeleton
+}
+
+function setTreeStatus(kind, message, options = {}) {
+  const { wipe = false, skeleton = false } = options
+  const shell = getTreeShell()
+  const viewport = state.treeContainer && document.body.contains(state.treeContainer) ? state.treeContainer : null
+  if (!shell || !viewport) return
+  if (!state.treeOverlay || !document.body.contains(state.treeOverlay)) {
+    state.treeOverlay = shell.querySelector('.tree-root__overlay')
+    state.treeOverlayLabel = state.treeOverlay ? state.treeOverlay.querySelector('.tree-root__overlay-label') : null
+  }
+  const overlay = state.treeOverlay
+  const label = state.treeOverlayLabel
+  if (typeof message === 'string' && label) label.textContent = message
+  if (!overlay) return
+
+  if (kind === 'idle') {
+    overlay.setAttribute('aria-hidden', 'true')
+    overlay.dataset.kind = 'idle'
+    shell.classList.remove('tree-root-shell--busy', 'tree-root-shell--error')
+    shell.style.removeProperty('minHeight')
+    const prevSkeleton = viewport.querySelector('.tree-skeleton')
+    if (prevSkeleton) prevSkeleton.remove()
+    return
+  }
+
+  overlay.setAttribute('aria-hidden', 'false')
+  overlay.dataset.kind = kind
+  shell.classList.add('tree-root-shell--busy')
+  if (kind === 'error') shell.classList.add('tree-root-shell--error')
+  else shell.classList.remove('tree-root-shell--error')
+
+  const currentBounds = shell.getBoundingClientRect()
+  const viewportHeight = viewport.offsetHeight || currentBounds.height || 0
+  const minHeight = Math.max(viewportHeight, 180)
+  shell.style.minHeight = `${minHeight}px`
+
+  if (wipe) {
+    viewport.innerHTML = ''
+    if (skeleton) viewport.appendChild(createTreeSkeleton())
+  }
 }
 
 function ensureTreeContainer() {
@@ -75,13 +130,37 @@ function ensureTreeContainer() {
   actions.appendChild(collapseBtn)
   toolbar.appendChild(actions)
 
+  const shell = document.createElement('div')
+  shell.className = 'tree-root-shell'
+
   const container = document.createElement('div')
   container.id = 'treeRoot'
+  container.className = 'tree-root'
+
+  const overlay = document.createElement('div')
+  overlay.className = 'tree-root__overlay'
+  overlay.dataset.kind = 'idle'
+  overlay.setAttribute('aria-hidden', 'true')
+  overlay.setAttribute('aria-live', 'polite')
+  const spinner = document.createElement('span')
+  spinner.className = 'loading-indicator__spinner'
+  spinner.setAttribute('aria-hidden', 'true')
+  const label = document.createElement('span')
+  label.className = 'tree-root__overlay-label'
+  label.textContent = 'Loading…'
+  overlay.appendChild(spinner)
+  overlay.appendChild(label)
+
+  shell.appendChild(container)
+  shell.appendChild(overlay)
 
   content.appendChild(toolbar)
-  content.appendChild(container)
+  content.appendChild(shell)
 
   state.treeContainer = container
+  state.treeShell = shell
+  state.treeOverlay = overlay
+  state.treeOverlayLabel = label
   return container
 }
 
@@ -89,29 +168,22 @@ function debounceRefreshTree() {
   if (state.refreshTimer) clearTimeout(state.refreshTimer)
   state.refreshTimer = setTimeout(async () => {
     const root = ensureTreeContainer()
+    const hasDetails = root ? root.querySelector('details') : null
+    const shouldWipe = !hasDetails
+    setTreeStatus('loading', 'Refreshing…', { wipe: shouldWipe, skeleton: shouldWipe })
     let scrollY = window.scrollY
-    if (root) {
-      scrollY = window.scrollY
-      root.innerHTML = ''
-      root.appendChild(createTreeStatusNode('Refreshing…'))
-    }
     state.isLoading = true
     try {
       const newTree = await fetchTree(state.rootKey || 'docRoot')
       state.tree = newTree
       if (!root) return
-      root.innerHTML = ''
-      const frag = document.createDocumentFragment()
-      let idx = 1
-      ;(newTree.children || []).forEach((child) => frag.appendChild(buildNode(state, child, 0, [idx++])))
-      root.appendChild(frag)
+      renderTree(state, root, newTree)
       updateTOC(state)
       window.scrollTo(0, scrollY)
+      setTreeStatus('idle')
     } catch (e) {
-      if (root) {
-        root.innerHTML = ''
-        root.appendChild(createTreeStatusNode('Failed to refresh content', 'error'))
-      }
+      const wipe = root ? !root.querySelector('details') : true
+      setTreeStatus('error', 'Failed to refresh content', { wipe })
       console.warn('Failed to refresh tree', e)
     } finally {
       state.isLoading = false
@@ -193,40 +265,35 @@ export async function startCms(fromSelect = false) {
   }
   const root = ensureTreeContainer()
   if (!root) return
-  root.innerHTML = ''
-  root.appendChild(createTreeStatusNode('Loading content…'))
+  const hasDetails = root.querySelector('details')
+  const shouldWipe = !hasDetails
+  setTreeStatus('loading', 'Loading content…', { wipe: shouldWipe, skeleton: true })
   state.isLoading = true
   let tree = null
   try {
     tree = await fetchTree(activeRootKey)
   } catch (err) {
     state.isLoading = false
-    root.innerHTML = ''
-    root.appendChild(createTreeStatusNode('Failed to load content', 'error'))
+    setTreeStatus('error', 'Failed to load content', { wipe: shouldWipe })
     console.warn('Failed to load tree', err)
     return
   }
   state.isLoading = false
   state.tree = tree
-  root.innerHTML = ''
   const title = document.getElementById('appTitle')
   if (title) {
     const treeName = tree?.name || (activeRootKey === 'uploads' ? 'Uploads' : 'Docs')
     title.textContent = humanizeName(treeName, 'dir')
   }
-  const frag = document.createDocumentFragment()
-  const children = (tree.children || []).slice()
-  const findIntroIdx = () => children.findIndex((c) => c.type === 'file' && ['readme.md','introduction.md','intro.md'].includes(String(c.name||'').toLowerCase()))
-  const introIdx = findIntroIdx()
-  if (introIdx > 0) { const intro = children.splice(introIdx, 1)[0]; children.unshift(intro) }
-  let idx = 1
-  children.forEach((child) => frag.appendChild(buildNode(state, child, 0, [idx++])))
-  root.appendChild(frag)
+  renderTree(state, root, tree)
+  setTreeStatus('idle')
   updateTOC(state)
   restoreHashTarget()
   try {
-    const introIdx2 = findIntroIdx()
-    const intro = introIdx2 >= 0 ? children[introIdx2] : null
+    const children = (tree.children || []).slice()
+    const findIntroIdx = () => children.findIndex((c) => c.type === 'file' && ['readme.md','introduction.md','intro.md'].includes(String(c.name||'').toLowerCase()))
+    const introIdx = findIntroIdx()
+    const intro = introIdx >= 0 ? children[introIdx] : null
     if (intro && intro.type === 'file') {
       const sel = document.querySelector(`details.file[data-path="${CSS.escape(intro.path)}"]`)
       if (sel) {

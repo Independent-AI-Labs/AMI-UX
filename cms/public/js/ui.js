@@ -1,6 +1,7 @@
 import { displayName, pathAnchor } from './utils.js'
 import { fetchFile } from './api.js'
 import { renderMarkdown, renderCSV } from './renderers.js'
+import { CodeView, guessLanguageFromFilename } from './code-view.js'
 
 function isIntroFile(name) {
   const n = String(name || '').toLowerCase()
@@ -71,8 +72,16 @@ export async function loadFileNode(state, details, node, body) {
     } else if (lname.endsWith('.csv')) {
       contentEl = renderCSV(raw)
     } else {
-      contentEl = document.createElement('pre')
-      contentEl.textContent = raw
+      const language = guessLanguageFromFilename(node.name)
+      const view = new CodeView({
+        code: raw,
+        language,
+        filename: node.name,
+        showCopy: true,
+        showLanguage: true,
+        showHeader: true,
+      })
+      contentEl = view.element
     }
     state.cache.set(key, { html: contentEl, headings })
     body.innerHTML = ''
@@ -85,118 +94,336 @@ export async function loadFileNode(state, details, node, body) {
   }
 }
 
-export function buildNode(state, node, depth = 0, indexPath = []) {
-  const details = document.createElement('details')
-  details.className = node.type === 'dir' ? 'dir' : 'file'
-  details.style.setProperty('--depth', String(depth))
-  details.dataset.path = node.path
-  const sum = document.createElement('summary')
-  const label = displayName(node)
-  const num = indexPath.length ? indexPath.join('.') + '. ' : ''
-  sum.innerHTML = '<span class="indent"></span>' + num + label + (node.type === 'file' ? ' <span class="meta">(' + node.path + ')</span>' : '')
-  // Floating actions on the same baseline as the highlighted line
+function formatIndex(indexPath) {
+  if (!indexPath || !indexPath.length) return ''
+  return `${indexPath.join('.')}. `
+}
+
+function makeNodeKey(node, depth, position) {
+  if (node && typeof node.path === 'string' && node.path) return node.path
+  const type = node?.type || 'node'
+  const name = node?.name || ''
+  return `__${depth}:${position}:${type}:${name}`
+}
+
+function saveOpenState(state) {
+  try {
+    localStorage.setItem('open', JSON.stringify(Array.from(state.open)))
+  } catch {}
+}
+
+function handleCommentClick(e) {
+  e.stopPropagation()
+  const btn = e.currentTarget
+  if (!btn) return
+  const path = btn.dataset.path || ''
+  const label = btn.dataset.label || ''
+  try {
+    window.parent?.postMessage?.({ type: 'addComment', path, label }, '*')
+  } catch {}
+}
+
+function handleSearchClick(e) {
+  e.stopPropagation()
+  const btn = e.currentTarget
+  if (!btn) return
+  const label = btn.dataset.label || ''
+  try {
+    const inp = document.getElementById('search')
+    if (inp && 'value' in inp) {
+      inp.value = label
+      inp.dispatchEvent(new Event('input', { bubbles: true }))
+      inp.focus()
+    }
+  } catch {}
+}
+
+function createRowActions(node, label) {
   const actions = document.createElement('span')
   actions.className = 'row-actions'
+
   const btnComment = document.createElement('button')
   btnComment.className = 'act act-comment'
   btnComment.title = 'Comment'
   btnComment.setAttribute('aria-label', 'Add comment')
+  btnComment.dataset.path = node.path || ''
+  btnComment.dataset.label = label
   btnComment.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
-  btnComment.addEventListener('click', (e) => {
-    e.stopPropagation()
-    try {
-      window.parent?.postMessage?.({ type: 'addComment', path: node.path, label }, '*')
-    } catch {}
-  })
+  btnComment.addEventListener('click', handleCommentClick)
+
   const btnSearch = document.createElement('button')
   btnSearch.className = 'act act-search'
   btnSearch.title = 'Search'
   btnSearch.setAttribute('aria-label', 'Search for this item')
+  btnSearch.dataset.path = node.path || ''
+  btnSearch.dataset.label = label
   btnSearch.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
-  btnSearch.addEventListener('click', (e) => {
-    e.stopPropagation()
-    try {
-      const inp = document.getElementById('search')
-      if (inp && 'value' in inp) {
-        inp.value = label
-        inp.dispatchEvent(new Event('input', { bubbles: true }))
-        inp.focus()
-      }
-    } catch {}
-  })
+  btnSearch.addEventListener('click', handleSearchClick)
+
   actions.appendChild(btnComment)
   actions.appendChild(btnSearch)
-  sum.appendChild(actions)
-  details.appendChild(sum)
+  return actions
+}
+
+function updateRowActions(actions, node, label) {
+  if (!actions) return
+  actions.querySelectorAll('button').forEach((btn) => {
+    btn.dataset.path = node.path || ''
+    btn.dataset.label = label
+  })
+}
+
+function ensureDirAnchor(body, node) {
+  if (!body) return
+  const desiredId = 'dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root')
+  let anchor = body.querySelector(':scope > a.dir-anchor')
+  if (!anchor) {
+    anchor = document.createElement('a')
+    anchor.className = 'dir-anchor'
+    body.insertBefore(anchor, body.firstChild)
+  }
+  anchor.id = desiredId
+}
+
+function cleanupNode(details, state) {
+  if (!details) return
+  const nested = details.querySelectorAll(':scope > .body details')
+  nested.forEach((child) => cleanupNode(child, state))
+  if (details.__fileToggleHandler) {
+    details.removeEventListener('toggle', details.__fileToggleHandler)
+    details.__fileToggleHandler = null
+  }
+  if (details.__openHandler) {
+    details.removeEventListener('toggle', details.__openHandler)
+    details.__openHandler = null
+  }
+  const path = details.__nodeData?.path
+  if (path && state?.open?.has(path)) {
+    state.open.delete(path)
+    saveOpenState(state)
+  }
+}
+
+function attachOpenState(details, state) {
+  const handler = () => {
+    const path = details.__nodeData?.path
+    if (!path) return
+    if (details.open) state.open.add(path)
+    else state.open.delete(path)
+    saveOpenState(state)
+  }
+  details.__openHandler = handler
+  details.addEventListener('toggle', handler)
+}
+
+function attachFileLoader(details, state, body) {
+  const handler = async () => {
+    if (!details.open) return
+    const meta = details.__nodeData || {}
+    const node = { name: meta.name || '', path: meta.path || '', type: meta.type || 'file' }
+    const key = cacheKey(state, node.path)
+    if (state.cache.has(key)) {
+      const cached = state.cache.get(key)
+      try {
+        body.innerHTML = ''
+        const anchor = document.createElement('a')
+        anchor.id = pathAnchor(node.path)
+        body.appendChild(anchor)
+        const cloned = cached && cached.html && typeof cached.html.cloneNode === 'function'
+          ? cached.html.cloneNode(true)
+          : cached.html || document.createTextNode('')
+        body.appendChild(cloned)
+      } catch {
+        await loadFileNode(state, details, node, body)
+      }
+      restoreHashTarget()
+      return
+    }
+    await loadFileNode(state, details, node, body)
+    restoreHashTarget()
+  }
+  details.__fileToggleHandler = handler
+  details.addEventListener('toggle', handler)
+}
+
+function createSummary(node, depth, indexPath) {
+  const summary = document.createElement('summary')
+  summary.dataset.type = node.type
+  summary.dataset.path = node.path || ''
+  summary.dataset.depth = String(depth)
+
+  const indent = document.createElement('span')
+  indent.className = 'indent'
+  summary.appendChild(indent)
+
+  const numbering = document.createElement('span')
+  numbering.className = 'tree-numbering'
+  numbering.textContent = formatIndex(indexPath)
+  summary.appendChild(numbering)
+
+  const labelSpan = document.createElement('span')
+  labelSpan.className = 'tree-label'
+  const label = displayName(node)
+  labelSpan.textContent = label
+  summary.appendChild(labelSpan)
+
+  if (node.type === 'file') {
+    const meta = document.createElement('span')
+    meta.className = 'meta'
+    meta.textContent = ` (${node.path})`
+    summary.appendChild(meta)
+  }
+
+  const actions = createRowActions(node, label)
+  summary.appendChild(actions)
+  return summary
+}
+
+function updateSummary(summary, node, depth, indexPath) {
+  if (!summary) return displayName(node)
+  summary.dataset.type = node.type
+  summary.dataset.path = node.path || ''
+  summary.dataset.depth = String(depth)
+
+  const numbering = summary.querySelector('.tree-numbering')
+  if (numbering) numbering.textContent = formatIndex(indexPath)
+
+  const label = displayName(node)
+  const labelSpan = summary.querySelector('.tree-label')
+  if (labelSpan) labelSpan.textContent = label
+
+  const meta = summary.querySelector('.meta')
+  if (node.type === 'file') {
+    if (meta) meta.textContent = ` (${node.path})`
+    else {
+      const newMeta = document.createElement('span')
+      newMeta.className = 'meta'
+      newMeta.textContent = ` (${node.path})`
+      summary.insertBefore(newMeta, summary.querySelector('.row-actions'))
+    }
+  } else if (meta) {
+    meta.remove()
+  }
+
+  const actions = summary.querySelector('.row-actions')
+  if (actions) updateRowActions(actions, node, label)
+  else summary.appendChild(createRowActions(node, label))
+  return label
+}
+
+function createDetailsNode(state, node, depth, indexPath, key) {
+  const details = document.createElement('details')
+  details.__nodeData = { path: node.path || '', name: node.name || '', type: node.type }
+  details.dataset.path = details.__nodeData.path
+  details.dataset.type = node.type
+  details.dataset.key = key
+  details.className = node.type === 'dir' ? 'dir' : 'file'
+  details.style.setProperty('--depth', String(depth))
+
+  const summary = createSummary(node, depth, indexPath)
+  details.appendChild(summary)
+
   const body = document.createElement('div')
   body.className = 'body'
   details.appendChild(body)
 
-  if (node.type === 'dir') {
-    const dirAnchor = document.createElement('a')
-    dirAnchor.id = 'dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root')
-    body.appendChild(dirAnchor)
+  attachOpenState(details, state)
 
-    const children = (node.children || []).slice()
-    // Root only: ensure Introduction/README appears first
-    if (depth === 0) {
-      const idxIntro = children.findIndex((ch) => ch.type === 'file' && isIntroFile(ch.name))
-      if (idxIntro >= 0) {
-        const intro = children.splice(idxIntro, 1)[0]
-        children.splice(0, 0, intro)
-      }
-    }
-    let idx = 1
-    children.forEach((child) => {
-      const childEl = buildNode(state, child, depth + 1, indexPath.concat(idx++))
-      // Auto-expand and preload Introduction/README at root only
-      if (depth === 0 && child.type === 'file' && isIntroFile(child.name)) {
-        childEl.setAttribute('open', '')
-        const childBody = childEl.querySelector('.body')
-        loadFileNode(state, childEl, child, childBody)
-      }
-      body.appendChild(childEl)
-    })
+  if (node.type === 'dir') {
+    ensureDirAnchor(body, node)
   } else {
-    details.addEventListener(
-      'toggle',
-      async () => {
-        if (!details.open) return
-        const key = cacheKey(state, node.path)
-        if (state.cache.has(key)) {
-          const cached = state.cache.get(key)
-          try {
-            body.innerHTML = ''
-            const anchor = document.createElement('a')
-            anchor.id = pathAnchor(node.path)
-            body.appendChild(anchor)
-            // Use a cloned node to avoid detaching existing instances
-            const cloned = cached && cached.html && typeof cached.html.cloneNode === 'function'
-              ? cached.html.cloneNode(true)
-              : cached.html || document.createTextNode('')
-            body.appendChild(cloned)
-          } catch {
-            // Fallback to reload if cloning/rendering fails
-            await loadFileNode(state, details, node, body)
-          }
-          restoreHashTarget()
-          return
-        }
-        await loadFileNode(state, details, node, body)
-        restoreHashTarget()
-      },
-      { once: false },
-    )
+    attachFileLoader(details, state, body)
   }
 
-  details.addEventListener('toggle', () => {
-    const p = node.path
-    if (details.open) state.open.add(p)
-    else state.open.delete(p)
-    localStorage.setItem('open', JSON.stringify(Array.from(state.open)))
-  })
-  if (state.open.has(node.path)) details.setAttribute('open', '')
+  if (node.path && state.open.has(node.path)) {
+    details.setAttribute('open', '')
+  }
   return details
+}
+
+function updateDetailsNode(state, details, node, depth, indexPath, key) {
+  details.__nodeData = details.__nodeData || {}
+  details.__nodeData.path = node.path || ''
+  details.__nodeData.name = node.name || ''
+  details.__nodeData.type = node.type
+  details.dataset.path = details.__nodeData.path
+  details.dataset.type = node.type
+  details.dataset.key = key
+  details.className = node.type === 'dir' ? 'dir' : 'file'
+  details.style.setProperty('--depth', String(depth))
+
+  const summary = details.querySelector(':scope > summary')
+  updateSummary(summary, node, depth, indexPath)
+
+  const body = details.querySelector(':scope > .body')
+  if (node.type === 'dir') {
+    ensureDirAnchor(body, node)
+  } else if (body) {
+    const dirAnchor = body.querySelector(':scope > a.dir-anchor')
+    if (dirAnchor) dirAnchor.remove()
+  }
+
+  if (node.type === 'file' && !details.__fileToggleHandler) {
+    attachFileLoader(details, state, body)
+  }
+}
+
+function reorderRoot(children) {
+  const list = Array.isArray(children) ? children.slice() : []
+  const idxIntro = list.findIndex((child) => child && child.type === 'file' && isIntroFile(child.name))
+  if (idxIntro > 0) {
+    const intro = list.splice(idxIntro, 1)[0]
+    list.unshift(intro)
+  }
+  return list
+}
+
+function syncChildren(state, parentEl, children, depth = 0, indexPath = []) {
+  if (!parentEl) return
+  const ordered = depth === 0 ? reorderRoot(children) : Array.isArray(children) ? children : []
+  const existingDetails = Array.from(parentEl.children).filter((el) => el.tagName === 'DETAILS')
+  const lookup = new Map(existingDetails.map((el) => {
+    const key = el.dataset.key || el.dataset.path || ''
+    return [key, el]
+  }))
+
+  ordered.forEach((child, idx) => {
+    if (!child) return
+    const childIndexPath = indexPath.concat(idx + 1)
+    const key = makeNodeKey(child, depth, idx)
+    let details = lookup.get(key)
+    if (details) {
+      lookup.delete(key)
+      const existingType = details.dataset.type || (details.classList.contains('dir') ? 'dir' : 'file')
+      if (existingType !== child.type) {
+        cleanupNode(details, state)
+        details.remove()
+        details = createDetailsNode(state, child, depth, childIndexPath, key)
+      } else {
+        updateDetailsNode(state, details, child, depth, childIndexPath, key)
+      }
+    } else {
+      details = createDetailsNode(state, child, depth, childIndexPath, key)
+    }
+
+    if (child.type === 'dir') {
+      const body = details.querySelector(':scope > .body')
+      syncChildren(state, body, child.children || [], depth + 1, childIndexPath)
+    }
+
+    parentEl.appendChild(details)
+  })
+
+  lookup.forEach((el) => {
+    cleanupNode(el, state)
+    el.remove()
+  })
+}
+
+export function renderTree(state, container, tree) {
+  if (!state || !container || !tree) return
+  const children = Array.isArray(tree.children) ? tree.children : []
+  syncChildren(state, container, children, 0, [])
 }
 
 export function updateTOC(state) {
