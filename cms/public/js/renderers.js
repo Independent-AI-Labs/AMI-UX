@@ -1,4 +1,5 @@
 import { slugify, pathAnchor } from './utils.js'
+import { CodeView, guessLanguageFromClassName, normaliseLanguageHint } from './code-view.js'
 
 export function renderMarkdown(md, relPath) {
   const raw = marked.parse(md)
@@ -7,24 +8,48 @@ export function renderMarkdown(md, relPath) {
   wrapper.className = 'md'
   wrapper.innerHTML = html
 
-  // Transform mermaid code blocks into <div class="mermaid"> nodes
+  const codeBlocks = []
+
+  // Transform mermaid code blocks into <div class="mermaid"> nodes, collect standard code blocks for the CodeView
   wrapper.querySelectorAll('pre > code').forEach((code) => {
     const cls = code.className || ''
+    const source = code.textContent || ''
     if (
       cls.includes('language-mermaid') ||
-      /^\s*graph|sequenceDiagram|classDiagram|stateDiagram/.test(code.textContent || '')
+      /^\s*graph|sequenceDiagram|classDiagram|stateDiagram/.test(source)
     ) {
       const div = document.createElement('div')
       div.className = 'mermaid'
       // Preserve original diagram source for reliable re-render on theme changes
-      const src = code.textContent || ''
-      div.textContent = src
-      div.dataset.src = src
+      div.textContent = source
+      div.dataset.src = source
       // Also stash on an expando for older DOM query patterns
-      try { div.__mermaidSrc = src } catch {}
+      try { div.__mermaidSrc = source } catch {}
       const pre = code.parentElement
       pre?.replaceWith(div)
+    } else {
+      codeBlocks.push({ code, cls, source })
     }
+  })
+
+  codeBlocks.forEach(({ code, cls, source }) => {
+    const dataset = code.dataset || {}
+    const hints = [
+      guessLanguageFromClassName(cls),
+      normaliseLanguageHint(code.getAttribute('data-lang')),
+      normaliseLanguageHint(dataset.lang),
+      normaliseLanguageHint(dataset.language),
+    ]
+    const language = hints.find(Boolean) || ''
+    const view = new CodeView({
+      code: source,
+      language,
+      showCopy: true,
+      showLanguage: true,
+      showHeader: true,
+    })
+    const pre = code.parentElement
+    pre?.replaceWith(view.element)
   })
 
   // Math rendering (inline $...$, $$...$$)
