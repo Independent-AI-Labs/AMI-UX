@@ -88,6 +88,7 @@ async function cmdStart() {
   const anyport = has('--anyport')
   const waitSecs = Number(arg('--wait', '10'))
   const nowait = has('--nowait')
+  const host = arg('--host', process.env.HOST || '0.0.0.0')
   const base = getBasePort()
   const candidates = anyport ? [base, base + 1000, base + 2000] : [base]
   candidates.push(0)
@@ -99,23 +100,23 @@ async function cmdStart() {
     if (pid && !listeningOn(p)) { try { fs.unlinkSync(pf) } catch {} }
     // Try spawn
     const log = logFile(p); fs.writeFileSync(log, '')
-    const args = [dev ? 'dev' : 'start', '-p', String(p)]
+    const args = [dev ? 'dev' : 'start', '-p', String(p), '--hostname', host]
     const child = spawn(path.join(APP_DIR, 'node_modules/.bin/next'), args, {
       cwd: APP_DIR,
-      env: { ...process.env, HOST: '0.0.0.0' },
+      env: { ...process.env, HOST: host },
       shell: false,
       detached: true,
       stdio: ['ignore', fs.openSync(log, 'a'), fs.openSync(log, 'a')],
     })
     writePid(pf, child.pid)
     fs.writeFileSync(portFile(p), String(p))
-    console.log(`Started on port ${p} (pid ${child.pid}) | logs: ${log}`)
+    console.log(`Started on port ${p} (pid ${child.pid}) listening on ${host} | logs: ${log}`)
     if (nowait || waitSecs <= 0) { child.unref(); return }
     // Wait for readiness
     const loops = Math.max(1, Math.min(60, waitSecs * 3))
     for (let i = 0; i < loops; i++) {
       if (await httpOk(`http://127.0.0.1:${p}/api/tree`, 1000)) {
-        child.unref(); console.log('Ready:', `http://127.0.0.1:${p}`); return
+        child.unref(); console.log('Ready:', `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${p}`); return
       }
       await sleep(333)
     }
@@ -165,4 +166,3 @@ async function main() {
 }
 
 main().catch((e) => { console.error(e?.stack || e?.message || String(e)); process.exit(1) })
-
