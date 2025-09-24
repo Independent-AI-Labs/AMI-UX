@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { getConfig, saveConfig, type CmsConfig } from '../../lib/store'
-import { repoRoot, DEFAULT_DOC_ROOT, defaultDocRootLabel, deriveDocRootLabel } from '../../lib/doc-root'
+import {
+  repoRoot,
+  DEFAULT_DOC_ROOT,
+  defaultDocRootLabel,
+  deriveDocRootLabel,
+} from '../../lib/doc-root'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,9 +27,12 @@ export async function GET() {
   // Ensure stable defaults
   const rawDocRoot = cfg.docRoot || defaultDocRoot()
   const docRootAbsolute = path.resolve(repoRoot, rawDocRoot)
-  const labelExplicit = (typeof cfg.docRootLabel === 'string' && cfg.docRootLabel.trim())
-    ? cfg.docRootLabel.trim()
-    : (path.resolve(repoRoot, rawDocRoot) === path.resolve(repoRoot, defaultDocRoot()) ? defaultDocRootLabel() : '')
+  const labelExplicit =
+    typeof cfg.docRootLabel === 'string' && cfg.docRootLabel.trim()
+      ? cfg.docRootLabel.trim()
+      : path.resolve(repoRoot, rawDocRoot) === path.resolve(repoRoot, defaultDocRoot())
+        ? defaultDocRootLabel()
+        : ''
   const docRootLabel = deriveDocRootLabel(docRootAbsolute, labelExplicit)
   const filled: CmsConfig = {
     docRoot: rawDocRoot,
@@ -40,7 +48,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({} as Partial<CmsConfig>))
+  const body = await req.json().catch(() => ({}) as Partial<CmsConfig>)
   const current = await getConfig()
   const next: CmsConfig = { ...current }
   let docRootChanged = false
@@ -55,7 +63,9 @@ export async function POST(req: Request) {
       const st = await fs.stat(abs)
       if (!st.isDirectory()) throw new Error('Not a directory')
       const stored = normalizeDocRootForStorage(abs)
-      const prev = current.docRoot ? path.resolve(repoRoot, current.docRoot) : path.resolve(repoRoot, defaultDocRoot())
+      const prev = current.docRoot
+        ? path.resolve(repoRoot, current.docRoot)
+        : path.resolve(repoRoot, defaultDocRoot())
       docRootChanged = path.resolve(abs) !== path.resolve(prev)
       next.docRoot = stored
       targetAbsolute = abs
@@ -63,7 +73,10 @@ export async function POST(req: Request) {
         next.docRootLabel = deriveDocRootLabel(abs)
       }
     } catch (e: any) {
-      return NextResponse.json({ error: `Invalid directory: ${e?.message || 'stat failed'}` }, { status: 400 })
+      return NextResponse.json(
+        { error: `Invalid directory: ${e?.message || 'stat failed'}` },
+        { status: 400 },
+      )
     }
   }
 
@@ -80,7 +93,8 @@ export async function POST(req: Request) {
   if (body.selected !== undefined) next.selected = body.selected as any
   if (Array.isArray(body.openTabs)) next.openTabs = body.openTabs as any
   if ('activeTabId' in body) next.activeTabId = (body as any).activeTabId ?? null
-  if (typeof (body as any).preferredMode === 'string') next.preferredMode = (body as any).preferredMode as any
+  if (typeof (body as any).preferredMode === 'string')
+    next.preferredMode = (body as any).preferredMode as any
   if (Array.isArray((body as any).recents)) next.recents = (body as any).recents as any
   if (typeof (body as any).allowed === 'string') next.allowed = String((body as any).allowed)
 
@@ -97,10 +111,16 @@ export async function POST(req: Request) {
   await saveConfig(next)
   const storedDocRoot = next.docRoot || defaultDocRoot()
   const absolute = path.resolve(repoRoot, storedDocRoot)
-  const label = typeof next.docRootLabel === 'string' && next.docRootLabel
-    ? next.docRootLabel
-    : deriveDocRootLabel(absolute)
-  return NextResponse.json({ ok: true, docRoot: next.docRoot, docRootLabel: label, docRootAbsolute: absolute })
+  const label =
+    typeof next.docRootLabel === 'string' && next.docRootLabel
+      ? next.docRootLabel
+      : deriveDocRootLabel(absolute)
+  return NextResponse.json({
+    ok: true,
+    docRoot: next.docRoot,
+    docRootLabel: label,
+    docRootAbsolute: absolute,
+  })
 }
 
 export async function PATCH(req: Request) {

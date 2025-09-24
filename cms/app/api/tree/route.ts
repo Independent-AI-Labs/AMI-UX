@@ -15,7 +15,11 @@ type Node = {
 const IGNORED_DIRS = new Set(['.git', '.next', 'node_modules'])
 
 async function statSafe(p: string) {
-  try { return await fs.stat(p) } catch { return null }
+  try {
+    return await fs.stat(p)
+  } catch {
+    return null
+  }
 }
 
 export async function GET(req: Request) {
@@ -37,7 +41,12 @@ export async function GET(req: Request) {
 
   const isDocRoot = rootInfo.key === 'docRoot'
 
-  async function readDirTreeWithAllowed(dirAbs: string, rel: string = '', allowlist: TextFormats | null = formats, includeEmpty = false): Promise<Node[]> {
+  async function readDirTreeWithAllowed(
+    dirAbs: string,
+    rel: string = '',
+    allowlist: TextFormats | null = formats,
+    includeEmpty = false,
+  ): Promise<Node[]> {
     const entries = await fs.readdir(dirAbs, { withFileTypes: true })
     const nodes: Node[] = []
     for (const ent of entries) {
@@ -48,12 +57,16 @@ export async function GET(req: Request) {
       const childAbs = path.join(dirAbs, name)
       if (ent.isDirectory()) {
         const children = await readDirTreeWithAllowed(childAbs, childRel, allowlist, includeEmpty)
-        if (children.length > 0 || includeEmpty) nodes.push({ name, path: childRel, type: 'dir', children })
+        if (children.length > 0 || includeEmpty)
+          nodes.push({ name, path: childRel, type: 'dir', children })
       } else if (ent.isFile()) {
-        if (!allowlist || isAllowedTextFormat(allowlist, childRel)) nodes.push({ name, path: childRel, type: 'file' })
+        if (!allowlist || isAllowedTextFormat(allowlist, childRel))
+          nodes.push({ name, path: childRel, type: 'file' })
       }
     }
-    nodes.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1))
+    nodes.sort((a, b) =>
+      a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1,
+    )
     return nodes
   }
   const allowlist = isDocRoot ? formats : null
@@ -61,13 +74,22 @@ export async function GET(req: Request) {
   const tree = await readDirTreeWithAllowed(rootAbs, '', allowlist, includeEmpty)
   // Root-level: move Introduction/README to the top if present
   try {
-    const idx = tree.findIndex((ch: any) => ch.type === 'file' && ['readme.md', 'introduction.md', 'intro.md'].includes(String(ch.name || '').toLowerCase()))
+    const idx = tree.findIndex(
+      (ch: any) =>
+        ch.type === 'file' &&
+        ['readme.md', 'introduction.md', 'intro.md'].includes(String(ch.name || '').toLowerCase()),
+    )
     if (idx > 0) {
       const intro = tree.splice(idx, 1)[0]
       tree.unshift(intro)
     }
   } catch {}
-  const payload: Node = { name: path.basename(rootAbs) || rootInfo.label, path: '', type: 'dir', children: tree }
+  const payload: Node = {
+    name: path.basename(rootAbs) || rootInfo.label,
+    path: '',
+    type: 'dir',
+    children: tree,
+  }
   const docRootSetting = isDocRoot ? cfg.docRoot : undefined
   return NextResponse.json({
     ...payload,

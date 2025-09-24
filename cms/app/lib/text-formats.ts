@@ -97,7 +97,10 @@ async function loadReferenceFromRepo(): Promise<AllowedList> {
   const repoPath = path.resolve(process.cwd(), '../../files/res/text_extensions.json')
   try {
     const raw = await fs.readFile(repoPath, 'utf8')
-    const data = JSON.parse(raw) as { all_extensions?: unknown; categories?: Record<string, Array<{ ext: string }>> }
+    const data = JSON.parse(raw) as {
+      all_extensions?: unknown
+      categories?: Record<string, Array<{ ext: string }>>
+    }
     if (Array.isArray(data?.all_extensions)) {
       for (const entry of data.all_extensions) {
         if (typeof entry === 'string') normalizeEntry(entry, target)

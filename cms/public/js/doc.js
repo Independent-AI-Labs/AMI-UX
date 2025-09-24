@@ -2,7 +2,9 @@ import { startCms } from './main.js'
 
 startCms()
   .then(() => {
-    try { window.parent?.postMessage?.({ type: 'docReady' }, '*') } catch {}
+    try {
+      window.parent?.postMessage?.({ type: 'docReady' }, '*')
+    } catch {}
   })
   .catch((err) => {
     const el = document.getElementById('content') || document.body

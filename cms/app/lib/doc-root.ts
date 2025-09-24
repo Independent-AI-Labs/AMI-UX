@@ -23,9 +23,8 @@ export type DocRootInfo = {
 }
 
 function resolveDocRootSetting(cfg: CmsConfig): string {
-  const input = typeof cfg.docRoot === 'string' && cfg.docRoot.trim()
-    ? cfg.docRoot.trim()
-    : DEFAULT_DOC_ROOT
+  const input =
+    typeof cfg.docRoot === 'string' && cfg.docRoot.trim() ? cfg.docRoot.trim() : DEFAULT_DOC_ROOT
   return input
 }
 
@@ -41,4 +40,3 @@ export async function loadDocRootInfo(): Promise<DocRootInfo | null> {
   const label = deriveDocRootLabel(absolute, cfg.docRootLabel)
   return { absolute, relative, label }
 }
-

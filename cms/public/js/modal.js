@@ -3,14 +3,15 @@ import { humanizeName, normalizeFsPath } from './utils.js'
 import { createFileTreeToolkit, normalizeTreeFromApi } from './file-tree.js'
 async function ensureReact() {
   if (window.React && window.ReactDOM) return { React: window.React, ReactDOM: window.ReactDOM }
-  const load = (src) => new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = src
-    s.crossOrigin = 'anonymous'
-    s.onload = resolve
-    s.onerror = reject
-    document.head.appendChild(s)
-  })
+  const load = (src) =>
+    new Promise((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = src
+      s.crossOrigin = 'anonymous'
+      s.onload = resolve
+      s.onerror = reject
+      document.head.appendChild(s)
+    })
   // Use CDN consistent with other libs in this app
   await load('https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js')
   await load('https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js')
@@ -26,11 +27,16 @@ export async function openSelectMediaModal({ onSelect } = {}) {
   const Icon = ({ name }) => {
     const paths = {
       file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline>',
-      folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path>',
-      app: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"><\/path>'
+      folder:
+        '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path>',
+      app: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"><\/path>',
     }
     const svg = paths[name] || paths.file
-    return React.createElement('span', { dangerouslySetInnerHTML: { __html: `<svg class="icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>` } })
+    return React.createElement('span', {
+      dangerouslySetInnerHTML: {
+        __html: `<svg class="icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>`,
+      },
+    })
   }
 
   const formatBytes = (value) => {
@@ -55,7 +61,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       const style = document.createElement('style')
       style.textContent = [
         '@keyframes upload-indeterminate { 0% { background-position: 0% 0; } 100% { background-position: 200% 0; } }',
-        '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }'
+        '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }',
       ].join('\n')
       document.head.appendChild(style)
     }
@@ -101,12 +107,15 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       return () => window.removeEventListener('keydown', handler)
     }, [closeWithAnimation])
 
-    useEffect(() => () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current)
-        closeTimeoutRef.current = null
-      }
-    }, [])
+    useEffect(
+      () => () => {
+        if (closeTimeoutRef.current) {
+          clearTimeout(closeTimeoutRef.current)
+          closeTimeoutRef.current = null
+        }
+      },
+      [],
+    )
 
     const cappedActions = useMemo(() => {
       if (!Array.isArray(actions)) return []
@@ -135,27 +144,35 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       const primaryStyle = isPrimary
         ? { background: 'var(--accent)', color: '#0b1324' }
         : { background: 'color-mix(in oklab, var(--panel) 65%, transparent)', color: 'var(--text)' }
-      return React.createElement('button', {
-        key: action.key,
-        className: 'btn',
-        onClick: (e) => {
-          e.preventDefault()
-          if (!action.disabled) action.onClick?.(e)
+      return React.createElement(
+        'button',
+        {
+          key: action.key,
+          className: 'btn',
+          onClick: (e) => {
+            e.preventDefault()
+            if (!action.disabled) action.onClick?.(e)
+          },
+          disabled: action.disabled,
+          type: action.type,
+          style: { ...baseStyle, ...primaryStyle, ...(action.style || {}) },
         },
-        disabled: action.disabled,
-        type: action.type,
-        style: { ...baseStyle, ...primaryStyle, ...(action.style || {}) },
-      }, action.label)
+        action.label,
+      )
     }
 
-    const closeButton = React.createElement('button', {
-      className: 'dialog-close',
-      onClick: (e) => {
-        e.preventDefault()
-        closeWithAnimation()
+    const closeButton = React.createElement(
+      'button',
+      {
+        className: 'dialog-close',
+        onClick: (e) => {
+          e.preventDefault()
+          closeWithAnimation()
+        },
+        'aria-label': 'Close dialog',
       },
-      'aria-label': 'Close dialog',
-    }, '×')
+      '×',
+    )
 
     const surfaceStyle = {
       '--dialog-min-width': minWidth,
@@ -163,33 +180,61 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       ...contentStyle,
     }
 
-    return React.createElement('div', {
-      className: 'dialog-backdrop',
-      'data-state': stage,
-      hidden: stage === 'closed',
-      onMouseDown: (event) => {
-        if (event.target === event.currentTarget && allowBackdropClose) closeWithAnimation()
-      },
-    },
-      React.createElement('div', {
-        className: 'dialog-surface',
+    return React.createElement(
+      'div',
+      {
+        className: 'dialog-backdrop',
         'data-state': stage,
-        style: surfaceStyle,
-        onMouseDown: (event) => event.stopPropagation(),
+        hidden: stage === 'closed',
+        onMouseDown: (event) => {
+          if (event.target === event.currentTarget && allowBackdropClose) closeWithAnimation()
+        },
       },
-        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-          title ? React.createElement('strong', { style: { fontSize: '16px', flex: 1 } }, title) : React.createElement('span', { style: { flex: 1 } }),
+      React.createElement(
+        'div',
+        {
+          className: 'dialog-surface',
+          'data-state': stage,
+          style: surfaceStyle,
+          onMouseDown: (event) => event.stopPropagation(),
+        },
+        React.createElement(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+          title
+            ? React.createElement('strong', { style: { fontSize: '16px', flex: 1 } }, title)
+            : React.createElement('span', { style: { flex: 1 } }),
           closeButton,
         ),
         React.createElement('div', { style: { overflowY: 'auto', ...bodyStyle } }, children),
         cappedActions.length
-          ? React.createElement('div', { style: { display: 'flex', justifyContent: footerAlign, gap: 10, marginTop: 'auto' } }, cappedActions.map(renderAction))
+          ? React.createElement(
+              'div',
+              {
+                style: { display: 'flex', justifyContent: footerAlign, gap: 10, marginTop: 'auto' },
+              },
+              cappedActions.map(renderAction),
+            )
           : null,
       ),
     )
   }
 
-  function Row({ entry, status, selected, busy, onOpen, onContext, onStart, onStop, upload, onUploadStart, onUploadPause, onUploadResume, onUploadClear }) {
+  function Row({
+    entry,
+    status,
+    selected,
+    busy,
+    onOpen,
+    onContext,
+    onStart,
+    onStop,
+    upload,
+    onUploadStart,
+    onUploadPause,
+    onUploadResume,
+    onUploadClear,
+  }) {
     const isUpload = !!upload
     if (isUpload || busy) ensureUploadStyles()
     const uploadStatus = upload?.status || 'ready'
@@ -197,10 +242,28 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const label = entry.label || (entry.kind === 'file' ? humanizeName(base, 'file') : base)
     const kind = entry.kind
     const [hovered, setHovered] = useState(false)
-    const spinner = React.createElement('svg', { viewBox: '0 0 50 50', width: 16, height: 16, style: { marginLeft: 8, animation: 'spin 1s linear infinite' } },
-      React.createElement('circle', { cx: 25, cy: 25, r: 20, fill: 'none', stroke: 'currentColor', strokeWidth: 5, strokeDasharray: '31.4 31.4', strokeLinecap: 'round' })
+    const spinner = React.createElement(
+      'svg',
+      {
+        viewBox: '0 0 50 50',
+        width: 16,
+        height: 16,
+        style: { marginLeft: 8, animation: 'spin 1s linear infinite' },
+      },
+      React.createElement('circle', {
+        cx: 25,
+        cy: 25,
+        r: 20,
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: 5,
+        strokeDasharray: '31.4 31.4',
+        strokeLinecap: 'round',
+      }),
     )
-    const onRowDoubleClick = () => { if (!isUpload) onOpen(entry) }
+    const onRowDoubleClick = () => {
+      if (!isUpload) onOpen(entry)
+    }
     const onRowContext = (e) => {
       if (isUpload) return
       e.preventDefault()
@@ -211,93 +274,162 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       : hovered
         ? 'color-mix(in oklab, var(--accent) 6%, transparent)'
         : 'transparent'
-    const background = isUpload && (uploadStatus === 'uploading' || uploadStatus === 'checking' || uploadStatus === 'queued')
-      ? 'color-mix(in oklab, var(--accent) 10%, transparent)'
-      : baseBackground
+    const background =
+      isUpload &&
+      (uploadStatus === 'uploading' || uploadStatus === 'checking' || uploadStatus === 'queued')
+        ? 'color-mix(in oklab, var(--accent) 10%, transparent)'
+        : baseBackground
 
     const uploadControls = (() => {
       if (!isUpload) return null
       const buttons = []
-      const icon = (svg) => React.createElement('span', { dangerouslySetInnerHTML: { __html: svg } })
-      const makeButton = (key, svg, title, onClick, disabled = false) => React.createElement('button', {
-        key,
-        className: 'btn',
-        onClick: (e) => { e.stopPropagation(); if (!disabled) onClick?.() },
-        title,
-        disabled,
-        style: { padding: '4px 6px', borderRadius: 999 },
-      }, icon(svg))
-      const playIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="8 5 19 12 8 19 8 5"/></svg>'
-      const pauseIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>'
-      const clearIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
-      const retryIcon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 4 1 7 4"/><path d="M3 1v6a4 4 0 0 0 4 4h3"/><polyline points="23 20 20 23 17 20"/><path d="M21 23v-6a4 4 0 0 0-4-4h-3"/></svg>'
-      if (uploadStatus === 'uploading' || uploadStatus === 'checking' || uploadStatus === 'queued' || uploadStatus === 'finalizing') {
-        buttons.push(makeButton('pause', pauseIcon, 'Pause upload', () => onUploadPause?.(upload), uploadStatus === 'finalizing'))
+      const icon = (svg) =>
+        React.createElement('span', { dangerouslySetInnerHTML: { __html: svg } })
+      const makeButton = (key, svg, title, onClick, disabled = false) =>
+        React.createElement(
+          'button',
+          {
+            key,
+            className: 'btn',
+            onClick: (e) => {
+              e.stopPropagation()
+              if (!disabled) onClick?.()
+            },
+            title,
+            disabled,
+            style: { padding: '4px 6px', borderRadius: 999 },
+          },
+          icon(svg),
+        )
+      const playIcon =
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="8 5 19 12 8 19 8 5"/></svg>'
+      const pauseIcon =
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>'
+      const clearIcon =
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
+      const retryIcon =
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 4 1 7 4"/><path d="M3 1v6a4 4 0 0 0 4 4h3"/><polyline points="23 20 20 23 17 20"/><path d="M21 23v-6a4 4 0 0 0-4-4h-3"/></svg>'
+      if (
+        uploadStatus === 'uploading' ||
+        uploadStatus === 'checking' ||
+        uploadStatus === 'queued' ||
+        uploadStatus === 'finalizing'
+      ) {
+        buttons.push(
+          makeButton(
+            'pause',
+            pauseIcon,
+            'Pause upload',
+            () => onUploadPause?.(upload),
+            uploadStatus === 'finalizing',
+          ),
+        )
       } else if (uploadStatus === 'paused') {
-        buttons.push(makeButton('resume', playIcon, 'Resume upload', () => onUploadResume?.(upload)))
-        buttons.push(makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)))
+        buttons.push(
+          makeButton('resume', playIcon, 'Resume upload', () => onUploadResume?.(upload)),
+        )
+        buttons.push(
+          makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)),
+        )
       } else if (uploadStatus === 'error') {
         buttons.push(makeButton('retry', retryIcon, 'Retry upload', () => onUploadStart?.(upload)))
-        buttons.push(makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)))
+        buttons.push(
+          makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)),
+        )
       } else if (uploadStatus === 'ready') {
         buttons.push(makeButton('start', playIcon, 'Start upload', () => onUploadStart?.(upload)))
-        buttons.push(makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)))
+        buttons.push(
+          makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)),
+        )
       }
-      return React.createElement('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } }, ...buttons)
+      return React.createElement(
+        'div',
+        { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+        ...buttons,
+      )
     })()
 
     const serveControls = (() => {
       if (isUpload) return null
       const isStarting = status === 'starting'
       const isOn = status === 'running'
-      const onClick = (e) => { e.stopPropagation(); if (isStarting) return; (isOn ? onStop : onStart)(entry) }
+      const onClick = (e) => {
+        e.stopPropagation()
+        if (isStarting) return
+        ;(isOn ? onStop : onStart)(entry)
+      }
       if (isStarting) {
-        return React.createElement('span', { className: 'muted', title: 'Starting…', style: { display: 'inline-flex', alignItems: 'center' } }, spinner)
+        return React.createElement(
+          'span',
+          {
+            className: 'muted',
+            title: 'Starting…',
+            style: { display: 'inline-flex', alignItems: 'center' },
+          },
+          spinner,
+        )
       }
       const svg = isOn
         ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>'
         : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="8 5 19 12 8 19 8 5"/></svg>'
-      return React.createElement('button', {
-        className: 'btn', onClick, title: isOn ? 'Stop serving' : 'Start serving',
-        style: { padding: '4px 6px', borderRadius: 999 }
-      }, React.createElement('span', { dangerouslySetInnerHTML: { __html: svg } }))
+      return React.createElement(
+        'button',
+        {
+          className: 'btn',
+          onClick,
+          title: isOn ? 'Stop serving' : 'Start serving',
+          style: { padding: '4px 6px', borderRadius: 999 },
+        },
+        React.createElement('span', { dangerouslySetInnerHTML: { __html: svg } }),
+      )
     })()
 
     const totalBytes = upload?.totalBytes || 0
     const uploadedBytes = upload?.uploadedBytes || 0
-    const explicitProgress = typeof upload?.progress === 'number' && Number.isFinite(upload.progress) ? Math.max(0, Math.min(1, upload.progress)) : null
-    const derivedProgress = totalBytes > 0 ? Math.max(0, Math.min(1, uploadedBytes / totalBytes)) : null
+    const explicitProgress =
+      typeof upload?.progress === 'number' && Number.isFinite(upload.progress)
+        ? Math.max(0, Math.min(1, upload.progress))
+        : null
+    const derivedProgress =
+      totalBytes > 0 ? Math.max(0, Math.min(1, uploadedBytes / totalBytes)) : null
     const progressValue = isUpload ? (explicitProgress ?? derivedProgress) : null
     const showProgressBar = isUpload || busy
     const progressBar = showProgressBar
-      ? React.createElement('div', {
-        style: {
-          marginTop: 6,
-          height: 6,
-          borderRadius: 999,
-          background: 'color-mix(in oklab, var(--border) 70%, transparent)',
-          overflow: 'hidden',
-        }
-      }, React.createElement('div', {
-        style: (isUpload && progressValue != null)
-          ? {
-            width: `${Math.max(progressValue, 0.02) * 100}%`,
-            height: '100%',
-            borderRadius: 999,
-            background: 'var(--accent)',
-            transition: 'width 160ms ease',
-          }
-          : {
-            width: '40%',
-            minWidth: '90px',
-            height: '100%',
-            borderRadius: 999,
-            backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0.12) 0%, var(--accent) 50%, rgba(255,255,255,0.12) 100%)',
-            backgroundSize: '200% 100%',
-            animation: 'upload-indeterminate 1s linear infinite',
-            opacity: 0.9,
-          }
-      })) : null
+      ? React.createElement(
+          'div',
+          {
+            style: {
+              marginTop: 6,
+              height: 6,
+              borderRadius: 999,
+              background: 'color-mix(in oklab, var(--border) 70%, transparent)',
+              overflow: 'hidden',
+            },
+          },
+          React.createElement('div', {
+            style:
+              isUpload && progressValue != null
+                ? {
+                    width: `${Math.max(progressValue, 0.02) * 100}%`,
+                    height: '100%',
+                    borderRadius: 999,
+                    background: 'var(--accent)',
+                    transition: 'width 160ms ease',
+                  }
+                : {
+                    width: '40%',
+                    minWidth: '90px',
+                    height: '100%',
+                    borderRadius: 999,
+                    backgroundImage:
+                      'linear-gradient(90deg, rgba(255,255,255,0.12) 0%, var(--accent) 50%, rgba(255,255,255,0.12) 100%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'upload-indeterminate 1s linear infinite',
+                    opacity: 0.9,
+                  },
+          }),
+        )
+      : null
 
     let statusText = ''
     let statusColor = 'var(--muted)'
@@ -305,10 +437,20 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       const pct = progressValue != null ? `${Math.round(progressValue * 100)}%` : ''
       if (uploadStatus === 'ready') statusText = 'Ready to upload'
       else if (uploadStatus === 'paused') statusText = 'Upload paused'
-      else if (uploadStatus === 'uploading' || uploadStatus === 'checking' || uploadStatus === 'queued') statusText = pct ? `Uploading ${pct}` : 'Uploading…'
+      else if (
+        uploadStatus === 'uploading' ||
+        uploadStatus === 'checking' ||
+        uploadStatus === 'queued'
+      )
+        statusText = pct ? `Uploading ${pct}` : 'Uploading…'
       else if (uploadStatus === 'finalizing') statusText = 'Finalizing…'
-      else if (uploadStatus === 'done') { statusText = 'Upload complete'; statusColor = 'var(--ok)' }
-      else if (uploadStatus === 'error') { statusText = upload?.error || 'Upload failed'; statusColor = '#ef4444' }
+      else if (uploadStatus === 'done') {
+        statusText = 'Upload complete'
+        statusColor = 'var(--ok)'
+      } else if (uploadStatus === 'error') {
+        statusText = upload?.error || 'Upload failed'
+        statusColor = '#ef4444'
+      }
     } else if (busy) {
       statusText = 'Working…'
     }
@@ -320,48 +462,148 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       if (totalBytes) detailParts.push(formatBytes(totalBytes))
     } else {
       const meta = entry?.metrics || entry?.meta || {}
-      const itemValue = typeof meta.items === 'number' ? meta.items : (typeof meta.itemCount === 'number' ? meta.itemCount : null)
-      const bytesValue = typeof meta.bytes === 'number' ? meta.bytes : (typeof meta.size === 'number' ? meta.size : null)
+      const itemValue =
+        typeof meta.items === 'number'
+          ? meta.items
+          : typeof meta.itemCount === 'number'
+            ? meta.itemCount
+            : null
+      const bytesValue =
+        typeof meta.bytes === 'number'
+          ? meta.bytes
+          : typeof meta.size === 'number'
+            ? meta.size
+            : null
       if (itemValue != null) detailParts.push(`${itemValue} item${itemValue === 1 ? '' : 's'}`)
       if (bytesValue != null) detailParts.push(formatBytes(bytesValue))
       if (meta.truncated) detailParts.push('Partial scan')
     }
 
-    return React.createElement('div', {
-      className: 'row',
-      onDoubleClick: onRowDoubleClick,
-      onContextMenu: onRowContext,
-      onMouseEnter: () => setHovered(true),
-      onMouseLeave: () => setHovered(false),
-      style: {
-        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px',
-        borderBottom: '1px solid var(--border)', cursor: 'default',
-        background,
-      }
-    },
-      React.createElement(Icon, { name: kind === 'dir' ? 'folder' : (kind === 'app' ? 'app' : 'file') }),
-      React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-          React.createElement('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden' } },
-            React.createElement('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 } }, label),
-            (!isUpload && status === 'running') && React.createElement('span', { className: 'serve-dot', title: 'Served' }),
+    return React.createElement(
+      'div',
+      {
+        className: 'row',
+        onDoubleClick: onRowDoubleClick,
+        onContextMenu: onRowContext,
+        onMouseEnter: () => setHovered(true),
+        onMouseLeave: () => setHovered(false),
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '10px',
+          borderBottom: '1px solid var(--border)',
+          cursor: 'default',
+          background,
+        },
+      },
+      React.createElement(Icon, {
+        name: kind === 'dir' ? 'folder' : kind === 'app' ? 'app' : 'file',
+      }),
+      React.createElement(
+        'div',
+        { style: { flex: 1, minWidth: 0 } },
+        React.createElement(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+          React.createElement(
+            'div',
+            {
+              style: {
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                flex: 1,
+                overflow: 'hidden',
+              },
+            },
+            React.createElement(
+              'span',
+              {
+                style: {
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 600,
+                },
+              },
+              label,
+            ),
+            !isUpload &&
+              status === 'running' &&
+              React.createElement('span', { className: 'serve-dot', title: 'Served' }),
           ),
           isUpload ? uploadControls : serveControls,
-          (!isUpload && busy) && spinner,
-          (isUpload && (uploadStatus === 'uploading' || uploadStatus === 'checking' || uploadStatus === 'queued' || uploadStatus === 'finalizing')) && spinner,
+          !isUpload && busy && spinner,
+          isUpload &&
+            (uploadStatus === 'uploading' ||
+              uploadStatus === 'checking' ||
+              uploadStatus === 'queued' ||
+              uploadStatus === 'finalizing') &&
+            spinner,
         ),
         isUpload
-          ? React.createElement(React.Fragment, null,
-            progressBar,
-            statusText && React.createElement('div', { style: { color: statusColor, fontSize: 12, marginTop: 6 } }, statusText),
-            detailParts.length ? React.createElement('div', { style: { color: 'var(--muted)', fontSize: 12, marginTop: 4 } }, detailParts.join(' • ')) : null,
-          )
-          : React.createElement(React.Fragment, null,
-            progressBar,
-            statusText && React.createElement('div', { style: { color: statusColor, fontSize: 12, marginTop: 6 } }, statusText),
-            entry.path ? React.createElement('div', { style: { color: 'var(--muted)', fontSize: 12, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, entry.path) : null,
-            detailParts.length ? React.createElement('div', { style: { color: 'var(--muted)', fontSize: 12, marginTop: entry.path ? 2 : 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, detailParts.join(' • ')) : null,
-          ),
+          ? React.createElement(
+              React.Fragment,
+              null,
+              progressBar,
+              statusText &&
+                React.createElement(
+                  'div',
+                  { style: { color: statusColor, fontSize: 12, marginTop: 6 } },
+                  statusText,
+                ),
+              detailParts.length
+                ? React.createElement(
+                    'div',
+                    { style: { color: 'var(--muted)', fontSize: 12, marginTop: 4 } },
+                    detailParts.join(' • '),
+                  )
+                : null,
+            )
+          : React.createElement(
+              React.Fragment,
+              null,
+              progressBar,
+              statusText &&
+                React.createElement(
+                  'div',
+                  { style: { color: statusColor, fontSize: 12, marginTop: 6 } },
+                  statusText,
+                ),
+              entry.path
+                ? React.createElement(
+                    'div',
+                    {
+                      style: {
+                        color: 'var(--muted)',
+                        fontSize: 12,
+                        marginTop: 4,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      },
+                    },
+                    entry.path,
+                  )
+                : null,
+              detailParts.length
+                ? React.createElement(
+                    'div',
+                    {
+                      style: {
+                        color: 'var(--muted)',
+                        fontSize: 12,
+                        marginTop: entry.path ? 2 : 4,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      },
+                    },
+                    detailParts.join(' • '),
+                  )
+                : null,
+            ),
       ),
     )
   }
@@ -445,46 +687,87 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     return out
   }
 
-  function ContextMenu({ x, y, serving, onClose, onPick, onStart, onStop, onRename, onCopyPath, onDeleteLib, onDeleteDisk }) {
+  function ContextMenu({
+    x,
+    y,
+    serving,
+    onClose,
+    onPick,
+    onStart,
+    onStop,
+    onRename,
+    onCopyPath,
+    onDeleteLib,
+    onDeleteDisk,
+  }) {
     const startDisabled = !!serving
     const stopDisabled = !serving
     const vpW = window.innerWidth || 1200
     const vpH = window.innerHeight || 800
     const left = Math.min(x, vpW - 220)
     const top = Math.min(y, vpH - 180)
-    const mkItem = (key, label, action, disabled = false) => React.createElement(
+    const mkItem = (key, label, action, disabled = false) =>
+      React.createElement(
+        'div',
+        {
+          key,
+          className: 'ctx',
+          onClick: (e) => {
+            e.stopPropagation()
+            if (!disabled) {
+              action()
+              onClose()
+            }
+          },
+          style: {
+            padding: '8px 10px',
+            cursor: disabled ? 'default' : 'pointer',
+            opacity: disabled ? 0.5 : 1,
+          },
+        },
+        label,
+      )
+    return React.createElement(
       'div',
       {
-        key,
-        className: 'ctx',
-        onClick: (e) => { e.stopPropagation(); if (!disabled) { action(); onClose() } },
-        style: { padding: '8px 10px', cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1 }
+        className: 'media-ctx',
+        style: {
+          position: 'fixed',
+          left,
+          top,
+          zIndex: 1002,
+          background: 'var(--panel)',
+          color: 'var(--text)',
+          border: '1px solid var(--border)',
+          borderRadius: 6,
+          minWidth: 220,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          pointerEvents: 'auto',
+        },
+        onContextMenu: (e) => e.preventDefault(),
       },
-      label,
-    )
-    return React.createElement('div', {
-      className: 'media-ctx',
-      style: {
-        position: 'fixed', left, top, zIndex: 1002,
-        background: 'var(--panel)', color: 'var(--text)',
-        border: '1px solid var(--border)', borderRadius: 6, minWidth: 220,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-        pointerEvents: 'auto'
-      },
-      onContextMenu: (e) => e.preventDefault(),
-    },
       mkItem('open', 'Open', onPick),
       mkItem('start', 'Start Serving', onStart, startDisabled),
       mkItem('stop', 'Stop Serving', onStop, stopDisabled),
       mkItem('rename', 'Rename…', onRename, false),
       mkItem('copy', 'Copy Path', onCopyPath, false),
-      React.createElement('div', { style: { height: 1, background: 'var(--border)', margin: '4px 0' } }),
+      React.createElement('div', {
+        style: { height: 1, background: 'var(--border)', margin: '4px 0' },
+      }),
       mkItem('del', 'Remove from Directory', onDeleteLib, false),
       mkItem('deld', 'Delete from Disk', onDeleteDisk, false),
     )
   }
 
-  function DestinationModal({ selection, directories, rootOptions = [], resolveRoot, onClose, onStage, validateFolderName }) {
+  function DestinationModal({
+    selection,
+    directories,
+    rootOptions = [],
+    resolveRoot,
+    onClose,
+    onStage,
+    validateFolderName,
+  }) {
     const { files = [] } = selection || {}
     const fileCount = files.length
     const totalBytes = files.reduce((sum, entry) => sum + (entry?.file?.size || 0), 0)
@@ -512,7 +795,12 @@ export async function openSelectMediaModal({ onSelect } = {}) {
               const res = await fetch(`/api/tree${query}`)
               if (!res.ok) throw new Error('failed')
               const data = await res.json()
-              const normalized = normalizeTreeFromApi(data, { rootKey: opt.key, label: opt.label || opt.key, rootAbsolute: opt.path, writable: opt.writable !== false })
+              const normalized = normalizeTreeFromApi(data, {
+                rootKey: opt.key,
+                label: opt.label || opt.key,
+                rootAbsolute: opt.path,
+                writable: opt.writable !== false,
+              })
               if (normalized) {
                 accum.push(normalized)
                 const normAbs = normalizeFsPath(normalized.absolutePath)
@@ -537,7 +825,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           let key = `standalone_${safeBase}`
           let suffix = 1
           while (usedKeys.has(key)) {
-            key = `standalone_${safeBase}_${suffix += 1}`
+            key = `standalone_${safeBase}_${(suffix += 1)}`
           }
           usedKeys.add(key)
           accum.push({
@@ -546,7 +834,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             absolutePath: dir.path,
             writable: true,
             node: {
-              name: dir.label || (dir.path.split(/[\\/]/).pop() || 'Directory'),
+              name: dir.label || dir.path.split(/[\\/]/).pop() || 'Directory',
               path: '',
               type: 'dir',
               absolutePath: dir.path,
@@ -560,21 +848,26 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         }
         if (alive) setTreeRoots(accum)
       }
-      load().catch(() => {
-        if (alive) {
-          setTreeRoots([])
-          setTreeError('Failed to load directories.')
-        }
-      }).finally(() => {
-        if (alive) setLoadingTree(false)
-      })
-      return () => { alive = false }
+      load()
+        .catch(() => {
+          if (alive) {
+            setTreeRoots([])
+            setTreeError('Failed to load directories.')
+          }
+        })
+        .finally(() => {
+          if (alive) setLoadingTree(false)
+        })
+      return () => {
+        alive = false
+      }
     }, [directories, rootOptions, resolveRoot])
 
     useEffect(() => {
       if (!selectedDetail && treeRoots.length) {
         const first = treeRoots[0]
-        if (first) setSelectedDetail({ rootKey: first.key, path: '', node: first.node, root: first })
+        if (first)
+          setSelectedDetail({ rootKey: first.key, path: '', node: first.node, root: first })
       }
     }, [treeRoots, selectedDetail])
 
@@ -583,7 +876,12 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         setSelectedDetail(null)
         return
       }
-      setSelectedDetail({ rootKey: payload.rootKey, path: payload.node.path || '', node: payload.node, root: payload.root })
+      setSelectedDetail({
+        rootKey: payload.rootKey,
+        path: payload.node.path || '',
+        node: payload.node,
+        root: payload.root,
+      })
       setError('')
     }
 
@@ -600,7 +898,11 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       })
     }
 
-    const stageDisabled = loadingTree || !selectedDetail || selectedDetail.node.type !== 'dir' || selectedDetail.root?.writable === false
+    const stageDisabled =
+      loadingTree ||
+      !selectedDetail ||
+      selectedDetail.node.type !== 'dir' ||
+      selectedDetail.root?.writable === false
 
     function handleStage() {
       if (stageDisabled) {
@@ -617,35 +919,65 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       })
     }
 
-    const loadingMessage = loadingTree ? React.createElement('div', { className: 'muted', style: { fontSize: '13px' } }, 'Loading directories…') : null
+    const loadingMessage = loadingTree
+      ? React.createElement(
+          'div',
+          { className: 'muted', style: { fontSize: '13px' } },
+          'Loading directories…',
+        )
+      : null
 
     const hasWritableRoots = treeRoots.some((root) => root && root.writable !== false)
     const selectedRootWritable = selectedDetail?.root?.writable !== false
 
-    const body = React.createElement(React.Fragment, null,
-      React.createElement('div', { className: 'muted', style: { fontSize: '13px', marginBottom: 6 } }, `${fileCount} item${fileCount === 1 ? '' : 's'} • ${formatBytes(totalBytes)}`),
-      loadingMessage || React.createElement(FileTreeSelector, {
-        roots: treeRoots,
-        selectionMode: 'dir',
-        selected: selectedDetail ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path } : null,
-        onSelectionChange: handleSelectionChange,
-        allowCreate: !loadingTree && (selectedRootWritable || (!selectedDetail && hasWritableRoots)),
-        onCreateRequest: handleCreateRequest,
-        validateName: validateFolderName,
-        onErrorMessage: (msg) => setError(msg || ''),
-      }),
-      (!loadingTree && treeError) && React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, treeError),
+    const body = React.createElement(
+      React.Fragment,
+      null,
+      React.createElement(
+        'div',
+        { className: 'muted', style: { fontSize: '13px', marginBottom: 6 } },
+        `${fileCount} item${fileCount === 1 ? '' : 's'} • ${formatBytes(totalBytes)}`,
+      ),
+      loadingMessage ||
+        React.createElement(FileTreeSelector, {
+          roots: treeRoots,
+          selectionMode: 'dir',
+          selected: selectedDetail
+            ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path }
+            : null,
+          onSelectionChange: handleSelectionChange,
+          allowCreate:
+            !loadingTree && (selectedRootWritable || (!selectedDetail && hasWritableRoots)),
+          onCreateRequest: handleCreateRequest,
+          validateName: validateFolderName,
+          onErrorMessage: (msg) => setError(msg || ''),
+        }),
+      !loadingTree &&
+        treeError &&
+        React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, treeError),
       error && React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, error),
     )
 
-    return React.createElement(ModalDialog, {
-      title: 'Choose Destination',
-      onClose,
-      actions: [{ key: 'stage', label: 'Stage', onClick: handleStage, disabled: stageDisabled, variant: 'primary' }],
-      maxWidth: '92vw',
-      bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
-      contentStyle: { maxWidth: '92vw' },
-    }, body)
+    return React.createElement(
+      ModalDialog,
+      {
+        title: 'Choose Destination',
+        onClose,
+        actions: [
+          {
+            key: 'stage',
+            label: 'Stage',
+            onClick: handleStage,
+            disabled: stageDisabled,
+            variant: 'primary',
+          },
+        ],
+        maxWidth: '92vw',
+        bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
+        contentStyle: { maxWidth: '92vw' },
+      },
+      body,
+    )
   }
 
   function ServerContentModal({ rootOptions = [], onClose, onConfirm }) {
@@ -682,7 +1014,12 @@ export async function openSelectMediaModal({ onSelect } = {}) {
               const res = await fetch(`/api/tree${query}`)
               if (!res.ok) throw new Error('failed')
               const data = await res.json()
-              const normalized = normalizeTreeFromApi(data, { rootKey: opt.key, label: opt.label || opt.key, rootAbsolute: opt.path, writable: opt.writable !== false })
+              const normalized = normalizeTreeFromApi(data, {
+                rootKey: opt.key,
+                label: opt.label || opt.key,
+                rootAbsolute: opt.path,
+                writable: opt.writable !== false,
+              })
               if (normalized) accum.push(normalized)
             } catch {
               // ignore individual root failures
@@ -692,21 +1029,26 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         if (!accum.length && alive) setTreeError('No server paths available.')
         if (alive) setTreeRoots(accum)
       }
-      load().catch(() => {
-        if (alive) {
-          setTreeRoots([])
-          setTreeError('Failed to load server tree.')
-        }
-      }).finally(() => {
-        if (alive) setLoadingTree(false)
-      })
-      return () => { alive = false }
+      load()
+        .catch(() => {
+          if (alive) {
+            setTreeRoots([])
+            setTreeError('Failed to load server tree.')
+          }
+        })
+        .finally(() => {
+          if (alive) setLoadingTree(false)
+        })
+      return () => {
+        alive = false
+      }
     }, [effectiveRoots])
 
     useEffect(() => {
       if (!selectedDetail && treeRoots.length) {
         const first = treeRoots[0]
-        if (first) setSelectedDetail({ rootKey: first.key, path: '', node: first.node, root: first })
+        if (first)
+          setSelectedDetail({ rootKey: first.key, path: '', node: first.node, root: first })
       }
     }, [treeRoots, selectedDetail])
 
@@ -715,7 +1057,12 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         setSelectedDetail(null)
         return
       }
-      setSelectedDetail({ rootKey: payload.rootKey, path: payload.node.path || '', node: payload.node, root: payload.root })
+      setSelectedDetail({
+        rootKey: payload.rootKey,
+        path: payload.node.path || '',
+        node: payload.node,
+        root: payload.root,
+      })
       setError('')
     }
 
@@ -747,28 +1094,53 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       onClose()
     }
 
-    const loadingMessage = loadingTree ? React.createElement('div', { className: 'muted', style: { fontSize: '13px' } }, 'Loading server files…') : null
+    const loadingMessage = loadingTree
+      ? React.createElement(
+          'div',
+          { className: 'muted', style: { fontSize: '13px' } },
+          'Loading server files…',
+        )
+      : null
 
-    const body = React.createElement(React.Fragment, null,
-      loadingMessage || React.createElement(FileTreeSelector, {
-        roots: treeRoots,
-        selectionMode: 'any',
-        selected: selectedDetail ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path } : null,
-        onSelectionChange: handleSelectionChange,
-        allowCreate: false,
-      }),
-      (!loadingTree && treeError) && React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, treeError),
+    const body = React.createElement(
+      React.Fragment,
+      null,
+      loadingMessage ||
+        React.createElement(FileTreeSelector, {
+          roots: treeRoots,
+          selectionMode: 'any',
+          selected: selectedDetail
+            ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path }
+            : null,
+          onSelectionChange: handleSelectionChange,
+          allowCreate: false,
+        }),
+      !loadingTree &&
+        treeError &&
+        React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, treeError),
       error && React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, error),
     )
 
-    const actions = [{ key: 'add', label: submitting ? 'Adding…' : 'Add', onClick: handleAdd, disabled: submitting || !selectedDetail, variant: 'primary' }]
+    const actions = [
+      {
+        key: 'add',
+        label: submitting ? 'Adding…' : 'Add',
+        onClick: handleAdd,
+        disabled: submitting || !selectedDetail,
+        variant: 'primary',
+      },
+    ]
 
-    return React.createElement(ModalDialog, {
-      title: 'Add From Server',
-      onClose,
-      actions,
-      bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
-    }, body)
+    return React.createElement(
+      ModalDialog,
+      {
+        title: 'Add From Server',
+        onClose,
+        actions,
+        bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
+      },
+      body,
+    )
   }
 
   function Drawer({ onClose }) {
@@ -801,7 +1173,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const rootOptionMap = useMemo(() => {
       const map = new Map()
       if (Array.isArray(rootOptions)) {
-        rootOptions.forEach((opt) => { if (opt && opt.key) map.set(opt.key, opt) })
+        rootOptions.forEach((opt) => {
+          if (opt && opt.key) map.set(opt.key, opt)
+        })
       }
       return map
     }, [rootOptions])
@@ -810,18 +1184,23 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       const raf = requestAnimationFrame(() => setIsVisible(true))
       return () => cancelAnimationFrame(raf)
     }, [])
-    useEffect(() => () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current)
-        closeTimerRef.current = null
-      }
-    }, [])
+    useEffect(
+      () => () => {
+        if (closeTimerRef.current) {
+          clearTimeout(closeTimerRef.current)
+          closeTimerRef.current = null
+        }
+      },
+      [],
+    )
     const requestClose = useCallback(() => {
       if (closeTimerRef.current) return
       setIsVisible(false)
       closeTimerRef.current = setTimeout(() => {
         closeTimerRef.current = null
-        try { onClose?.() } catch {}
+        try {
+          onClose?.()
+        } catch {}
       }, 220)
     }, [onClose])
     useEffect(() => {
@@ -841,9 +1220,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         await fetchEntries(() => alive)
         if (alive) setLoadingEntries(false)
       })()
-      return () => { alive = false }
+      return () => {
+        alive = false
+      }
     }, [])
-    useEffect(() => { uploadJobsRef.current = uploadJobs }, [uploadJobs])
+    useEffect(() => {
+      uploadJobsRef.current = uploadJobs
+    }, [uploadJobs])
     useEffect(() => {
       let alive = true
       ;(async () => {
@@ -851,24 +1234,29 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           const r = await fetch('/api/media/list')
           const data = r.ok ? await r.json() : { roots: [] }
           if (!alive) return
-          const list = Array.isArray(data.roots) ? data.roots.filter((item) => item && typeof item.path === 'string' && item.path) : []
+          const list = Array.isArray(data.roots)
+            ? data.roots.filter((item) => item && typeof item.path === 'string' && item.path)
+            : []
           setRootOptions(list)
           const writableList = list.filter((item) => item && item.writable !== false)
           const hasCurrent = writableList.some((item) => item.key === uploadRoot)
           if (!hasCurrent) {
-            const preferred = writableList.find((item) => item.key === 'docRoot')
-              || writableList.find((item) => item.key === 'uploads')
-              || writableList[0]
-              || list.find((item) => item.key === 'docRoot')
-              || list.find((item) => item.key === 'uploads')
-              || list[0]
+            const preferred =
+              writableList.find((item) => item.key === 'docRoot') ||
+              writableList.find((item) => item.key === 'uploads') ||
+              writableList[0] ||
+              list.find((item) => item.key === 'docRoot') ||
+              list.find((item) => item.key === 'uploads') ||
+              list[0]
             if (preferred) setUploadRoot(preferred.key)
           }
         } catch {
           if (alive) setRootOptions([])
         }
       })()
-      return () => { alive = false }
+      return () => {
+        alive = false
+      }
     }, [uploadRoot])
 
     async function fetchEntries(shouldSet = () => true) {
@@ -884,11 +1272,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       }
     }
     function updateJob(id, patch) {
-      setUploadJobs((prev) => prev.map((job) => {
-        if (job.id !== id) return job
-        const next = typeof patch === 'function' ? patch(job) : patch
-        return { ...job, ...next }
-      }))
+      setUploadJobs((prev) =>
+        prev.map((job) => {
+          if (job.id !== id) return job
+          const next = typeof patch === 'function' ? patch(job) : patch
+          return { ...job, ...next }
+        }),
+      )
     }
     function verifyJobFiles(job) {
       if (!job || !Array.isArray(job.files) || !job.files.length) return false
@@ -912,15 +1302,24 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       const rootRelative = typeof info.rootRelative === 'string' ? info.rootRelative : ''
       const rootKey = typeof info.rootKey === 'string' ? info.rootKey : ''
       const rootLabel = typeof info.rootLabel === 'string' ? info.rootLabel : ''
-      const rootBaseAbsolute = typeof info.rootBaseAbsolute === 'string' ? info.rootBaseAbsolute : ''
-      const rootBaseRelative = typeof info.rootBaseRelative === 'string' ? info.rootBaseRelative : ''
-      const defaultPath = rootAbsolute || rootRelative || rootBaseAbsolute || rootBaseRelative || `files/uploads/${info.uploadedAt}`
+      const rootBaseAbsolute =
+        typeof info.rootBaseAbsolute === 'string' ? info.rootBaseAbsolute : ''
+      const rootBaseRelative =
+        typeof info.rootBaseRelative === 'string' ? info.rootBaseRelative : ''
+      const defaultPath =
+        rootAbsolute ||
+        rootRelative ||
+        rootBaseAbsolute ||
+        rootBaseRelative ||
+        `files/uploads/${info.uploadedAt}`
       const joinPaths = (base, rel) => {
         if (!base) return rel || ''
         if (!rel) return base
         const sep = base.includes('\\') ? '\\' : '/'
         const baseClean = base.replace(/[\\/]+$/, '')
-        const relClean = String(rel).replace(/^[\\/]+/, '').replace(/[\\/]+/g, sep)
+        const relClean = String(rel)
+          .replace(/^[\\/]+/, '')
+          .replace(/[\\/]+/g, sep)
         return `${baseClean}${sep}${relClean}`
       }
       let libraryPath = defaultPath
@@ -932,7 +1331,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         const relFilePath = typeof file.relativePath === 'string' ? file.relativePath : ''
         const name = (file.name || '').toString().split('/').pop() || file.name || 'file'
         const label = humanizeName(name, 'file')
-        const targetPath = absoluteFilePath || joinPaths(rootAbsolute, relFilePath) || repoFilePath || defaultPath
+        const targetPath =
+          absoluteFilePath || joinPaths(rootAbsolute, relFilePath) || repoFilePath || defaultPath
         if (targetPath) {
           try {
             const res = await fetch('/api/library', {
@@ -982,7 +1382,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         setSelectedId(null)
         if (libraryPath && Array.isArray(refreshed)) {
           const target = normalizeFsPath(libraryPath)
-          const match = refreshed.find((entry) => typeof entry?.path === 'string' && normalizeFsPath(entry.path) === target)
+          const match = refreshed.find(
+            (entry) => typeof entry?.path === 'string' && normalizeFsPath(entry.path) === target,
+          )
           if (match?.id) setSelectedId(match.id)
         }
       }
@@ -1020,14 +1422,19 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       setFilter('')
       if (Array.isArray(refreshed)) {
         const target = normalizeFsPath(absPath)
-        const match = refreshed.find((entry) => typeof entry?.path === 'string' && normalizeFsPath(entry.path) === target)
+        const match = refreshed.find(
+          (entry) => typeof entry?.path === 'string' && normalizeFsPath(entry.path) === target,
+        )
         if (match?.id) setSelectedId(match.id)
       }
       setToast({ kind: 'ok', text: 'Added to Library.' })
       return { ok: true }
     }
     function summarizeUpload(files, totalBytes) {
-      const uploadedBytes = files.reduce((sum, item) => sum + Math.min(item.uploaded || 0, item.size || 0), 0)
+      const uploadedBytes = files.reduce(
+        (sum, item) => sum + Math.min(item.uploaded || 0, item.size || 0),
+        0,
+      )
       const progress = totalBytes > 0 ? Math.min(1, uploadedBytes / totalBytes) : 0
       return { uploadedBytes, progress }
     }
@@ -1113,8 +1520,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       }
       const uploadedAt = uploadedAtValues.length ? Math.min(...uploadedAtValues) : Date.now()
       const isDirJob = !!job && job.kind === 'dir'
-      const effectiveKind = (isDirJob || files.length > 1) ? 'dir' : 'file'
-      const rootKey = rootKeys.size === 1 ? Array.from(rootKeys)[0] : (fallbackRootKey || '')
+      const effectiveKind = isDirJob || files.length > 1 ? 'dir' : 'file'
+      const rootKey = rootKeys.size === 1 ? Array.from(rootKeys)[0] : fallbackRootKey || ''
       if (!rootLabel && fallbackRootKey && typeof job?.rootLabel === 'string') {
         rootLabel = job.rootLabel
       }
@@ -1151,7 +1558,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       if (intent) params.set('intent', intent)
       const res = await fetch(`/api/upload?${params.toString()}`)
       if (!res.ok) {
-        const message = res.status === 409 ? 'Upload conflict with existing file.' : 'Failed to fetch upload status.'
+        const message =
+          res.status === 409
+            ? 'Upload conflict with existing file.'
+            : 'Failed to fetch upload status.'
         throw new Error(message)
       }
       const data = await res.json().catch(() => null)
@@ -1173,7 +1583,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
       updateJob(jobId, (job) => {
         if (!job) return job
-        const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, status: 'checking', error: null } : f)
+        const files = job.files.map((f, idx) =>
+          idx === fileIndex ? { ...f, status: 'checking', error: null } : f,
+        )
         return { ...job, status: 'checking', files }
       })
 
@@ -1184,7 +1596,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         const message = err instanceof Error ? err.message : 'Failed to fetch upload status.'
         updateJob(jobId, (job) => {
           if (!job) return job
-          const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, status: 'error', error: message } : f)
+          const files = job.files.map((f, idx) =>
+            idx === fileIndex ? { ...f, status: 'error', error: message } : f,
+          )
           return { ...job, status: 'error', error: message, files, processing: false }
         })
         return { kind: 'error', error: message }
@@ -1196,7 +1610,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       if (alreadyComplete) {
         updateJob(jobId, (job) => {
           if (!job) return job
-          const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, status: 'done', uploaded: f.size, error: null } : f)
+          const files = job.files.map((f, idx) =>
+            idx === fileIndex ? { ...f, status: 'done', uploaded: f.size, error: null } : f,
+          )
           const summary = summarizeUpload(files, job.totalBytes)
           return { ...job, files, ...summary }
         })
@@ -1213,7 +1629,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         const message = 'File blob unavailable.'
         updateJob(jobId, (job) => {
           if (!job) return job
-          const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, status: 'error', error: message } : f)
+          const files = job.files.map((f, idx) =>
+            idx === fileIndex ? { ...f, status: 'error', error: message } : f,
+          )
           return { ...job, status: 'error', error: message, files, processing: false }
         })
         return { kind: 'error', error: message }
@@ -1221,7 +1639,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
       updateJob(jobId, (job) => {
         if (!job) return job
-        const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, status: 'uploading', uploaded: offset, error: null } : f)
+        const files = job.files.map((f, idx) =>
+          idx === fileIndex ? { ...f, status: 'uploading', uploaded: offset, error: null } : f,
+        )
         const summary = summarizeUpload(files, job.totalBytes)
         return { ...job, status: 'uploading', files, ...summary }
       })
@@ -1238,7 +1658,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           const absolute = Math.min(totalSize, offset + loaded)
           updateJob(jobId, (job) => {
             if (!job) return job
-            const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, uploaded: absolute } : f)
+            const files = job.files.map((f, idx) =>
+              idx === fileIndex ? { ...f, uploaded: absolute } : f,
+            )
             const summary = summarizeUpload(files, job.totalBytes)
             return { ...job, files, ...summary }
           })
@@ -1249,7 +1671,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           const message = 'Upload failed. Check your connection.'
           updateJob(jobId, (job) => {
             if (!job) return job
-            const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, status: 'error', error: message } : f)
+            const files = job.files.map((f, idx) =>
+              idx === fileIndex ? { ...f, status: 'error', error: message } : f,
+            )
             return { ...job, status: 'error', error: message, files, processing: false }
           })
           resolve({ kind: 'error', error: message })
@@ -1263,7 +1687,11 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             if (!job) return job
             const files = job.files.map((f, idx) => {
               if (idx !== fileIndex) return f
-              return { ...f, status: isPause ? 'paused' : 'error', uploaded: Math.min(f.uploaded || 0, totalSize) }
+              return {
+                ...f,
+                status: isPause ? 'paused' : 'error',
+                uploaded: Math.min(f.uploaded || 0, totalSize),
+              }
             })
             const summary = summarizeUpload(files, job.totalBytes)
             return {
@@ -1284,12 +1712,16 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           uploadControllers.current.delete(jobId)
           if (xhr.status >= 200 && xhr.status < 300) {
             let data = null
-            try { data = JSON.parse(xhr.responseText || '{}') } catch {}
+            try {
+              data = JSON.parse(xhr.responseText || '{}')
+            } catch {}
             if (!data || typeof data !== 'object') {
               const message = 'Unexpected server response.'
               updateJob(jobId, (job) => {
                 if (!job) return job
-                const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, status: 'error', error: message } : f)
+                const files = job.files.map((f, idx) =>
+                  idx === fileIndex ? { ...f, status: 'error', error: message } : f,
+                )
                 return { ...job, status: 'error', error: message, files, processing: false }
               })
               resolve({ kind: 'error', error: message })
@@ -1316,7 +1748,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             const message = `Upload failed (${xhr.status})`
             updateJob(jobId, (job) => {
               if (!job) return job
-              const files = job.files.map((f, idx) => idx === fileIndex ? { ...f, status: 'error', error: message } : f)
+              const files = job.files.map((f, idx) =>
+                idx === fileIndex ? { ...f, status: 'error', error: message } : f,
+              )
               return { ...job, status: 'error', error: message, files, processing: false }
             })
             resolve({ kind: 'error', error: message })
@@ -1348,11 +1782,15 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           updateJob(jobId, (current) => (current ? { ...current, processing: false } : current))
           return
         }
-        const nextIndex = job.files.findIndex((f, idx) => f.status !== 'done' && !locallyCompleted.has(idx))
+        const nextIndex = job.files.findIndex(
+          (f, idx) => f.status !== 'done' && !locallyCompleted.has(idx),
+        )
         if (nextIndex === -1) {
           let finalizeFailed = false
           if (completedPayloads.length) {
-            updateJob(jobId, (current) => (current ? { ...current, status: 'finalizing' } : current))
+            updateJob(jobId, (current) =>
+              current ? { ...current, status: 'finalizing' } : current,
+            )
             try {
               const latestSnapshot = getJobSnapshot(jobId) || job
               const aggregated = aggregateUploadResults(latestSnapshot, completedPayloads)
@@ -1365,16 +1803,33 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             }
           }
           if (finalizeFailed) {
-            updateJob(jobId, (current) => (current ? { ...current, status: 'error', error: 'Failed to register content.', processing: false } : current))
+            updateJob(jobId, (current) =>
+              current
+                ? {
+                    ...current,
+                    status: 'error',
+                    error: 'Failed to register content.',
+                    processing: false,
+                  }
+                : current,
+            )
             return
           }
           updateJob(jobId, (current) => {
             if (!current) return current
             const summary = summarizeUpload(current.files, current.totalBytes)
-            return { ...current, status: 'done', processing: false, pauseRequested: false, ...summary }
+            return {
+              ...current,
+              status: 'done',
+              processing: false,
+              pauseRequested: false,
+              ...summary,
+            }
           })
           setToast({ kind: 'ok', text: 'Upload complete' })
-          setTimeout(() => { removeUploadJob(jobId) }, 800)
+          setTimeout(() => {
+            removeUploadJob(jobId)
+          }, 800)
           return
         }
         const outcome = await uploadFile(jobId, nextIndex)
@@ -1397,25 +1852,42 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           continue
         }
         if (outcome.kind === 'paused' || outcome.kind === 'cancelled') {
-          updateJob(jobId, (current) => (current ? { ...current, status: 'paused', pauseRequested: false, processing: false } : current))
+          updateJob(jobId, (current) =>
+            current
+              ? { ...current, status: 'paused', pauseRequested: false, processing: false }
+              : current,
+          )
           return
         }
         if (outcome.kind === 'error') {
-          updateJob(jobId, (current) => (current ? { ...current, status: 'error', error: outcome.error || 'Upload failed.', processing: false } : current))
+          updateJob(jobId, (current) =>
+            current
+              ? {
+                  ...current,
+                  status: 'error',
+                  error: outcome.error || 'Upload failed.',
+                  processing: false,
+                }
+              : current,
+          )
           return
         }
       }
     }
 
-    function enqueueUpload(files, { prefix = '', autoStart = true, root: explicitRoot, rootLabel: explicitLabel } = {}) {
+    function enqueueUpload(
+      files,
+      { prefix = '', autoStart = true, root: explicitRoot, rootLabel: explicitLabel } = {},
+    ) {
       const cleaned = Array.isArray(files) ? files.filter((item) => item && item.file) : []
       if (!cleaned.length) return null
       let root = explicitRoot || uploadRoot || 'uploads'
       let rootInfo = rootOptionMap.get(root) || null
       if (!rootInfo || rootInfo.writable === false) {
-        const writableFallback = writableRootOptions.find((opt) => opt && opt.key === root)
-          || writableRootOptions.find((opt) => opt && opt.key === 'uploads')
-          || writableRootOptions[0]
+        const writableFallback =
+          writableRootOptions.find((opt) => opt && opt.key === root) ||
+          writableRootOptions.find((opt) => opt && opt.key === 'uploads') ||
+          writableRootOptions[0]
         if (writableFallback) {
           root = writableFallback.key
           rootInfo = writableFallback
@@ -1424,12 +1896,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           rootInfo = rootOptionMap.get(root) || null
         }
       }
-      const resolvedRootLabel = explicitLabel || (rootInfo?.label || (root === 'docRoot' ? 'Doc Root' : root))
+      const resolvedRootLabel =
+        explicitLabel || rootInfo?.label || (root === 'docRoot' ? 'Doc Root' : root)
       const id = `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`
       const totalBytes = cleaned.reduce((sum, entry) => sum + (entry.file?.size || 0), 0)
       const roots = uniqueRoots(cleaned)
       const stagingLabel = roots.length === 1 ? roots[0] : `${cleaned.length} items`
-      const label = stagingLabel || (cleaned[0]?.file?.name || 'Upload')
+      const label = stagingLabel || cleaned[0]?.file?.name || 'Upload'
       const prefixClean = prefix.replace(/^[\\/]+/, '').replace(/[\\/]+$/, '')
       const pathDisplay = `[${resolvedRootLabel}] ${prefixClean ? `${prefixClean.replace(/[\\]+/g, '/')}/` : ''}${label}`
       const meta = cleaned.map(({ file, rel }) => ({
@@ -1467,7 +1940,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       }
       setUploadJobs((prev) => [...prev, job])
       if (autoStart) {
-        setTimeout(() => { startUploadJob(id) }, 0)
+        setTimeout(() => {
+          startUploadJob(id)
+        }, 0)
       }
       return id
     }
@@ -1475,7 +1950,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     function removeUploadJob(id) {
       const ctrl = uploadControllers.current.get(id)
       if (ctrl?.xhr && typeof ctrl.xhr.abort === 'function') {
-        try { ctrl.xhr.abort() } catch {}
+        try {
+          ctrl.xhr.abort()
+        } catch {}
       }
       uploadControllers.current.delete(id)
       setUploadJobs((prev) => prev.filter((job) => job.id !== id))
@@ -1488,7 +1965,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       })
       const ctrl = uploadControllers.current.get(id)
       if (ctrl?.xhr && typeof ctrl.xhr.abort === 'function') {
-        try { ctrl.xhr.abort() } catch {}
+        try {
+          ctrl.xhr.abort()
+        } catch {}
       } else {
         updateJob(id, (job) => {
           if (!job) return job
@@ -1503,7 +1982,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         const status = job.status === 'paused' ? 'queued' : job.status
         return { ...job, status, pauseRequested: false }
       })
-      setTimeout(() => { startUploadJob(id) }, 0)
+      setTimeout(() => {
+        startUploadJob(id)
+      }, 0)
     }
 
     function startUploadJob(id) {
@@ -1511,7 +1992,11 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       if (!job) return
       if (job.processing) return
       if (!verifyJobFiles(job)) {
-        updateJob(id, { status: 'error', error: 'Files changed or are no longer available.', processing: false })
+        updateJob(id, {
+          status: 'error',
+          error: 'Files changed or are no longer available.',
+          processing: false,
+        })
         return
       }
       updateJob(id, (current) => {
@@ -1526,11 +2011,20 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       })
       runUploadSequence(id).catch((err) => {
         console.error('[upload] sequence failed', err)
-        updateJob(id, (current) => (current ? { ...current, status: 'error', error: 'Upload failed.', processing: false } : current))
+        updateJob(id, (current) =>
+          current
+            ? { ...current, status: 'error', error: 'Upload failed.', processing: false }
+            : current,
+        )
       })
     }
     const trimmedFilter = filter.trim()
-    const filtered = entries.filter(e => !trimmedFilter || (e.path.toLowerCase().includes(trimmedFilter.toLowerCase()) || (e.label||'').toLowerCase().includes(trimmedFilter.toLowerCase())))
+    const filtered = entries.filter(
+      (e) =>
+        !trimmedFilter ||
+        e.path.toLowerCase().includes(trimmedFilter.toLowerCase()) ||
+        (e.label || '').toLowerCase().includes(trimmedFilter.toLowerCase()),
+    )
     const noResultsActive = !!trimmedFilter && filtered.length === 0 && !uploadJobs.length
     const directoryOptions = useMemo(() => {
       const seen = new Set()
@@ -1567,7 +2061,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         .forEach((entry) => {
           const normalized = normalizeFsPath(entry.path)
           if (!normalized) return
-          const owningRoot = writableRoots.find((root) => normalized === root.base || normalized.startsWith(`${root.base}/`))
+          const owningRoot = writableRoots.find(
+            (root) => normalized === root.base || normalized.startsWith(`${root.base}/`),
+          )
           if (!owningRoot) return
           if (!writableKeys.has(owningRoot.key)) return
           const base = entry.path.split('/').pop() || entry.path
@@ -1592,7 +2088,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     function validateFolderNameInput(name) {
       const trimmed = (name || '').trim()
       if (!trimmed) return { ok: false, error: 'Folder name is required.' }
-      if (trimmed === '.' || trimmed === '..') return { ok: false, error: 'Folder name is invalid.' }
+      if (trimmed === '.' || trimmed === '..')
+        return { ok: false, error: 'Folder name is invalid.' }
       if (/[\\/]/.test(trimmed)) return { ok: false, error: 'Folder name cannot contain slashes.' }
       return { ok: true, value: trimmed }
     }
@@ -1638,10 +2135,18 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
       const finish = () => {
         const normalizedPrefix = normalizeFsPath(prefix)
-        const id = enqueueUpload(files, { prefix: normalizedPrefix, autoStart: false, root: rootKey, rootLabel })
+        const id = enqueueUpload(files, {
+          prefix: normalizedPrefix,
+          autoStart: false,
+          root: rootKey,
+          rootLabel,
+        })
         if (id) {
           setUploadRoot(rootKey)
-          setToast({ kind: 'ok', text: `Staged ${files.length} item${files.length === 1 ? '' : 's'}.` })
+          setToast({
+            kind: 'ok',
+            text: `Staged ${files.length} item${files.length === 1 ? '' : 's'}.`,
+          })
         } else {
           setToast({ kind: 'err', text: 'Failed to stage files.' })
         }
@@ -1707,12 +2212,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           finish()
           return
         }
-        const fallback = writableRootOptions.find((opt) => opt && opt.key === 'docRoot')
-          || writableRootOptions.find((opt) => opt && opt.key === uploadRoot)
-          || writableRootOptions[0]
-          || rootOptions.find((opt) => opt && opt.key === 'docRoot')
-          || activeRoot
-          || rootOptions[0]
+        const fallback =
+          writableRootOptions.find((opt) => opt && opt.key === 'docRoot') ||
+          writableRootOptions.find((opt) => opt && opt.key === uploadRoot) ||
+          writableRootOptions[0] ||
+          rootOptions.find((opt) => opt && opt.key === 'docRoot') ||
+          activeRoot ||
+          rootOptions[0]
         if (!fallback) {
           setToast({ kind: 'err', text: 'No destination roots configured.' })
           setPendingSelection(null)
@@ -1732,7 +2238,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     // Close context menu on Escape or click outside
     useEffect(() => {
       if (!menu) return
-      const onKey = (e) => { if (e.key === 'Escape') setMenu(null) }
+      const onKey = (e) => {
+        if (e.key === 'Escape') setMenu(null)
+      }
       const onClick = (e) => {
         const t = e.target
         const inMenu = t && typeof t.closest === 'function' && t.closest('.media-ctx')
@@ -1740,23 +2248,34 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       }
       window.addEventListener('keydown', onKey)
       window.addEventListener('mousedown', onClick)
-      return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onClick) }
+      return () => {
+        window.removeEventListener('keydown', onKey)
+        window.removeEventListener('mousedown', onClick)
+      }
     }, [menu])
 
     // Toast auto-dismiss
     useEffect(() => {
       let t = null
       if (toast) t = setTimeout(() => setToast(null), 2000)
-      return () => { if (t) clearTimeout(t) }
+      return () => {
+        if (t) clearTimeout(t)
+      }
     }, [toast])
 
     // Serving poller
     useEffect(() => {
       let alive = true
-      const tick = async () => { if (!alive) return; await refreshServing() }
+      const tick = async () => {
+        if (!alive) return
+        await refreshServing()
+      }
       refreshServing()
       const h = setInterval(tick, 5000)
-      return () => { alive = false; clearInterval(h) }
+      return () => {
+        alive = false
+        clearInterval(h)
+      }
     }, [])
 
     async function refreshServing() {
@@ -1764,9 +2283,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         const r = await fetch('/api/serve')
         const j = r.ok ? await r.json() : { instances: [] }
         const map = new Map()
-        ;(j.instances || []).forEach(i => { map.set(i.entryId, i.status || 'running') })
+        ;(j.instances || []).forEach((i) => {
+          map.set(i.entryId, i.status || 'running')
+        })
         setServingMap(map)
-      } catch { setServingMap(new Map()) }
+      } catch {
+        setServingMap(new Map())
+      }
     }
 
     async function openEntry(e) {
@@ -1782,13 +2305,21 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }
 
     function updateServing(id, status) {
-      setServingMap((prev) => { const next = new Map(prev); next.set(id, status); return next })
+      setServingMap((prev) => {
+        const next = new Map(prev)
+        next.set(id, status)
+        return next
+      })
     }
     async function startServing(entry) {
       // Optimistic update for snappy UX
       updateServing(entry.id, 'starting')
       try {
-        const r = await fetch('/api/serve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entryId: entry.id }) })
+        const r = await fetch('/api/serve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entryId: entry.id }),
+        })
         if (!r.ok) throw new Error('start failed')
         updateServing(entry.id, 'running')
         setToast({ kind: 'ok', text: 'Serving started' })
@@ -1800,7 +2331,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     async function stopServing(entry) {
       updateServing(entry.id, 'stopped')
       try {
-        const list = await fetch('/api/serve').then(r => r.json()).catch(() => ({ instances: [] }))
+        const list = await fetch('/api/serve')
+          .then((r) => r.json())
+          .catch(() => ({ instances: [] }))
         const inst = (list.instances || []).find((i) => i.entryId === entry.id)
         if (!inst) return
         await fetch(`/api/serve/${inst.id}`, { method: 'DELETE' })
@@ -1812,24 +2345,40 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }
     async function delLib(entry) {
       setBusyId(entry.id)
-      try { await fetch(`/api/library/${entry.id}`, { method: 'DELETE' }); setEntries((ents) => ents.filter((x) => x.id !== entry.id)); setToast({ kind: 'ok', text: 'Removed from Library' }) }
-      catch { setToast({ kind: 'err', text: 'Failed to remove' }) }
-      finally { setBusyId(null) }
+      try {
+        await fetch(`/api/library/${entry.id}`, { method: 'DELETE' })
+        setEntries((ents) => ents.filter((x) => x.id !== entry.id))
+        setToast({ kind: 'ok', text: 'Removed from Library' })
+      } catch {
+        setToast({ kind: 'err', text: 'Failed to remove' })
+      } finally {
+        setBusyId(null)
+      }
     }
     async function delDisk(entry) {
       if (!confirm('Delete files from disk?')) return
       setBusyId(entry.id)
-      try { await fetch(`/api/library/${entry.id}/delete`, { method: 'POST' }); setEntries((ents) => ents.filter((x) => x.id !== entry.id)); setToast({ kind: 'ok', text: 'Deleted from disk' }) }
-      catch { setToast({ kind: 'err', text: 'Failed to delete' }) }
-      finally { setBusyId(null) }
+      try {
+        await fetch(`/api/library/${entry.id}/delete`, { method: 'POST' })
+        setEntries((ents) => ents.filter((x) => x.id !== entry.id))
+        setToast({ kind: 'ok', text: 'Deleted from disk' })
+      } catch {
+        setToast({ kind: 'err', text: 'Failed to delete' })
+      } finally {
+        setBusyId(null)
+      }
     }
 
     function triggerFilePicker() {
-      try { fileSelectRef.current?.click() } catch {}
+      try {
+        fileSelectRef.current?.click()
+      } catch {}
     }
 
     function triggerDirectoryPicker() {
-      try { dirSelectRef.current?.click() } catch {}
+      try {
+        dirSelectRef.current?.click()
+      } catch {}
     }
 
     function openDestinationPrompt(files) {
@@ -1853,8 +2402,12 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       if (e?.target) e.target.value = ''
     }
 
-    return React.createElement(React.Fragment, null,
-      React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
+    return React.createElement(
+      React.Fragment,
+      null,
+      React.createElement(
+        'div',
+        { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
         React.createElement('div', {
           onClick: requestClose,
           style: {
@@ -1866,189 +2419,339 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             transition: 'opacity 220ms ease',
           },
         }),
-        React.createElement('div', {
-          style: {
-            position: 'absolute',
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: '560px',
-            maxWidth: '95vw',
-            background: 'var(--panel)',
-            color: 'var(--text)',
-            borderLeft: '1px solid var(--border)',
-            boxShadow: '0 0 30px rgba(0,0,0,0.4)',
-            pointerEvents: (!closeTimerRef.current && isVisible) ? 'auto' : 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            transform: isVisible ? 'translateX(0)' : 'translateX(36px)',
-            opacity: isVisible ? 1 : 0,
-            transition: 'transform 220ms ease, opacity 220ms ease',
-            willChange: 'transform, opacity',
+        React.createElement(
+          'div',
+          {
+            style: {
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: '560px',
+              maxWidth: '95vw',
+              background: 'var(--panel)',
+              color: 'var(--text)',
+              borderLeft: '1px solid var(--border)',
+              boxShadow: '0 0 30px rgba(0,0,0,0.4)',
+              pointerEvents: !closeTimerRef.current && isVisible ? 'auto' : 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              transform: isVisible ? 'translateX(0)' : 'translateX(36px)',
+              opacity: isVisible ? 1 : 0,
+              transition: 'transform 220ms ease, opacity 220ms ease',
+              willChange: 'transform, opacity',
+            },
           },
-        },
-          React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '10px', borderBottom: '1px solid var(--border)' } },
+          React.createElement(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+                padding: '10px',
+                borderBottom: '1px solid var(--border)',
+              },
+            },
             React.createElement('strong', null, 'Content Directory'),
-            React.createElement('input', { placeholder: 'Filter…', value: filter, onChange: (e) => setFilter(e.target.value), style: { marginLeft: 'auto', flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)' } }),
-            React.createElement('button', { className: 'btn', onClick: triggerFilePicker, title: 'Select files to upload', 'aria-label': 'Select files' },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>' } })
+            React.createElement('input', {
+              placeholder: 'Filter…',
+              value: filter,
+              onChange: (e) => setFilter(e.target.value),
+              style: {
+                marginLeft: 'auto',
+                flex: 1,
+                padding: '6px 8px',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                background: 'var(--bg)',
+                color: 'var(--text)',
+              },
+            }),
+            React.createElement(
+              'button',
+              {
+                className: 'btn',
+                onClick: triggerFilePicker,
+                title: 'Select files to upload',
+                'aria-label': 'Select files',
+              },
+              React.createElement('span', {
+                dangerouslySetInnerHTML: {
+                  __html:
+                    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>',
+                },
+              }),
             ),
-            React.createElement('button', { className: 'btn', onClick: triggerDirectoryPicker, title: 'Select folder to upload', 'aria-label': 'Select folder' },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h9a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h5l2 2"></path><path d="M12 12v5"></path><path d="M9.5 14.5 12 17l2.5-2.5"></path></svg>' } })
+            React.createElement(
+              'button',
+              {
+                className: 'btn',
+                onClick: triggerDirectoryPicker,
+                title: 'Select folder to upload',
+                'aria-label': 'Select folder',
+              },
+              React.createElement('span', {
+                dangerouslySetInnerHTML: {
+                  __html:
+                    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h9a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h5l2 2"></path><path d="M12 12v5"></path><path d="M9.5 14.5 12 17l2.5-2.5"></path></svg>',
+                },
+              }),
             ),
-            React.createElement('button', {
-              className: 'btn',
-              onClick: () => setServerPickerOpen(true),
-              title: 'Add from server',
-              'aria-label': 'Add from server'
+            React.createElement(
+              'button',
+              {
+                className: 'btn',
+                onClick: () => setServerPickerOpen(true),
+                title: 'Add from server',
+                'aria-label': 'Add from server',
+              },
+              React.createElement('span', {
+                dangerouslySetInnerHTML: {
+                  __html:
+                    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"></rect><rect x="2" y="13" width="20" height="8" rx="2"></rect><line x1="6" y1="7" x2="6.01" y2="7"></line><line x1="6" y1="17" x2="6.01" y2="17"></line><line x1="10" y1="7" x2="10.01" y2="7"></line><line x1="10" y1="17" x2="10.01" y2="17"></line></svg>',
+                },
+              }),
+            ),
+            React.createElement(
+              'button',
+              { className: 'btn', onClick: requestClose, title: 'Close', 'aria-label': 'Close' },
+              React.createElement('span', {
+                dangerouslySetInnerHTML: {
+                  __html:
+                    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+                },
+              }),
+            ),
+            React.createElement('input', {
+              type: 'file',
+              ref: fileSelectRef,
+              multiple: true,
+              onChange: handleFileInputChange,
+              style: { display: 'none' },
+            }),
+            React.createElement('input', {
+              type: 'file',
+              ref: dirSelectRef,
+              multiple: true,
+              onChange: handleDirInputChange,
+              webkitdirectory: 'webkitdirectory',
+              mozdirectory: 'mozdirectory',
+              directory: 'directory',
+              style: { display: 'none' },
+            }),
+          ),
+          React.createElement(
+            'div',
+            {
+              style: {
+                flex: 1,
+                overflow: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                border: dropActive ? '1px dashed var(--accent)' : '1px solid transparent',
+                borderRadius: 10,
+                transition: 'border 120ms ease, background 120ms ease',
+                background: dropActive
+                  ? 'color-mix(in oklab, var(--accent) 12%, transparent)'
+                  : 'transparent',
+              },
+              onDragOver: (e) => {
+                e.preventDefault()
+                setDropActive(true)
+              },
+              onDragEnter: (e) => {
+                e.preventDefault()
+                setDropActive(true)
+              },
+              onDragLeave: (e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) setDropActive(false)
+              },
+              onDrop: async (e) => {
+                e.preventDefault()
+                setDropActive(false)
+                const collected = await gatherFromDataTransfer(e.dataTransfer)
+                if (!collected.length) {
+                  setToast({ kind: 'err', text: 'No files detected from drop.' })
+                  return
+                }
+                openDestinationPrompt(collected)
+              },
             },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"></rect><rect x="2" y="13" width="20" height="8" rx="2"></rect><line x1="6" y1="7" x2="6.01" y2="7"></line><line x1="6" y1="17" x2="6.01" y2="17"></line><line x1="10" y1="7" x2="10.01" y2="7"></line><line x1="10" y1="17" x2="10.01" y2="17"></line></svg>' } })
+            ...uploadJobs.map((job) =>
+              React.createElement(Row, {
+                key: job.id,
+                entry: { id: job.id, path: job.path, label: job.label, kind: job.kind },
+                status: job.status,
+                selected: false,
+                busy: job.status === 'uploading' || job.status === 'checking',
+                onOpen: () => {},
+                onContext: () => {},
+                onStart: () => {},
+                onStop: () => {},
+                upload: job,
+                onUploadStart: () => startUploadJob(job.id),
+                onUploadPause: () => pauseUploadJob(job.id),
+                onUploadResume: () => resumeUploadJob(job.id),
+                onUploadClear: () => removeUploadJob(job.id),
+              }),
             ),
-            React.createElement('button', { className: 'btn', onClick: requestClose, title: 'Close', 'aria-label': 'Close' },
-              React.createElement('span', { dangerouslySetInnerHTML: { __html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' } })
-            ),
-            React.createElement('input', { type: 'file', ref: fileSelectRef, multiple: true, onChange: handleFileInputChange, style: { display: 'none' } }),
-            React.createElement('input', { type: 'file', ref: dirSelectRef, multiple: true, onChange: handleDirInputChange, webkitdirectory: 'webkitdirectory', mozdirectory: 'mozdirectory', directory: 'directory', style: { display: 'none' } }),
-        ),
-        React.createElement('div', {
-          style: {
-            flex: 1,
-            overflow: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            border: dropActive ? '1px dashed var(--accent)' : '1px solid transparent',
-            borderRadius: 10,
-            transition: 'border 120ms ease, background 120ms ease',
-            background: dropActive ? 'color-mix(in oklab, var(--accent) 12%, transparent)' : 'transparent',
-          },
-          onDragOver: (e) => { e.preventDefault(); setDropActive(true) },
-          onDragEnter: (e) => { e.preventDefault(); setDropActive(true) },
-          onDragLeave: (e) => {
-            if (!e.currentTarget.contains(e.relatedTarget)) setDropActive(false)
-          },
-          onDrop: async (e) => {
-            e.preventDefault()
-            setDropActive(false)
-            const collected = await gatherFromDataTransfer(e.dataTransfer)
-            if (!collected.length) {
-              setToast({ kind: 'err', text: 'No files detected from drop.' })
-              return
-            }
-            openDestinationPrompt(collected)
-          },
-        },
-          ...uploadJobs.map((job) => React.createElement(Row, {
-            key: job.id,
-            entry: { id: job.id, path: job.path, label: job.label, kind: job.kind },
-            status: job.status,
-            selected: false,
-            busy: job.status === 'uploading' || job.status === 'checking',
-            onOpen: () => {},
-            onContext: () => {},
-            onStart: () => {},
-            onStop: () => {},
-            upload: job,
-            onUploadStart: () => startUploadJob(job.id),
-            onUploadPause: () => pauseUploadJob(job.id),
-            onUploadResume: () => resumeUploadJob(job.id),
-            onUploadClear: () => removeUploadJob(job.id),
-          })),
-          (loadingEntries && !uploadJobs.length)
-            ? React.createElement('div', {
-              className: 'loading-indicator loading-indicator--compact drawer-loading',
-              style: { justifyContent: 'center' },
-            },
-              React.createElement('span', { className: 'loading-indicator__spinner', 'aria-hidden': 'true' }),
-              React.createElement('span', null, 'Loading content…'),
-            )
-            : filtered.length
-            ? filtered.map((e) => React.createElement(Row, {
-              key: e.id,
-              entry: e,
-              status: servingMap.get(e.id) || 'idle',
-              selected: selectedId === e.id,
-              busy: busyId === e.id,
-              onOpen: openEntry,
-              onContext: ctx,
-              onStart: startServing,
-              onStop: stopServing,
-            }))
-            : (!uploadJobs.length && trimmedFilter
-              ? React.createElement('div', {
-                key: noResultsToken || 0,
-                className: 'no-results-blur',
+            loadingEntries && !uploadJobs.length
+              ? React.createElement(
+                  'div',
+                  {
+                    className: 'loading-indicator loading-indicator--compact drawer-loading',
+                    style: { justifyContent: 'center' },
+                  },
+                  React.createElement('span', {
+                    className: 'loading-indicator__spinner',
+                    'aria-hidden': 'true',
+                  }),
+                  React.createElement('span', null, 'Loading content…'),
+                )
+              : filtered.length
+                ? filtered.map((e) =>
+                    React.createElement(Row, {
+                      key: e.id,
+                      entry: e,
+                      status: servingMap.get(e.id) || 'idle',
+                      selected: selectedId === e.id,
+                      busy: busyId === e.id,
+                      onOpen: openEntry,
+                      onContext: ctx,
+                      onStart: startServing,
+                      onStop: stopServing,
+                    }),
+                  )
+                : !uploadJobs.length && trimmedFilter
+                  ? React.createElement(
+                      'div',
+                      {
+                        key: noResultsToken || 0,
+                        className: 'no-results-blur',
+                        style: {
+                          margin: 'auto',
+                          padding: '40px',
+                          textAlign: 'center',
+                          color: 'var(--muted)',
+                        },
+                      },
+                      React.createElement(
+                        'div',
+                        { style: { fontSize: 16, fontWeight: 600 } },
+                        `No results for "${trimmedFilter}".`,
+                      ),
+                      React.createElement(
+                        'div',
+                        {
+                          style: {
+                            marginTop: 16,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          },
+                        },
+                        React.createElement('span', {
+                          style: {
+                            display: 'inline-flex',
+                            width: 60,
+                            height: 60,
+                            color: 'var(--accent)',
+                          },
+                          dangerouslySetInnerHTML: {
+                            __html:
+                              '<svg viewBox="0 0 80 80" width="60" height="60" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M40 12v32"></path><polyline points="28 36 40 48 52 36"></polyline><path d="M18 50h44"></path><path d="M16 56l4 12h40l4-12"></path><path d="M20 72h40"></path><animateTransform attributeName="transform" type="translate" values="0 0; 0 3; 0 0" dur="1.1s" repeatCount="indefinite"/></svg>',
+                          },
+                        }),
+                      ),
+                      React.createElement(
+                        'div',
+                        {
+                          style: {
+                            marginTop: 14,
+                            fontSize: 15,
+                          },
+                        },
+                        'Drag files & folders here to add content.',
+                      ),
+                    )
+                  : null,
+          ),
+          toast &&
+            React.createElement(
+              'div',
+              {
                 style: {
-                  margin: 'auto',
-                  padding: '40px',
-                  textAlign: 'center',
-                  color: 'var(--muted)',
+                  padding: '8px 10px',
+                  borderTop: '1px solid var(--border)',
+                  background:
+                    toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                  color: 'var(--text)',
                 },
               },
-                React.createElement('div', { style: { fontSize: 16, fontWeight: 600 } }, `No results for "${trimmedFilter}".`),
-                React.createElement('div', {
-                  style: {
-                    marginTop: 16,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  },
-                },
-                  React.createElement('span', {
-                    style: { display: 'inline-flex', width: 60, height: 60, color: 'var(--accent)' },
-                    dangerouslySetInnerHTML: {
-                      __html: '<svg viewBox="0 0 80 80" width="60" height="60" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M40 12v32"></path><polyline points="28 36 40 48 52 36"></polyline><path d="M18 50h44"></path><path d="M16 56l4 12h40l4-12"></path><path d="M20 72h40"></path><animateTransform attributeName="transform" type="translate" values="0 0; 0 3; 0 0" dur="1.1s" repeatCount="indefinite"/></svg>'
-                    }
-                  })
-                ),
-                React.createElement('div', {
-                  style: {
-                    marginTop: 14,
-                    fontSize: 15,
-                  },
-                }, 'Drag files & folders here to add content.'),
-              )
-              : null),
-        ),
-        toast && React.createElement('div', { style: { padding: '8px 10px', borderTop: '1px solid var(--border)', background: toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: 'var(--text)' } }, toast.text),
+              toast.text,
+            ),
         ),
       ),
-      menu && React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 1001, pointerEvents: 'auto' }, onClick: () => setMenu(null) }),
-      menu && React.createElement(ContextMenu, {
-        x: menu.x, y: menu.y,
-        serving: (servingMap.get(menu.entry.id) || 'stopped') === 'running',
-        onClose: () => setMenu(null),
-        onPick: () => openEntry(menu.entry),
-        onStart: async () => { await startServing(menu.entry); await refreshServing() },
-        onStop: async () => { await stopServing(menu.entry); await refreshServing() },
-        onRename: async () => {
-          const cur = menu.entry.label || ''
-          const next = prompt('New label:', cur)
-          if (next == null) return
-          await fetch(`/api/library/${menu.entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: next }) })
-          const j = await fetch('/api/library').then(r => r.json()).catch(() => ({ entries: [] }))
-          setEntries(j.entries || [])
-        },
-        onCopyPath: async () => {
-          const p = menu.entry.path
-          try { await navigator.clipboard.writeText(p) } catch {}
-        },
-        onDeleteLib: () => delLib(menu.entry),
-        onDeleteDisk: () => delDisk(menu.entry),
-      }),
-      pendingSelection && React.createElement(DestinationModal, {
-        selection: pendingSelection,
-        directories: directoryOptions,
-        rootOptions: writableRootOptions,
-        resolveRoot: deriveRootForAbsolutePath,
-        onClose: () => setPendingSelection(null),
-        onStage: stageSelectionAt,
-        validateFolderName: validateFolderNameInput,
-      }),
-      serverPickerOpen && React.createElement(ServerContentModal, {
-        rootOptions,
-        onClose: () => setServerPickerOpen(false),
-        onConfirm: addServerSelection,
-      })
+      menu &&
+        React.createElement('div', {
+          style: { position: 'fixed', inset: 0, zIndex: 1001, pointerEvents: 'auto' },
+          onClick: () => setMenu(null),
+        }),
+      menu &&
+        React.createElement(ContextMenu, {
+          x: menu.x,
+          y: menu.y,
+          serving: (servingMap.get(menu.entry.id) || 'stopped') === 'running',
+          onClose: () => setMenu(null),
+          onPick: () => openEntry(menu.entry),
+          onStart: async () => {
+            await startServing(menu.entry)
+            await refreshServing()
+          },
+          onStop: async () => {
+            await stopServing(menu.entry)
+            await refreshServing()
+          },
+          onRename: async () => {
+            const cur = menu.entry.label || ''
+            const next = prompt('New label:', cur)
+            if (next == null) return
+            await fetch(`/api/library/${menu.entry.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ label: next }),
+            })
+            const j = await fetch('/api/library')
+              .then((r) => r.json())
+              .catch(() => ({ entries: [] }))
+            setEntries(j.entries || [])
+          },
+          onCopyPath: async () => {
+            const p = menu.entry.path
+            try {
+              await navigator.clipboard.writeText(p)
+            } catch {}
+          },
+          onDeleteLib: () => delLib(menu.entry),
+          onDeleteDisk: () => delDisk(menu.entry),
+        }),
+      pendingSelection &&
+        React.createElement(DestinationModal, {
+          selection: pendingSelection,
+          directories: directoryOptions,
+          rootOptions: writableRootOptions,
+          resolveRoot: deriveRootForAbsolutePath,
+          onClose: () => setPendingSelection(null),
+          onStage: stageSelectionAt,
+          validateFolderName: validateFolderNameInput,
+        }),
+      serverPickerOpen &&
+        React.createElement(ServerContentModal, {
+          rootOptions,
+          onClose: () => setServerPickerOpen(false),
+          onConfirm: addServerSelection,
+        }),
     )
   }
 
@@ -2063,23 +2766,34 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           const cfg = r.ok ? await r.json() : {}
           if (!alive) return
           setItems(Array.isArray(cfg.recents) ? cfg.recents : [])
-        } catch { setItems([]) }
+        } catch {
+          setItems([])
+        }
         setLoading(false)
       })()
-      return () => { alive = false }
+      return () => {
+        alive = false
+      }
     }, [])
     if (loading) return React.createElement('div', { className: 'muted' }, 'Loading…')
-    if (!items.length) return React.createElement('div', { className: 'muted' }, 'No recent entries.')
+    if (!items.length)
+      return React.createElement('div', { className: 'muted' }, 'No recent entries.')
     return React.createElement(
       'div',
       null,
-      ...items.map((e, i) => React.createElement('button', {
-        key: i,
-        className: 'btn',
-        style: { display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' },
-        title: e.path,
-        onClick: () => onPick(e),
-      }, `[${e.mode || e.type}] ${e.path}`)),
+      ...items.map((e, i) =>
+        React.createElement(
+          'button',
+          {
+            key: i,
+            className: 'btn',
+            style: { display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' },
+            title: e.path,
+            onClick: () => onPick(e),
+          },
+          `[${e.mode || e.type}] ${e.path}`,
+        ),
+      ),
     )
   }
 
@@ -2094,23 +2808,33 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           const data = r.ok ? await r.json() : { roots: [] }
           if (!alive) return
           setRoots(Array.isArray(data.roots) ? data.roots : [])
-        } catch { setRoots([]) }
+        } catch {
+          setRoots([])
+        }
         setLoading(false)
       })()
-      return () => { alive = false }
+      return () => {
+        alive = false
+      }
     }, [])
     if (loading) return React.createElement('div', { className: 'muted' }, 'Loading…')
     return React.createElement(
       'div',
       null,
       React.createElement('div', { className: 'muted', style: { marginBottom: '6px' } }, 'Roots'),
-      ...roots.map((e, i) => React.createElement('button', {
-        key: i,
-        className: 'btn',
-        style: { display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' },
-        title: e.path,
-        onClick: () => onPick({ type: 'dir', path: e.path, mode: 'C' }),
-      }, `[dir] ${[e.label || '', e.path].filter(Boolean).join(' ')}`)),
+      ...roots.map((e, i) =>
+        React.createElement(
+          'button',
+          {
+            key: i,
+            className: 'btn',
+            style: { display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' },
+            title: e.path,
+            onClick: () => onPick({ type: 'dir', path: e.path, mode: 'C' }),
+          },
+          `[dir] ${[e.label || '', e.path].filter(Boolean).join(' ')}`,
+        ),
+      ),
     )
   }
 
@@ -2130,22 +2854,50 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         if (type === 'file') mode = meta.hasJs ? 'B' : 'A'
         if (type === 'app') mode = 'D'
         setInfo({ kind: 'ok', type, mode, hasJs: !!meta.hasJs, path: p })
-      } catch { setInfo({ kind: 'err', text: 'Not found or unsupported.' }) }
+      } catch {
+        setInfo({ kind: 'err', text: 'Not found or unsupported.' })
+      }
     }
     return React.createElement(
       'div',
       null,
-      React.createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
-        React.createElement('input', { type: 'text', ref: inputRef, placeholder: 'Enter absolute or repo-relative path', style: { flex: 1, padding: '6px 8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', borderRadius: '6px' } }),
+      React.createElement(
+        'div',
+        { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
+        React.createElement('input', {
+          type: 'text',
+          ref: inputRef,
+          placeholder: 'Enter absolute or repo-relative path',
+          style: {
+            flex: 1,
+            padding: '6px 8px',
+            border: '1px solid var(--border)',
+            background: 'var(--bg)',
+            color: 'var(--text)',
+            borderRadius: '6px',
+          },
+        }),
         React.createElement('button', { className: 'btn', onClick: validate }, 'Validate'),
       ),
-      React.createElement('div', { style: { marginTop: '12px' }, className: 'muted' },
+      React.createElement(
+        'div',
+        { style: { marginTop: '12px' }, className: 'muted' },
         info.kind === 'info' && info.text,
         info.kind === 'err' && info.text,
-        info.kind === 'ok' && React.createElement(React.Fragment, null,
-          `Type: ${info.type}${info.hasJs ? ' (has JS)' : ''} `,
-          React.createElement('button', { className: 'btn', onClick: () => onPick({ type: info.type, path: info.path, mode: info.mode }) }, 'Select')
-        ),
+        info.kind === 'ok' &&
+          React.createElement(
+            React.Fragment,
+            null,
+            `Type: ${info.type}${info.hasJs ? ' (has JS)' : ''} `,
+            React.createElement(
+              'button',
+              {
+                className: 'btn',
+                onClick: () => onPick({ type: info.type, path: info.path, mode: info.mode }),
+              },
+              'Select',
+            ),
+          ),
       ),
     )
   }
@@ -2157,6 +2909,11 @@ export async function openSelectMediaModal({ onSelect } = {}) {
   overlay.style.zIndex = '1000'
   document.body.appendChild(overlay)
   const root = ReactDOM.createRoot(overlay)
-  const onClose = () => { try { root.unmount(); overlay.remove() } catch {} }
+  const onClose = () => {
+    try {
+      root.unmount()
+      overlay.remove()
+    } catch {}
+  }
   root.render(React.createElement(Drawer, { onClose }))
 }

@@ -10,14 +10,18 @@ export async function GET() {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       // Initial hello event
-      try { controller.enqueue(encoder.encode(`: connected\n\n`)) } catch {}
+      try {
+        controller.enqueue(encoder.encode(`: connected\n\n`))
+      } catch {}
       const interval = setInterval(() => {
         if (closed) return
         try {
           controller.enqueue(encoder.encode(`event: ping\n` + `data: ${Date.now()}\n\n`))
         } catch {
           // If enqueue throws, close the stream and stop
-          try { controller.close() } catch {}
+          try {
+            controller.close()
+          } catch {}
           closed = true
           clearInterval(interval)
         }
@@ -27,7 +31,9 @@ export async function GET() {
         if (closed) return
         closed = true
         clearInterval(interval)
-        try { controller.close() } catch {}
+        try {
+          controller.close()
+        } catch {}
       }
 
       // Best-effort: close on process exit
@@ -52,4 +58,3 @@ export async function GET() {
     },
   })
 }
-

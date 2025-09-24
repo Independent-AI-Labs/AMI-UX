@@ -7,11 +7,20 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 async function exists(p: string) {
-  try { await fs.access(p); return true } catch { return false }
+  try {
+    await fs.access(p)
+    return true
+  } catch {
+    return false
+  }
 }
 
-async function readJson(p: string): Promise<any|null> {
-  try { return JSON.parse(await fs.readFile(p, 'utf8')) } catch { return null }
+async function readJson(p: string): Promise<any | null> {
+  try {
+    return JSON.parse(await fs.readFile(p, 'utf8'))
+  } catch {
+    return null
+  }
 }
 
 export async function GET(req: Request) {
@@ -19,9 +28,7 @@ export async function GET(req: Request) {
   const input = url.searchParams.get('path') || ''
   if (!input) return NextResponse.json({ error: 'path required' }, { status: 400 })
 
-  const candidate = path.isAbsolute(input)
-    ? input
-    : path.resolve(repoRoot, input)
+  const candidate = path.isAbsolute(input) ? input : path.resolve(repoRoot, input)
   let abs = candidate
   let stat = await fs.stat(abs).catch(() => null)
   if (!stat) {
@@ -36,7 +43,8 @@ export async function GET(req: Request) {
     if (stat.isFile()) {
       const ext = path.extname(abs).toLowerCase()
       const base = abs.slice(0, -ext.length)
-      const hasJs = await exists(`${base}.js`) || await exists(path.join(path.dirname(abs), 'index.js'))
+      const hasJs =
+        (await exists(`${base}.js`)) || (await exists(path.join(path.dirname(abs), 'index.js')))
       return NextResponse.json({ type: 'file', hasJs, ext })
     }
     if (stat.isDirectory()) {

@@ -7,7 +7,9 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 async function rmrf(p: string) {
-  try { await fs.rm(p, { recursive: true, force: true }) } catch {}
+  try {
+    await fs.rm(p, { recursive: true, force: true })
+  } catch {}
 }
 
 export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {

@@ -294,7 +294,8 @@ function decorateTreeAncestors(doc, treeSelectors) {
   if (!treeSelectors.length) return () => {}
   const ancestryCache = new WeakMap()
   const handler = (type) => (event) => {
-    const target = event.target instanceof Element ? event.target.closest(treeSelectors.join(',')) : null
+    const target =
+      event.target instanceof Element ? event.target.closest(treeSelectors.join(',')) : null
     if (!target) return
     if (type === 'enter') {
       const ancestors = []
@@ -353,13 +354,13 @@ function createHoverOverlay(doc, selectors, callbacks) {
     'act-comment',
     'Comment',
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
-    callbacks.onComment
+    callbacks.onComment,
   )
   const searchBtn = mkBtn(
     'act-search',
     'Search',
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-    callbacks.onSearch
+    callbacks.onSearch,
   )
 
   overlay.appendChild(commentBtn)
@@ -501,27 +502,18 @@ export function initHighlightEffects(options = {}) {
           '#content pre',
           '#content p',
           '#content li',
-        ]
+        ],
   )
   const inlineSelectors = normaliseSelectors(
-    options.inlineSelectors !== undefined
-      ? options.inlineSelectors
-      : ['nav .toc a']
+    options.inlineSelectors !== undefined ? options.inlineSelectors : ['nav .toc a'],
   )
   const underlineSelectors = normaliseSelectors(
     options.underlineSelectors !== undefined
       ? options.underlineSelectors
-      : [
-          '#content .md h1',
-          '#content .md h2',
-          '#content .md h3',
-          '#content .md h4',
-        ]
+      : ['#content .md h1', '#content .md h2', '#content .md h3', '#content .md h4'],
   )
   const treeSelectors = normaliseSelectors(
-    options.treeSelectors !== undefined
-      ? options.treeSelectors
-      : ['#treeRoot summary']
+    options.treeSelectors !== undefined ? options.treeSelectors : ['#treeRoot summary'],
   )
 
   const overlaySelectors = normaliseSelectors(
@@ -536,31 +528,33 @@ export function initHighlightEffects(options = {}) {
           '#content .md h3',
           '#content .md h4',
           'nav .toc a',
-        ]
+        ],
   )
 
   const trackTreeAncestors = options.trackTreeAncestors !== false
 
-  const commentCallback = typeof options.onComment === 'function'
-    ? options.onComment
-    : (el) => {
-        const label = getLabel(el)
-        try {
-          window.parent?.postMessage?.({ type: 'addComment', path: el?.id || '', label }, '*')
-        } catch {}
-      }
-
-  const searchCallback = typeof options.onSearch === 'function'
-    ? options.onSearch
-    : (el) => {
-        const label = getLabel(el)
-        const input = doc.getElementById('search')
-        if (input && 'value' in input) {
-          input.value = label
-          input.dispatchEvent(new Event('input', { bubbles: true }))
-          if (typeof input.focus === 'function') input.focus()
+  const commentCallback =
+    typeof options.onComment === 'function'
+      ? options.onComment
+      : (el) => {
+          const label = getLabel(el)
+          try {
+            window.parent?.postMessage?.({ type: 'addComment', path: el?.id || '', label }, '*')
+          } catch {}
         }
-      }
+
+  const searchCallback =
+    typeof options.onSearch === 'function'
+      ? options.onSearch
+      : (el) => {
+          const label = getLabel(el)
+          const input = doc.getElementById('search')
+          if (input && 'value' in input) {
+            input.value = label
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+            if (typeof input.focus === 'function') input.focus()
+          }
+        }
 
   const rules = [
     {
@@ -584,7 +578,11 @@ export function initHighlightEffects(options = {}) {
     {
       selectors: treeSelectors,
       apply: (el) => {
-        el.classList.add(HIGHLIGHT_CLASSES.block, HIGHLIGHT_CLASSES.underline, HIGHLIGHT_CLASSES.tree)
+        el.classList.add(
+          HIGHLIGHT_CLASSES.block,
+          HIGHLIGHT_CLASSES.underline,
+          HIGHLIGHT_CLASSES.tree,
+        )
       },
     },
   ]

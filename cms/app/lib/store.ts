@@ -40,7 +40,7 @@ async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
   try {
     const raw = await fs.readFile(filePath, 'utf8')
     const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === 'object' ? parsed as T : fallback
+    return parsed && typeof parsed === 'object' ? (parsed as T) : fallback
   } catch {
     return fallback
   }

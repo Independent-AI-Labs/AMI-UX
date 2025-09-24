@@ -24,7 +24,9 @@ export function renderMarkdown(md, relPath) {
       div.textContent = source
       div.dataset.src = source
       // Also stash on an expando for older DOM query patterns
-      try { div.__mermaidSrc = source } catch {}
+      try {
+        div.__mermaidSrc = source
+      } catch {}
       const pre = code.parentElement
       pre?.replaceWith(div)
     } else {

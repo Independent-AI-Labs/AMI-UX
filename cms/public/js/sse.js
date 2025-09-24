@@ -10,7 +10,12 @@ export function connectSSE(state, handlers) {
         handlers.onConfig?.()
         return
       }
-      if (msg.type === 'add' || msg.type === 'unlink' || msg.type === 'addDir' || msg.type === 'unlinkDir') {
+      if (
+        msg.type === 'add' ||
+        msg.type === 'unlink' ||
+        msg.type === 'addDir' ||
+        msg.type === 'unlinkDir'
+      ) {
         handlers.onTreeChange?.()
       } else if (msg.type === 'change' && typeof msg.path === 'string') {
         handlers.onFileChange?.(msg.path)
@@ -23,4 +28,3 @@ export function connectSSE(state, handlers) {
   state.sse = es
   return es
 }
-

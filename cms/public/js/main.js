@@ -1,6 +1,15 @@
 import { humanizeName } from './utils.js'
 import { fetchConfig, fetchTree, setDocRoot } from './api.js'
-import { applyTheme, renderTree, updateTOC, expandCollapseAll, restoreState, restoreHashTarget, attachEvents, loadHighlightSettings } from './ui.js'
+import {
+  applyTheme,
+  renderTree,
+  updateTOC,
+  expandCollapseAll,
+  restoreState,
+  restoreHashTarget,
+  attachEvents,
+  loadHighlightSettings,
+} from './ui.js'
 import { activateHighlight } from './highlight-effects.js'
 import { connectSSE } from './sse.js'
 
@@ -8,7 +17,9 @@ const state = {
   tree: null,
   cache: new Map(),
   open: new Set(),
-  theme: localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+  theme:
+    localStorage.getItem('theme') ||
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
   sse: null,
   refreshTimer: null,
   treeContainer: null,
@@ -34,7 +45,11 @@ marked.setOptions({ gfm: true, breaks: false, headerIds: false, mangle: false })
 
 function getTreeShell() {
   if (state.treeShell && document.body.contains(state.treeShell)) return state.treeShell
-  if (state.treeContainer && state.treeContainer.parentElement && document.body.contains(state.treeContainer.parentElement)) {
+  if (
+    state.treeContainer &&
+    state.treeContainer.parentElement &&
+    document.body.contains(state.treeContainer.parentElement)
+  ) {
     state.treeShell = state.treeContainer.parentElement
     return state.treeShell
   }
@@ -59,11 +74,14 @@ function createTreeSkeleton(rows = 6) {
 function setTreeStatus(kind, message, options = {}) {
   const { wipe = false, skeleton = false } = options
   const shell = getTreeShell()
-  const viewport = state.treeContainer && document.body.contains(state.treeContainer) ? state.treeContainer : null
+  const viewport =
+    state.treeContainer && document.body.contains(state.treeContainer) ? state.treeContainer : null
   if (!shell || !viewport) return
   if (!state.treeOverlay || !document.body.contains(state.treeOverlay)) {
     state.treeOverlay = shell.querySelector('.tree-root__overlay')
-    state.treeOverlayLabel = state.treeOverlay ? state.treeOverlay.querySelector('.tree-root__overlay-label') : null
+    state.treeOverlayLabel = state.treeOverlay
+      ? state.treeOverlay.querySelector('.tree-root__overlay-label')
+      : null
   }
   const overlay = state.treeOverlay
   const label = state.treeOverlayLabel
@@ -119,14 +137,16 @@ function ensureTreeContainer() {
   expandBtn.className = 'btn'
   expandBtn.id = 'treeExpandAll'
   expandBtn.type = 'button'
-  expandBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="12" y1="7" x2="12" y2="17"></line><line x1="7" y1="12" x2="17" y2="12"></line></svg><span>Expand All</span>'
+  expandBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="12" y1="7" x2="12" y2="17"></line><line x1="7" y1="12" x2="17" y2="12"></line></svg><span>Expand All</span>'
   expandBtn.addEventListener('click', () => expandCollapseAll(true))
 
   const collapseBtn = document.createElement('button')
   collapseBtn.className = 'btn'
   collapseBtn.id = 'treeCollapseAll'
   collapseBtn.type = 'button'
-  collapseBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="7" y1="12" x2="17" y2="12"></line></svg><span>Collapse All</span>'
+  collapseBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="7" y1="12" x2="17" y2="12"></line></svg><span>Collapse All</span>'
   collapseBtn.addEventListener('click', () => expandCollapseAll(false))
 
   actions.appendChild(expandBtn)
@@ -205,7 +225,10 @@ function escapePathSelector(value) {
 
 function focusTreePath(relativePath) {
   if (!relativePath) return
-  const parts = String(relativePath).split('/').map((part) => part.trim()).filter(Boolean)
+  const parts = String(relativePath)
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean)
   if (!parts.length) return
   let agg = ''
   let lastDetails = null
@@ -215,13 +238,19 @@ function focusTreePath(relativePath) {
     const node = document.querySelector(selector)
     if (!node) break
     if (!node.open) {
-      try { node.open = true } catch {}
-      try { node.dispatchEvent(new Event('toggle')) } catch {}
+      try {
+        node.open = true
+      } catch {}
+      try {
+        node.dispatchEvent(new Event('toggle'))
+      } catch {}
     }
     lastDetails = node
   }
   if (lastDetails) {
-    try { lastDetails.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch {}
+    try {
+      lastDetails.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    } catch {}
     const summary = lastDetails.querySelector(':scope > summary')
     if (summary) activateHighlight(summary, 1600)
   }
@@ -236,7 +265,12 @@ async function persistDocRoot(pathStr, options = {}) {
 export async function startCms(fromSelect = false) {
   restoreState(state)
   if (!state.eventsAttached) {
-    attachEvents(state, (path) => persistDocRoot(path), startCms, () => applyTheme(state))
+    attachEvents(
+      state,
+      (path) => persistDocRoot(path),
+      startCms,
+      () => applyTheme(state),
+    )
     state.eventsAttached = true
   }
   let cfg = null
@@ -246,11 +280,19 @@ export async function startCms(fromSelect = false) {
   if (cfg) {
     state.docRootAbsolute = cfg.docRootAbsolute || cfg.docRoot || ''
     try {
-      window.parent?.postMessage?.({ type: 'docConfig', docRoot: cfg.docRoot, docRootLabel: cfg.docRootLabel, docRootAbsolute: state.docRootAbsolute }, '*')
+      window.parent?.postMessage?.(
+        {
+          type: 'docConfig',
+          docRoot: cfg.docRoot,
+          docRootLabel: cfg.docRootLabel,
+          docRootAbsolute: state.docRootAbsolute,
+        },
+        '*',
+      )
     } catch {}
   }
   const activeRootKey = state.rootKey || 'docRoot'
-  const contextTag = activeRootKey === 'uploads' ? 'uploads' : (state.docRootAbsolute || 'docRoot')
+  const contextTag = activeRootKey === 'uploads' ? 'uploads' : state.docRootAbsolute || 'docRoot'
   const combinedContext = `${activeRootKey}::${contextTag}`
   if (state.cacheContext !== combinedContext) {
     state.cache.clear()
@@ -259,10 +301,11 @@ export async function startCms(fromSelect = false) {
   const rootLabelEl = document.getElementById('docRootLabel')
   if (rootLabelEl) {
     if (activeRootKey === 'docRoot') {
-      const label = cfg ? (cfg.docRootLabel || cfg.docRootAbsolute || cfg.docRoot || '') : ''
+      const label = cfg ? cfg.docRootLabel || cfg.docRootAbsolute || cfg.docRoot || '' : ''
       rootLabelEl.textContent = label ? '(' + label + ')' : ''
     } else {
-      const fallbackLabel = state.rootLabelOverride || (activeRootKey === 'uploads' ? 'Uploads' : '')
+      const fallbackLabel =
+        state.rootLabelOverride || (activeRootKey === 'uploads' ? 'Uploads' : '')
       rootLabelEl.textContent = fallbackLabel ? '(' + fallbackLabel + ')' : ''
     }
   }
@@ -297,7 +340,12 @@ export async function startCms(fromSelect = false) {
   restoreHashTarget()
   try {
     const children = (tree.children || []).slice()
-    const findIntroIdx = () => children.findIndex((c) => c.type === 'file' && ['readme.md','introduction.md','intro.md'].includes(String(c.name||'').toLowerCase()))
+    const findIntroIdx = () =>
+      children.findIndex(
+        (c) =>
+          c.type === 'file' &&
+          ['readme.md', 'introduction.md', 'intro.md'].includes(String(c.name || '').toLowerCase()),
+      )
     const introIdx = findIntroIdx()
     const intro = introIdx >= 0 ? children[introIdx] : null
     if (intro && intro.type === 'file') {
@@ -323,7 +371,15 @@ export async function startCms(fromSelect = false) {
         .then((c) => {
           state.docRootAbsolute = c.docRootAbsolute || c.docRoot || ''
           try {
-            window.parent?.postMessage?.({ type: 'docConfig', docRoot: c.docRoot, docRootLabel: c.docRootLabel, docRootAbsolute: state.docRootAbsolute }, '*')
+            window.parent?.postMessage?.(
+              {
+                type: 'docConfig',
+                docRoot: c.docRoot,
+                docRootLabel: c.docRootLabel,
+                docRootAbsolute: state.docRootAbsolute,
+              },
+              '*',
+            )
           } catch {}
           if (state.rootKey === 'docRoot') {
             const label = c.docRootLabel || c.docRootAbsolute || c.docRoot || ''
@@ -347,7 +403,6 @@ export async function startCms(fromSelect = false) {
   })
 }
 
-
 // Expose helpers for console debugging
 window.__CMS__ = { state, expandCollapseAll }
 
@@ -365,7 +420,8 @@ window.addEventListener('message', async (ev) => {
           if (Object.prototype.hasOwnProperty.call(msg, 'label')) {
             const incoming = msg.label
             if (incoming === null) options.label = null
-            else if (typeof incoming === 'string' && incoming.trim()) options.label = incoming.trim()
+            else if (typeof incoming === 'string' && incoming.trim())
+              options.label = incoming.trim()
           }
           state.pendingFocus = focus
           await persistDocRoot(msg.path, options)
@@ -393,7 +449,10 @@ window.addEventListener('message', async (ev) => {
     if (msg.type === 'search') {
       const q = String(msg.q || '')
       const search = document.getElementById('search')
-      if (search) { search.value = q; search.dispatchEvent(new Event('input', { bubbles: true })) }
+      if (search) {
+        search.value = q
+        search.dispatchEvent(new Event('input', { bubbles: true }))
+      }
       return
     }
     if (msg.type === 'expandAll') return expandCollapseAll(true)

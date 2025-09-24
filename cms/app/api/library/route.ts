@@ -81,8 +81,14 @@ async function detectKind(absPath: string): Promise<LibraryKind> {
       if (pkgRaw) {
         const pkg = JSON.parse(pkgRaw)
         const hasNext = !!pkg?.dependencies?.next || !!pkg?.devDependencies?.next
-        const hasApp = await fs.stat(path.join(absPath, 'app')).then(() => true).catch(() => false)
-        const hasPages = await fs.stat(path.join(absPath, 'pages')).then(() => true).catch(() => false)
+        const hasApp = await fs
+          .stat(path.join(absPath, 'app'))
+          .then(() => true)
+          .catch(() => false)
+        const hasPages = await fs
+          .stat(path.join(absPath, 'pages'))
+          .then(() => true)
+          .catch(() => false)
         if (hasNext && (hasApp || hasPages)) return 'app'
       }
     } catch {}
@@ -108,10 +114,12 @@ export async function GET() {
       }
     }
   } catch {}
-  const augmented = await Promise.all(entries.map(async (entry) => {
-    const metrics = await computeMetrics(entry.path, entry.kind).catch(() => null)
-    return metrics ? { ...entry, metrics } : entry
-  }))
+  const augmented = await Promise.all(
+    entries.map(async (entry) => {
+      const metrics = await computeMetrics(entry.path, entry.kind).catch(() => null)
+      return metrics ? { ...entry, metrics } : entry
+    }),
+  )
   return NextResponse.json({ entries: augmented })
 }
 
@@ -120,7 +128,7 @@ export async function POST(req: Request) {
   if (!body || !body.path) return NextResponse.json({ error: 'path required' }, { status: 400 })
   const abs = path.resolve(process.cwd(), body.path)
   try {
-    const kind: LibraryKind = body.kind || await detectKind(abs)
+    const kind: LibraryKind = body.kind || (await detectKind(abs))
     const id = idFromPath(abs)
     const list = await listLibrary()
     if (!list.find((e) => e.id === id)) {
