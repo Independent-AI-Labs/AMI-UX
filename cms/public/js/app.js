@@ -1,4 +1,10 @@
-import { registerVisualizer, detectVisualizer, VisualizerA, VisualizerB, VisualizerD } from './visualizers.js'
+import {
+  registerVisualizer,
+  detectVisualizer,
+  VisualizerA,
+  VisualizerB,
+  VisualizerD,
+} from './visualizers.js'
 import { startCms } from './main.js'
 
 // Wrap current Docs viewer as VisualizerC
@@ -44,7 +50,7 @@ async function boot() {
   let viz = null
   if (pathInfo?.mode) {
     const id = pathInfo.mode
-    viz = [VisualizerA, VisualizerB, VisualizerC, VisualizerD].find(v => v.id === id) || null
+    viz = [VisualizerA, VisualizerB, VisualizerC, VisualizerD].find((v) => v.id === id) || null
   }
   if (!viz) viz = detectVisualizer(pathInfo) || VisualizerC
 
@@ -89,12 +95,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const mod = await import('./modal.js')
       const openSelectMediaModal = mod && mod.openSelectMediaModal
       if (typeof openSelectMediaModal !== 'function') throw new Error('modal not loaded')
-      openSelectMediaModal({ onSelect: async (entry) => {
-        try {
-          await fetch('/api/config', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ selected: entry }) })
-        } catch {}
-        location.reload()
-      } })
+      openSelectMediaModal({
+        onSelect: async (entry) => {
+          try {
+            await fetch('/api/config', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ selected: entry }),
+            })
+          } catch {}
+          location.reload()
+        },
+      })
     } catch (err) {
       console.error('Failed to open Select Media modal', err)
       alert('Failed to open Select Media modal. See console for details.')

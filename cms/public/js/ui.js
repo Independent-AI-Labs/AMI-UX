@@ -99,9 +99,7 @@ export function applyTheme(state) {
 
 function cacheKey(state, relPath) {
   const rootKey = state?.rootKey === 'uploads' ? 'uploads' : 'docRoot'
-  const context = rootKey === 'uploads'
-    ? 'uploads'
-    : (state?.docRootAbsolute || 'docRoot')
+  const context = rootKey === 'uploads' ? 'uploads' : state?.docRootAbsolute || 'docRoot'
   return `${rootKey}@${context}::${relPath}`
 }
 
@@ -200,7 +198,8 @@ function createRowActions(node, label) {
   btnComment.setAttribute('aria-label', 'Add comment')
   btnComment.dataset.path = node.path || ''
   btnComment.dataset.label = label
-  btnComment.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
+  btnComment.innerHTML =
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>'
   btnComment.addEventListener('click', handleCommentClick)
 
   const btnSearch = document.createElement('button')
@@ -209,7 +208,8 @@ function createRowActions(node, label) {
   btnSearch.setAttribute('aria-label', 'Search for this item')
   btnSearch.dataset.path = node.path || ''
   btnSearch.dataset.label = label
-  btnSearch.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+  btnSearch.innerHTML =
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
   btnSearch.addEventListener('click', handleSearchClick)
 
   actions.appendChild(btnComment)
@@ -281,9 +281,10 @@ function attachFileLoader(details, state, body) {
         const anchor = document.createElement('a')
         anchor.id = pathAnchor(node.path)
         body.appendChild(anchor)
-        const cloned = cached && cached.html && typeof cached.html.cloneNode === 'function'
-          ? cached.html.cloneNode(true)
-          : cached.html || document.createTextNode('')
+        const cloned =
+          cached && cached.html && typeof cached.html.cloneNode === 'function'
+            ? cached.html.cloneNode(true)
+            : cached.html || document.createTextNode('')
         body.appendChild(cloned)
       } catch {
         await loadFileNode(state, details, node, body)
@@ -422,7 +423,9 @@ function updateDetailsNode(state, details, node, depth, indexPath, key) {
 
 function reorderRoot(children) {
   const list = Array.isArray(children) ? children.slice() : []
-  const idxIntro = list.findIndex((child) => child && child.type === 'file' && isIntroFile(child.name))
+  const idxIntro = list.findIndex(
+    (child) => child && child.type === 'file' && isIntroFile(child.name),
+  )
   if (idxIntro > 0) {
     const intro = list.splice(idxIntro, 1)[0]
     list.unshift(intro)
@@ -434,10 +437,12 @@ function syncChildren(state, parentEl, children, depth = 0, indexPath = []) {
   if (!parentEl) return
   const ordered = depth === 0 ? reorderRoot(children) : Array.isArray(children) ? children : []
   const existingDetails = Array.from(parentEl.children).filter((el) => el.tagName === 'DETAILS')
-  const lookup = new Map(existingDetails.map((el) => {
-    const key = el.dataset.key || el.dataset.path || ''
-    return [key, el]
-  }))
+  const lookup = new Map(
+    existingDetails.map((el) => {
+      const key = el.dataset.key || el.dataset.path || ''
+      return [key, el]
+    }),
+  )
 
   ordered.forEach((child, idx) => {
     if (!child) return
@@ -446,7 +451,8 @@ function syncChildren(state, parentEl, children, depth = 0, indexPath = []) {
     let details = lookup.get(key)
     if (details) {
       lookup.delete(key)
-      const existingType = details.dataset.type || (details.classList.contains('dir') ? 'dir' : 'file')
+      const existingType =
+        details.dataset.type || (details.classList.contains('dir') ? 'dir' : 'file')
       if (existingType !== child.type) {
         cleanupNode(details, state)
         details.remove()
@@ -609,7 +615,12 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
   on('printBtn', 'click', () => window.print())
   on('selectDirBtn', 'click', async () => {
     try {
-      const current = (await fetch('/api/config').then((r) => r.json()).catch(() => ({}))).docRoot || ''
+      const current =
+        (
+          await fetch('/api/config')
+            .then((r) => r.json())
+            .catch(() => ({}))
+        ).docRoot || ''
       const val = prompt('Enter docs directory path (absolute or relative to server):', current)
       if (!val) return
       await setDocRoot(val)
@@ -626,16 +637,17 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
       search && search.focus && search.focus()
     }
   })
-  if (search && typeof search.addEventListener === 'function') search.addEventListener('input', () => {
-    const q = search.value.toLowerCase()
-    const scope = document.getElementById('treeRoot') || document.getElementById('content')
-    if (!scope) return
-    scope.querySelectorAll('details').forEach((d) => {
-      const title = d.querySelector('summary')?.textContent?.toLowerCase() || ''
-      const match = !q || title.includes(q)
-      d.classList.toggle('hidden', !match)
+  if (search && typeof search.addEventListener === 'function')
+    search.addEventListener('input', () => {
+      const q = search.value.toLowerCase()
+      const scope = document.getElementById('treeRoot') || document.getElementById('content')
+      if (!scope) return
+      scope.querySelectorAll('details').forEach((d) => {
+        const title = d.querySelector('summary')?.textContent?.toLowerCase() || ''
+        const match = !q || title.includes(q)
+        d.classList.toggle('hidden', !match)
+      })
     })
-  })
   window.addEventListener('hashchange', restoreHashTarget)
 
   // Expand all for print and restore after
@@ -865,7 +877,8 @@ function setupHighlightPreferences(state, search) {
   }
 
   function togglePanel() {
-    const isVisible = !overlay.hidden && overlay.dataset.state !== 'closed' && overlay.dataset.state !== 'closing'
+    const isVisible =
+      !overlay.hidden && overlay.dataset.state !== 'closed' && overlay.dataset.state !== 'closing'
     if (isVisible) hidePanel()
     else showPanel()
   }
@@ -1013,7 +1026,8 @@ function createStructureWatcher(state) {
 
   content.addEventListener('scroll', handleScroll, { passive: true })
   tocRoot.addEventListener('click', (e) => {
-    const link = e.target && typeof e.target.closest === 'function' ? e.target.closest('a[data-path]') : null
+    const link =
+      e.target && typeof e.target.closest === 'function' ? e.target.closest('a[data-path]') : null
     if (link) watcher.ignoreHashClearUntil = Date.now() + 800
   })
   tocRoot.addEventListener('toggle', () => watcher.updateActive(true), true)

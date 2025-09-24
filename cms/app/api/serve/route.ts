@@ -12,7 +12,9 @@ function pickPort() {
   return base + Math.floor(Math.random() * 5000)
 }
 
-function idGen() { return crypto.randomBytes(6).toString('hex') }
+function idGen() {
+  return crypto.randomBytes(6).toString('hex')
+}
 
 export async function GET() {
   const list = await listServed()
@@ -21,7 +23,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null)
-  if (!body || !body.entryId) return NextResponse.json({ error: 'entryId required' }, { status: 400 })
+  if (!body || !body.entryId)
+    return NextResponse.json({ error: 'entryId required' }, { status: 400 })
   const entries = await listLibrary()
   const entry = entries.find((e) => e.id === body.entryId)
   if (!entry) return NextResponse.json({ error: 'entry not found' }, { status: 404 })
@@ -37,7 +40,10 @@ export async function POST(req: Request) {
     // To enable, provide an external runner per-app and call it here.
     inst.status = 'error'
     await saveServed(served)
-    return NextResponse.json({ error: 'app serving disabled; provide external runner' }, { status: 501 })
+    return NextResponse.json(
+      { error: 'app serving disabled; provide external runner' },
+      { status: 501 },
+    )
   } else {
     // file/dir: no external process, considered running once mapped
     inst.status = 'running'

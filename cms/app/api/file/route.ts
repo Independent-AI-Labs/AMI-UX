@@ -37,12 +37,18 @@ export async function GET(req: Request) {
     const etag = `W/"${st.size}-${Number(st.mtimeMs).toString(16)}"`
     const ifNoneMatch = req.headers.get('if-none-match')
     if (ifNoneMatch && ifNoneMatch === etag) {
-      return new NextResponse(null, { status: 304, headers: { ETag: etag, 'Cache-Control': 'no-cache' } })
+      return new NextResponse(null, {
+        status: 304,
+        headers: { ETag: etag, 'Cache-Control': 'no-cache' },
+      })
     }
     const data = await fs.readFile(targetAbs, 'utf8')
     const ext = path.extname(targetAbs).toLowerCase()
     const type = ext === '.md' ? 'text/markdown; charset=utf-8' : 'text/plain; charset=utf-8'
-    return new NextResponse(data, { status: 200, headers: { 'Content-Type': type, ETag: etag, 'Cache-Control': 'no-cache' } })
+    return new NextResponse(data, {
+      status: 200,
+      headers: { 'Content-Type': type, ETag: etag, 'Cache-Control': 'no-cache' },
+    })
   } catch (e) {
     return new NextResponse('Not found', { status: 404 })
   }

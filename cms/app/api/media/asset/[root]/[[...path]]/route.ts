@@ -40,7 +40,10 @@ const MIME: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 }
 
-export async function GET(_req: Request, context: { params: Promise<{ root: string, path?: string[] }> }) {
+export async function GET(
+  _req: Request,
+  context: { params: Promise<{ root: string; path?: string[] }> },
+) {
   const { root, path: pathParts } = await context.params
   const { docRoot } = await loadCfg()
   const cwd = process.cwd()

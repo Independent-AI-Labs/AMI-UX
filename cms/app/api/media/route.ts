@@ -99,15 +99,18 @@ export async function GET(req: Request) {
 
     if (ext === '.html' || ext === '.htm') {
       let text = ''
-      if (raw.length >= 2 && raw[0] === 0xFF && raw[1] === 0xFE) {
+      if (raw.length >= 2 && raw[0] === 0xff && raw[1] === 0xfe) {
         // UTF-16 LE
         text = raw.slice(2).toString('utf16le')
-      } else if (raw.length >= 2 && raw[0] === 0xFE && raw[1] === 0xFF) {
+      } else if (raw.length >= 2 && raw[0] === 0xfe && raw[1] === 0xff) {
         // UTF-16 BE -> swap and decode
         const swapped = Buffer.allocUnsafe(raw.length - 2)
-        for (let i = 2; i + 1 < raw.length; i += 2) { swapped[i - 2] = raw[i + 1]; swapped[i - 1] = raw[i] }
+        for (let i = 2; i + 1 < raw.length; i += 2) {
+          swapped[i - 2] = raw[i + 1]
+          swapped[i - 1] = raw[i]
+        }
         text = swapped.toString('utf16le')
-      } else if (raw.length >= 3 && raw[0] === 0xEF && raw[1] === 0xBB && raw[2] === 0xBF) {
+      } else if (raw.length >= 3 && raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf) {
         // UTF-8 BOM
         text = raw.slice(3).toString('utf8')
       } else {
@@ -141,7 +144,11 @@ export async function GET(req: Request) {
       if (looksEncoded) {
         const decoded = decodeEntities(encoded)
         // Only accept if decoding yields real tags
-        if (/<\s*style[\s>]/i.test(decoded) || /<\s*div[\s>]/i.test(decoded) || /<\s*section[\s>]/i.test(decoded)) {
+        if (
+          /<\s*style[\s>]/i.test(decoded) ||
+          /<\s*div[\s>]/i.test(decoded) ||
+          /<\s*section[\s>]/i.test(decoded)
+        ) {
           transformed = decoded
         }
       }

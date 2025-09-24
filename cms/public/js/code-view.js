@@ -204,7 +204,7 @@ const LANGUAGE_ALIAS_MAP = {
   golang: 'go',
   objc: 'objectivec',
   'objc++': 'objectivec',
-  'objcxx': 'objectivec',
+  objcxx: 'objectivec',
   docker: 'dockerfile',
   dockerfile: 'dockerfile',
   protobuf: 'protobuf',
@@ -285,7 +285,7 @@ function highlight(code, languageHint, hljs) {
     const res = hljs.highlightAuto(code)
     return {
       html: res.value,
-      language: res.language || (resolved || DEFAULT_LANGUAGE),
+      language: res.language || resolved || DEFAULT_LANGUAGE,
     }
   } catch {
     return { html: escapeHtml(code), language: resolved || DEFAULT_LANGUAGE }
@@ -362,7 +362,8 @@ export class CodeView {
         this.copyBtn.type = 'button'
         this.copyBtn.className = 'code-view__copy'
         this.copyBtn.setAttribute('aria-label', 'Copy code to clipboard')
-        this.copyBtn.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+        this.copyBtn.innerHTML =
+          '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
         right.appendChild(this.copyBtn)
       }
 

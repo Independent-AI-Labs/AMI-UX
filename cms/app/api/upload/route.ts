@@ -135,14 +135,16 @@ function summarizeResponse(target: RootTarget, rel: string, absolute: string, me
     rootBaseAbsolute: target.base,
     rootBaseRelative: target.relativeBase,
     files: meta.completed
-      ? [{
-          name: path.basename(absolute),
-          absolutePath: absolute,
-          relativePath: rel,
-          path: path.relative(repoRoot, absolute),
-          bytes: meta.size,
-          hash: meta.hash,
-        }]
+      ? [
+          {
+            name: path.basename(absolute),
+            absolutePath: absolute,
+            relativePath: rel,
+            path: path.relative(repoRoot, absolute),
+            bytes: meta.size,
+            hash: meta.hash,
+          },
+        ]
       : [],
   }
 }
@@ -188,8 +190,8 @@ export async function GET(req: Request) {
   const resume = intent === 'resume'
   const recordedSize = meta?.size ?? expectedSize
   const uploaded = resume ? (meta ? Math.max(meta.uploaded, statSize) : statSize) : 0
-  const completed = resume ? (!!meta?.completed && uploaded === recordedSize) : false
-  const hash = completed ? meta?.hash ?? null : null
+  const completed = resume ? !!meta?.completed && uploaded === recordedSize : false
+  const hash = completed ? (meta?.hash ?? null) : null
 
   return NextResponse.json({
     offset: uploaded,

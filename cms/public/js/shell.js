@@ -1,4 +1,10 @@
-import { registerVisualizer, detectVisualizer, VisualizerA, VisualizerB, VisualizerD } from './visualizers.js'
+import {
+  registerVisualizer,
+  detectVisualizer,
+  VisualizerA,
+  VisualizerB,
+  VisualizerD,
+} from './visualizers.js'
 import { openSelectMediaModal } from './modal.js'
 import { humanizeName, normalizeFsPath } from './utils.js'
 
@@ -33,7 +39,11 @@ async function updateStatusPillForTab(tab) {
   const pill = document.getElementById('statusPill')
   if (!pill) return
   try {
-    if (!tab) { pill.textContent = ''; pill.title = ''; return }
+    if (!tab) {
+      pill.textContent = ''
+      pill.title = ''
+      return
+    }
     if (tab.kind === 'app') {
       if (tab.path) {
         const r = await fetch(`/api/app/status?path=${encodeURIComponent(tab.path)}`)
@@ -71,13 +81,17 @@ function updateWelcomeVisibility() {
   if (frame) {
     frame.classList.toggle('is-hidden', !hasActive)
     if (!hasActive) {
-      try { frame.src = 'about:blank' } catch {}
+      try {
+        frame.src = 'about:blank'
+      } catch {}
     }
   }
   if (welcome) welcome.classList.toggle('is-hidden', !!hasActive)
   if (!hasActive) {
     updateStatusPillForTab(null)
-    try { document.body.classList.remove('mode-dir', 'mode-file', 'mode-app') } catch {}
+    try {
+      document.body.classList.remove('mode-dir', 'mode-file', 'mode-app')
+    } catch {}
   }
 }
 
@@ -102,8 +116,23 @@ const appRunning = new Map()
 
 async function saveTabs() {
   try {
-    const payload = { openTabs: tabsState.tabs.map(({ id, entryId, kind, path, label, servedId, mode }) => ({ id, entryId: entryId || null, kind, path, label: label || null, servedId: servedId || null, mode: mode || undefined })), activeTabId: tabsState.active }
-    await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    const payload = {
+      openTabs: tabsState.tabs.map(({ id, entryId, kind, path, label, servedId, mode }) => ({
+        id,
+        entryId: entryId || null,
+        kind,
+        path,
+        label: label || null,
+        servedId: servedId || null,
+        mode: mode || undefined,
+      })),
+      activeTabId: tabsState.active,
+    }
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
   } catch {}
 }
 
@@ -130,7 +159,9 @@ function postToDoc(msg) {
   for (const d of delays) {
     setTimeout(() => {
       collectDocContexts().forEach(({ win }) => {
-        try { win.postMessage(msg, '*') } catch {}
+        try {
+          win.postMessage(msg, '*')
+        } catch {}
       })
     }, d)
   }
@@ -163,7 +194,8 @@ function buildDocMessageForDir(tab, cfg) {
   const normalizedPath = normalizeFsPath(originalPath)
   if (!normalizedPath) return null
 
-  const { baseOriginal: uploadsOriginal, baseNormalized: uploadsNormalized } = uploadsBaseFromPath(originalPath)
+  const { baseOriginal: uploadsOriginal, baseNormalized: uploadsNormalized } =
+    uploadsBaseFromPath(originalPath)
   if (uploadsOriginal && uploadsNormalized) {
     const focus = relativeNormalized(uploadsNormalized, normalizedPath)
     const msg = { type: 'setDocRoot', rootKey: 'uploads', path: uploadsOriginal, label: 'Uploads' }
@@ -173,7 +205,10 @@ function buildDocMessageForDir(tab, cfg) {
 
   const docRootOriginal = cfg?.docRootAbsolute || cfg?.docRoot || ''
   const docRootNormalized = normalizeFsPath(docRootOriginal).replace(/\/+$/, '')
-  if (docRootNormalized && (normalizedPath === docRootNormalized || normalizedPath.startsWith(docRootNormalized + '/'))) {
+  if (
+    docRootNormalized &&
+    (normalizedPath === docRootNormalized || normalizedPath.startsWith(docRootNormalized + '/'))
+  ) {
     const focus = relativeNormalized(docRootNormalized, normalizedPath)
     const msg = { type: 'setDocRoot', rootKey: 'docRoot', path: docRootOriginal }
     if (focus) msg.focus = focus
@@ -183,15 +218,18 @@ function buildDocMessageForDir(tab, cfg) {
     return msg
   }
 
-  const fallbackLabel = tab.label || humanizeName(normalizedPath.split('/').pop() || normalizedPath, 'dir')
+  const fallbackLabel =
+    tab.label || humanizeName(normalizedPath.split('/').pop() || normalizedPath, 'dir')
   const msg = { type: 'setDocRoot', rootKey: 'docRoot', path: originalPath }
   if (fallbackLabel) msg.label = fallbackLabel
   return msg
 }
 
 function iconSvg(kind) {
-  if (kind === 'dir') return '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path>'
-  if (kind === 'app') return '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"></path>'
+  if (kind === 'dir')
+    return '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path>'
+  if (kind === 'app')
+    return '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"></path>'
   return '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline>'
 }
 
@@ -204,13 +242,24 @@ function renderTabs() {
     const isRunningApp = t.kind === 'app' && !!appRunning.get(t.path)
     const showPill = !!t.servedId || isRunningApp
     const isServed = showPill
-    el.className = 'tab' + (tabsState.active === t.id ? ' active' : '') + (isServed ? ' served' : '')
-    const pillTitle = t.kind === 'app' ? (isRunningApp ? 'App running' : '') : (t.servedId ? 'Served' : '')
-    const baseName = (t.path.split('/').pop() || t.path)
+    el.className =
+      'tab' + (tabsState.active === t.id ? ' active' : '') + (isServed ? ' served' : '')
+    const pillTitle =
+      t.kind === 'app' ? (isRunningApp ? 'App running' : '') : t.servedId ? 'Served' : ''
+    const baseName = t.path.split('/').pop() || t.path
     const tabLabel = t.label || (t.kind === 'file' ? humanizeName(baseName, 'file') : baseName)
     el.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconSvg(t.kind)}</svg><span>${tabLabel}</span>${showPill ? `<span class="pill serve-dot" title="${pillTitle}"></span>` : ''}<span class="close" title="Close">×</span>`
-    el.addEventListener('click', (e) => { if ((e.target).classList && (e.target).classList.contains('close')) { closeTab(t.id) } else { activateTab(t.id) } })
-    el.addEventListener('contextmenu', (e) => { e.preventDefault(); openTabContextMenu(e.clientX, e.clientY, t) })
+    el.addEventListener('click', (e) => {
+      if (e.target.classList && e.target.classList.contains('close')) {
+        closeTab(t.id)
+      } else {
+        activateTab(t.id)
+      }
+    })
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+      openTabContextMenu(e.clientX, e.clientY, t)
+    })
     bar.appendChild(el)
   })
   updateWelcomeVisibility()
@@ -221,15 +270,33 @@ function openTabContextMenu(x, y, tab) {
   const menu = document.createElement('div')
   menu.dataset.ctx = '1'
   Object.assign(menu.style, {
-    position: 'fixed', left: x + 'px', top: y + 'px', zIndex: 1000,
-    background: 'var(--panel)', color: 'var(--text)', border: '1px solid var(--border)',
-    borderRadius: '6px', minWidth: '180px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+    position: 'fixed',
+    left: x + 'px',
+    top: y + 'px',
+    zIndex: 1000,
+    background: 'var(--panel)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: '6px',
+    minWidth: '180px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
   })
   function addItem(label, handler, disabled = false) {
     const it = document.createElement('div')
     it.textContent = label
-    Object.assign(it.style, { padding: '8px 10px', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? '0.5' : '1' })
-    if (!disabled) it.addEventListener('click', async () => { try { await handler() } finally { closeContextMenus() } })
+    Object.assign(it.style, {
+      padding: '8px 10px',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      opacity: disabled ? '0.5' : '1',
+    })
+    if (!disabled)
+      it.addEventListener('click', async () => {
+        try {
+          await handler()
+        } finally {
+          closeContextMenus()
+        }
+      })
     menu.appendChild(it)
   }
   const canStart = !!tab.entryId
@@ -239,7 +306,9 @@ function openTabContextMenu(x, y, tab) {
   addItem('Stop Serving', () => stopServingTab(tab), !canStop)
   addItem('Close Tab', () => closeTab(tab.id))
   document.body.appendChild(menu)
-  setTimeout(() => { document.addEventListener('click', closeContextMenus, { once: true }) }, 0)
+  setTimeout(() => {
+    document.addEventListener('click', closeContextMenus, { once: true })
+  }, 0)
 }
 
 function closeContextMenus() {
@@ -268,7 +337,13 @@ async function activateTab(id) {
   if (tab.servedId) {
     try {
       const r = await fetch(`/api/serve/${tab.servedId}`)
-      if (r.ok) { const inst = await r.json(); if (inst?.status === 'running') { iframe.src = `/api/served/${tab.servedId}/`; usedServed = true } }
+      if (r.ok) {
+        const inst = await r.json()
+        if (inst?.status === 'running') {
+          iframe.src = `/api/served/${tab.servedId}/`
+          usedServed = true
+        }
+      }
     } catch {}
   }
   // Always set a mode class so background styling applies, even when served
@@ -279,17 +354,24 @@ async function activateTab(id) {
     else if (tab.kind === 'app') document.body.classList.add('mode-app')
   } catch {}
   if (!usedServed) {
-    if (tab.servedId) { tab.servedId = null; renderTabs() }
+    if (tab.servedId) {
+      tab.servedId = null
+      renderTabs()
+    }
     if (tab.kind === 'dir') {
       const docMessage = buildDocMessageForDir(tab, cfg)
       lastDocMessage = docMessage
       iframe.src = '/doc.html?embed=1'
       try {
-        iframe.addEventListener('load', () => {
-          if (docMessage) postToDoc(docMessage)
-          const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
-          postToDoc({ type: 'applyTheme', theme: curTheme })
-        }, { once: true })
+        iframe.addEventListener(
+          'load',
+          () => {
+            if (docMessage) postToDoc(docMessage)
+            const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
+            postToDoc({ type: 'applyTheme', theme: curTheme })
+          },
+          { once: true },
+        )
       } catch {}
       setTimeout(() => {
         if (docMessage) postToDoc(docMessage)
@@ -307,7 +389,10 @@ async function activateTab(id) {
         rel = normalizedPath.slice(uploadsIdx + uploadsMarker.length)
         root = 'uploads'
       } else if (cfg) {
-        const docRootNormalized = normalizeFsPath((cfg.docRootAbsolute || cfg.docRoot || '')).replace(/\/+$/, '')
+        const docRootNormalized = normalizeFsPath(cfg.docRootAbsolute || cfg.docRoot || '').replace(
+          /\/+$/,
+          '',
+        )
         if (docRootNormalized) {
           if (normalizedPath === docRootNormalized) {
             rel = ''
@@ -329,7 +414,17 @@ async function activateTab(id) {
     setTimeout(() => postToDoc({ type: 'applyTheme', theme: themeNow }), 80)
   }
   try {
-    const vizId = usedServed ? (tab.kind === 'dir' ? 'C' : tab.kind === 'app' ? 'D' : (tab.mode || '')) : (tab.kind === 'dir' ? 'C' : tab.kind === 'app' ? 'D' : (tab.mode || ''))
+    const vizId = usedServed
+      ? tab.kind === 'dir'
+        ? 'C'
+        : tab.kind === 'app'
+          ? 'D'
+          : tab.mode || ''
+      : tab.kind === 'dir'
+        ? 'C'
+        : tab.kind === 'app'
+          ? 'D'
+          : tab.mode || ''
     setLabels(vizId, { path: tab.path })
   } catch {}
   updateStatusPillForTab(tab)
@@ -337,9 +432,16 @@ async function activateTab(id) {
 }
 
 async function startServingTab(tab) {
-  if (!tab.entryId) { alert('Add to Library first to serve.'); return }
+  if (!tab.entryId) {
+    alert('Add to Library first to serve.')
+    return
+  }
   try {
-    const r = await fetch('/api/serve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entryId: tab.entryId }) })
+    const r = await fetch('/api/serve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entryId: tab.entryId }),
+    })
     if (!r.ok) {
       const msg = await r.text().catch(() => '')
       alert('Failed to start: ' + (msg || r.status))
@@ -367,7 +469,13 @@ async function stopServingTab(tab) {
 }
 
 async function ensureModeForFile(p) {
-  try { const r = await fetch(`/api/pathinfo?path=${encodeURIComponent(p)}`); if (r.ok) { const j = await r.json(); return j.hasJs ? 'B' : 'A' } } catch {}
+  try {
+    const r = await fetch(`/api/pathinfo?path=${encodeURIComponent(p)}`)
+    if (r.ok) {
+      const j = await r.json()
+      return j.hasJs ? 'B' : 'A'
+    }
+  } catch {}
   return 'A'
 }
 
@@ -375,17 +483,42 @@ async function openEntry(entry) {
   // Check if already served
   let servedId = null
   try {
-    const r = await fetch('/api/serve'); if (r.ok) { const data = await r.json(); const inst = (data.instances||[]).find((i) => i.entryId === entry.id && i.status === 'running'); if (inst) servedId = inst.id }
+    const r = await fetch('/api/serve')
+    if (r.ok) {
+      const data = await r.json()
+      const inst = (data.instances || []).find(
+        (i) => i.entryId === entry.id && i.status === 'running',
+      )
+      if (inst) servedId = inst.id
+    }
   } catch {}
   const tabId = `${entry.id}-${Date.now()}`
-  const tab = { id: tabId, entryId: entry.id, kind: entry.kind, path: entry.path, label: entry.label || null, servedId, mode: null }
+  const tab = {
+    id: tabId,
+    entryId: entry.id,
+    kind: entry.kind,
+    path: entry.path,
+    label: entry.label || null,
+    servedId,
+    mode: null,
+  }
   if (entry.kind === 'file') tab.mode = await ensureModeForFile(entry.path)
   tabsState.tabs.push(tab)
   activateTab(tabId)
   saveTabs()
   // Append to recents
   try {
-    await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recentsAdd: { type: entry.kind, path: entry.path, mode: tab.mode || (entry.kind === 'dir' ? 'C' : entry.kind === 'app' ? 'D' : undefined) } }) })
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recentsAdd: {
+          type: entry.kind,
+          path: entry.path,
+          mode: tab.mode || (entry.kind === 'dir' ? 'C' : entry.kind === 'app' ? 'D' : undefined),
+        },
+      }),
+    })
   } catch {}
 }
 
@@ -438,7 +571,9 @@ async function boot() {
     const icon = document.getElementById('iconTheme')
     if (icon) {
       // crescent for dark (current icon), sun icon swapped in light
-      if (theme === 'light') icon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
+      if (theme === 'light')
+        icon.innerHTML =
+          '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
     }
   } catch {}
 
@@ -446,12 +581,18 @@ async function boot() {
   let pathInfo = null
   if (cfg?.selected && cfg.selected.path) {
     pathInfo = { ...cfg.selected }
-    try { const r = await fetch(`/api/pathinfo?path=${encodeURIComponent(cfg.selected.path)}`); if (r.ok) pathInfo.meta = await r.json() } catch {}
+    try {
+      const r = await fetch(`/api/pathinfo?path=${encodeURIComponent(cfg.selected.path)}`)
+      if (r.ok) pathInfo.meta = await r.json()
+    } catch {}
   } else {
     pathInfo = { type: 'dir', path: cfg?.docRoot || '' }
   }
   let viz = null
-  if (pathInfo?.mode) viz = [VisualizerA, VisualizerB, VisualizerC, VisualizerD].find(v => v.id === pathInfo.mode) || null
+  if (pathInfo?.mode)
+    viz =
+      [VisualizerA, VisualizerB, VisualizerC, VisualizerD].find((v) => v.id === pathInfo.mode) ||
+      null
   if (!viz) viz = detectVisualizer(pathInfo) || VisualizerC
   // Defer iframe initialization to tabs restoration/seed logic below
 
@@ -461,7 +602,12 @@ async function boot() {
     search.addEventListener('input', () => {
       postToDoc({ type: 'search', q: search.value })
     })
-    window.addEventListener('keydown', (e) => { if (e.key === '/' && document.activeElement !== search) { e.preventDefault(); search.focus() } })
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== search) {
+        e.preventDefault()
+        search.focus()
+      }
+    })
   }
 
   // Header buttons: expand/collapse/theme
@@ -498,8 +644,10 @@ async function boot() {
       if (msg.type === 'docConfig') {
         if (!cachedConfig) cachedConfig = {}
         if (typeof msg.docRoot === 'string') cachedConfig.docRoot = msg.docRoot
-        if (typeof msg.docRootLabel === 'string' || msg.docRootLabel === null) cachedConfig.docRootLabel = msg.docRootLabel
-        if (typeof msg.docRootAbsolute === 'string') cachedConfig.docRootAbsolute = msg.docRootAbsolute
+        if (typeof msg.docRootLabel === 'string' || msg.docRootLabel === null)
+          cachedConfig.docRootLabel = msg.docRootLabel
+        if (typeof msg.docRootAbsolute === 'string')
+          cachedConfig.docRootAbsolute = msg.docRootAbsolute
         return
       }
     } catch {}
@@ -513,9 +661,10 @@ async function boot() {
       // swap icon
       const icon = document.getElementById('iconTheme')
       if (icon) {
-        icon.innerHTML = next === 'light'
-          ? '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
-          : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
+        icon.innerHTML =
+          next === 'light'
+            ? '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
+            : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
       }
       applyThemeIntoIframe(next)
     } catch {}
@@ -526,8 +675,16 @@ async function boot() {
   // Restore tabs if present, else seed from config/docRoot
   const cfgTabs = await loadConfig()
   if (cfgTabs?.openTabs && Array.isArray(cfgTabs.openTabs) && cfgTabs.openTabs.length) {
-    tabsState.tabs = cfgTabs.openTabs.map((t) => ({ id: t.id, entryId: t.entryId || null, kind: t.kind, path: t.path, label: t.label || null, servedId: t.servedId || null, mode: t.mode }))
-    tabsState.active = cfgTabs.activeTabId || (tabsState.tabs[0]?.id || null)
+    tabsState.tabs = cfgTabs.openTabs.map((t) => ({
+      id: t.id,
+      entryId: t.entryId || null,
+      kind: t.kind,
+      path: t.path,
+      label: t.label || null,
+      servedId: t.servedId || null,
+      mode: t.mode,
+    }))
+    tabsState.active = cfgTabs.activeTabId || tabsState.tabs[0]?.id || null
     renderTabs()
     if (tabsState.active) activateTab(tabsState.active)
   } else {
@@ -544,14 +701,21 @@ async function boot() {
 document.addEventListener('DOMContentLoaded', () => {
   boot().catch((err) => console.error('boot failed', err))
   const btn = document.getElementById('selectMediaBtn')
-  if (btn) btn.addEventListener('click', () => { openContentDirectory() })
+  if (btn)
+    btn.addEventListener('click', () => {
+      openContentDirectory()
+    })
   const welcomeBtn = document.getElementById('welcomeOpenBtn')
-  if (welcomeBtn) welcomeBtn.addEventListener('click', () => { openContentDirectory() })
+  if (welcomeBtn)
+    welcomeBtn.addEventListener('click', () => {
+      openContentDirectory()
+    })
   const highlightBtn = document.getElementById('highlightSettingsBtnShell')
-  if (highlightBtn) highlightBtn.addEventListener('click', (event) => {
-    event.preventDefault()
-    postToDoc({ type: 'highlightSettings', action: 'toggle' })
-  })
+  if (highlightBtn)
+    highlightBtn.addEventListener('click', (event) => {
+      event.preventDefault()
+      postToDoc({ type: 'highlightSettings', action: 'toggle' })
+    })
 })
 
 async function refreshServed() {
@@ -566,9 +730,16 @@ async function refreshServed() {
       if (!t.entryId) continue
       const inst = list.find((i) => i.entryId === t.entryId)
       const runningId = inst && inst.status === 'running' ? inst.id : null
-      if ((t.servedId || null) !== (runningId || null)) { t.servedId = runningId; changed = true }
+      if ((t.servedId || null) !== (runningId || null)) {
+        t.servedId = runningId
+        changed = true
+      }
     }
-    if (changed) { renderTabs(); if (tabsState.active) updateStatusPillForTab(tabsState.tabs.find(x => x.id === tabsState.active)) }
+    if (changed) {
+      renderTabs()
+      if (tabsState.active)
+        updateStatusPillForTab(tabsState.tabs.find((x) => x.id === tabsState.active))
+    }
   } catch {}
 }
 
@@ -581,7 +752,11 @@ async function refreshAppStatuses() {
       const s = await r.json()
       const prev = appRunning.get(t.path)
       const cur = !!s.running
-      if (prev !== cur) { appRunning.set(t.path, cur); renderTabs(); if (tabsState.active === t.id) updateStatusPillForTab(t) }
+      if (prev !== cur) {
+        appRunning.set(t.path, cur)
+        renderTabs()
+        if (tabsState.active === t.id) updateStatusPillForTab(t)
+      }
     } catch {}
   }
 }

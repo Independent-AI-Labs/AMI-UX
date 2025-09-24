@@ -25,10 +25,15 @@ export async function setDocRoot(pathStr, options = {}) {
       body: JSON.stringify(baseBody),
     }).catch(() => null)
     if (res && res.ok) return res.json()
-    try { lastText = res ? await res.text() : '' } catch { lastText = '' }
-    const transient = /missing required error components/i.test(lastText) || (res && res.status >= 500)
+    try {
+      lastText = res ? await res.text() : ''
+    } catch {
+      lastText = ''
+    }
+    const transient =
+      /missing required error components/i.test(lastText) || (res && res.status >= 500)
     if (attempt < maxAttempts && transient) {
-      await new Promise(r => setTimeout(r, 600))
+      await new Promise((r) => setTimeout(r, 600))
       continue
     }
     break

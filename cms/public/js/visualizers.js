@@ -30,7 +30,11 @@ export function detectVisualizer(pathInfo) {
 }
 
 // Helper stubs for future modes A/B/D
-function createIframe(container, src, { sandbox = 'allow-scripts allow-same-origin', title = 'Visualizer' } = {}) {
+function createIframe(
+  container,
+  src,
+  { sandbox = 'allow-scripts allow-same-origin', title = 'Visualizer' } = {},
+) {
   const wrapper = document.createElement('div')
   wrapper.style.cssText = 'position:relative; height: calc(100vh - 44px); background: transparent;'
   const iframe = document.createElement('iframe')
@@ -57,8 +61,10 @@ export const VisualizerA = {
     let rel = path
     let root = 'docRoot'
     const idx = rel.indexOf('files/uploads/')
-    if (idx !== -1) { rel = rel.slice(idx + 'files/uploads/'.length); root = 'uploads' }
-    else if (rel.startsWith('/')) {
+    if (idx !== -1) {
+      rel = rel.slice(idx + 'files/uploads/'.length)
+      root = 'uploads'
+    } else if (rel.startsWith('/')) {
       try {
         const r = await fetch('/api/config')
         const cfg = r.ok ? await r.json() : null
@@ -71,8 +77,17 @@ export const VisualizerA = {
       } catch {}
     }
     const url = `/api/media?${new URLSearchParams({ path: rel, mode: 'A', root }).toString()}`
-    const { wrapper } = createIframe(container, url, { sandbox: 'allow-scripts allow-same-origin', title: 'HTML (A)' })
-    return { unmount: () => { try { wrapper.remove() } catch {} } }
+    const { wrapper } = createIframe(container, url, {
+      sandbox: 'allow-scripts allow-same-origin',
+      title: 'HTML (A)',
+    })
+    return {
+      unmount: () => {
+        try {
+          wrapper.remove()
+        } catch {}
+      },
+    }
   },
 }
 
@@ -91,8 +106,10 @@ export const VisualizerB = {
     let rel = path
     let root = 'docRoot'
     const idx = rel.indexOf('files/uploads/')
-    if (idx !== -1) { rel = rel.slice(idx + 'files/uploads/'.length); root = 'uploads' }
-    else if (rel.startsWith('/')) {
+    if (idx !== -1) {
+      rel = rel.slice(idx + 'files/uploads/'.length)
+      root = 'uploads'
+    } else if (rel.startsWith('/')) {
       try {
         const r = await fetch('/api/config')
         const cfg = r.ok ? await r.json() : null
@@ -105,8 +122,17 @@ export const VisualizerB = {
       } catch {}
     }
     const url = `/api/media?${new URLSearchParams({ path: rel, mode: 'B', root }).toString()}`
-    const { wrapper } = createIframe(container, url, { sandbox: 'allow-scripts allow-same-origin', title: 'HTML+JS (B)' })
-    return { unmount: () => { try { wrapper.remove() } catch {} } }
+    const { wrapper } = createIframe(container, url, {
+      sandbox: 'allow-scripts allow-same-origin',
+      title: 'HTML+JS (B)',
+    })
+    return {
+      unmount: () => {
+        try {
+          wrapper.remove()
+        } catch {}
+      },
+    }
   },
 }
 
@@ -123,6 +149,12 @@ export const VisualizerD = {
     div.textContent = `Selected Next.js app: ${path}`
     container.innerHTML = ''
     container.appendChild(div)
-    return { unmount: () => { try { div.remove() } catch {} } }
+    return {
+      unmount: () => {
+        try {
+          div.remove()
+        } catch {}
+      },
+    }
   },
 }
