@@ -5,52 +5,38 @@ repos:
     hooks:
       # Linting (includes security checks)
       - id: ruff
-        args: [ --fix, --exit-non-zero-on-fix ]
+        args: [ --fix, --exit-non-zero-on-fix, . ]
+        pass_filenames: false
         stages: [ pre-commit ]
       # Formatting (replaces black)
       - id: ruff-format
+        args: [ . ]
+        pass_filenames: false
         stages: [ pre-commit ]
 
   # Type checking
   - repo: local
     hooks:
-      - id: eslint-cms
-        name: eslint (cms)
-        entry: bash -lc 'cd cms && npm ci --silent --no-audit --no-fund && npx eslint public/js app --ext .js,.ts,.tsx'
-        language: system
-        pass_filenames: false
-        stages: [ pre-commit ]
-        require_serial: true
-
-      - id: prettier-cms
-        name: prettier (cms)
-        entry: bash -lc 'cd cms && npx prettier --check public/js app'
-        language: system
-        pass_filenames: false
-        stages: [ pre-commit ]
-        require_serial: true
-
       - id: mypy
         name: mypy
-        entry: ".venv/bin/python -m mypy scripts --config-file=mypy.ini"
+        entry: 'bash -c "cd .. && ux/.venv/bin/python -m mypy -p ux --config-file=ux/mypy.ini"'
         language: system
         types: [ python ]
         require_serial: true
         stages: [ pre-commit ]
         pass_filenames: false
 
+  # Run tests on pre-push
   - repo: local
     hooks:
       - id: pytest
         name: pytest
-        entry: python scripts/run_tests.py
+        entry: bash -c "if [ -f scripts/run_tests.py ]; then python3 scripts/run_tests.py; else ./.venv/bin/python -m pytest -q; fi"
         language: system
         pass_filenames: false
         always_run: true
         stages: [ pre-push ]
         require_serial: true
-
-  
 
   # Additional useful hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
