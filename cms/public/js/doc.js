@@ -1,4 +1,4 @@
-import { startCms } from './main.js'
+import { startCms } from './main.js?v=20250306'
 
 startCms()
   .then(() => {

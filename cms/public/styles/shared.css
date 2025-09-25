@@ -290,7 +290,7 @@ details:focus-within > summary .row-actions {
 .dialog-backdrop--right {
   justify-content: flex-end;
   align-items: flex-start;
-  padding: 88px 32px 32px;
+  padding: 28px 32px 32px;
 }
 
 .dialog-surface {
@@ -329,41 +329,38 @@ details:focus-within > summary .row-actions {
   filter: blur(16px);
 }
 
+.dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-header__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dialog-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 
 .highlight-settings-panel {
   --dialog-min-width: 320px;
   --dialog-max-width: 360px;
   gap: 12px;
-}
-.highlight-settings__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-.highlight-settings__header h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-}
-.highlight-settings__header p {
-  margin: 4px 0 0;
-  font-size: 12px;
-}
-.highlight-settings__close {
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 8px;
-  transition: color 0.18s ease, background 0.18s ease;
-}
-.highlight-settings__close:hover {
-  color: var(--text);
-  background: color-mix(in oklab, var(--accent) 15%, transparent);
 }
 .highlight-settings__section {
   border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
@@ -625,7 +622,7 @@ details:focus-within > summary .row-actions {
   background: color-mix(in oklab, var(--panel) 75%, var(--bg) 25%);
   border-right: 1px solid var(--border);
   color: var(--code-comment);
-  font: 12px/1.6 ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   user-select: none;
 }
 .code-view__gutter li {
@@ -633,6 +630,7 @@ details:focus-within > summary .row-actions {
   min-width: 36px;
   text-align: right;
   opacity: 0.75;
+  line-height: 1.6;
 }
 
 .code-view__pre {

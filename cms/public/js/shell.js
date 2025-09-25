@@ -7,6 +7,7 @@ import {
 } from './visualizers.js'
 import { openSelectMediaModal } from './modal.js'
 import { humanizeName, normalizeFsPath } from './utils.js'
+import { createDocMessenger } from './message-channel.js?v=20250310'
 
 // Visualizer C: iframe to doc.html embed
 const VisualizerC = {
@@ -154,18 +155,36 @@ function collectDocContexts() {
   return contexts
 }
 
-function postToDoc(msg) {
-  const delays = [0, 100, 250, 500, 1000, 1600]
-  for (const d of delays) {
-    setTimeout(() => {
-      collectDocContexts().forEach(({ win }) => {
-        try {
-          win.postMessage(msg, '*')
-        } catch {}
-      })
-    }, d)
-  }
+const docMessenger = createDocMessenger({
+  getTargets: () => collectDocContexts().map((ctx) => ctx.win)
+    .filter((win, index, arr) => win && arr.indexOf(win) === index),
+  onTimeout: ({ message }) => {
+    if (message && message.type) {
+      console.warn('Doc message timed out', message.type)
+    } else {
+      console.warn('Doc message timed out')
+    }
+  },
+})
+
+function postToDoc(msg, options = {}) {
+  const promise = docMessenger.send(msg, options)
+  if (options.waitForAck) return promise
+  promise.catch((err) => {
+    if (!options.silent) {
+      console.warn('Doc message failed', msg?.type || 'unknown', err)
+    }
+  })
+  return promise
 }
+
+try {
+  window.addEventListener('unload', () => {
+    try {
+      docMessenger.dispose()
+    } catch {}
+  })
+} catch {}
 
 function relativeNormalized(baseNormalized, targetNormalized) {
   const base = baseNormalized.replace(/\/+$/g, '')
@@ -711,11 +730,21 @@ document.addEventListener('DOMContentLoaded', () => {
       openContentDirectory()
     })
   const highlightBtn = document.getElementById('highlightSettingsBtnShell')
-  if (highlightBtn)
+  if (highlightBtn) {
+    if (!highlightBtn.hasAttribute('aria-expanded')) highlightBtn.setAttribute('aria-expanded', 'false')
     highlightBtn.addEventListener('click', (event) => {
       event.preventDefault()
-      postToDoc({ type: 'highlightSettings', action: 'toggle' })
+      postToDoc({ type: 'highlightSettings', action: 'toggle' }, { waitForAck: true })
+        .then((ack) => {
+          const status = ack?.status
+          if (status === 'opened') highlightBtn.setAttribute('aria-expanded', 'true')
+          else if (status === 'closed') highlightBtn.setAttribute('aria-expanded', 'false')
+        })
+        .catch((err) => {
+          console.warn('Failed to toggle highlight settings', err)
+        })
     })
+  }
 })
 
 async function refreshServed() {

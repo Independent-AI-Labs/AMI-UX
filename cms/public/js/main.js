@@ -8,10 +8,13 @@ import {
   restoreState,
   restoreHashTarget,
   attachEvents,
-  loadHighlightSettings,
 } from './ui.js'
-import { activateHighlight } from './highlight-effects.js'
+import { activateHighlight } from './highlight/effects.js'
 import { connectSSE } from './sse.js'
+import { createHighlightManager } from './highlight/manager.js'
+import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
+
+const highlightManager = createHighlightManager({ document })
 
 const state = {
   tree: null,
@@ -33,8 +36,8 @@ const state = {
   cacheContext: 'docRoot',
   isLoading: false,
   eventsAttached: false,
-  highlightEffects: null,
-  highlightConfig: loadHighlightSettings(),
+  highlightManager,
+  highlightContextHandle: null,
 }
 
 // Theme
@@ -201,6 +204,7 @@ function debounceRefreshTree() {
       state.tree = newTree
       if (!root) return
       renderTree(state, root, newTree)
+      if (state.highlightManager) state.highlightManager.refreshContext('doc-viewer')
       updateTOC(state)
       window.scrollTo(0, scrollY)
       setTreeStatus('idle')
@@ -332,9 +336,7 @@ export async function startCms(fromSelect = false) {
     title.textContent = humanizeName(treeName, 'dir')
   }
   renderTree(state, root, tree)
-  if (state.highlightEffects && typeof state.highlightEffects.refresh === 'function') {
-    state.highlightEffects.refresh()
-  }
+  if (state.highlightManager) state.highlightManager.refreshContext('doc-viewer')
   setTreeStatus('idle')
   updateTOC(state)
   restoreHashTarget()
@@ -404,14 +406,26 @@ export async function startCms(fromSelect = false) {
 }
 
 // Expose helpers for console debugging
-window.__CMS__ = { state, expandCollapseAll }
+window.__CMS__ = { state, expandCollapseAll, highlightManager }
 
 // Embed messaging API (for shell iframe integration)
 window.addEventListener('message', async (ev) => {
   const msg = ev && ev.data
   if (!msg || typeof msg !== 'object') return
+  if (msg.type === 'highlightSettings') return
+
+  let acked = false
+  const ack = (details) => {
+    if (acked) return
+    if (msg.channel === messageChannel.CHANNEL && msg.requestId != null) {
+      acknowledgeParentMessage(msg, details)
+      acked = true
+    }
+  }
+
   try {
     if (msg.type === 'setDocRoot') {
+      ack({ status: 'accepted' })
       const rootKey = msg.rootKey === 'uploads' ? 'uploads' : 'docRoot'
       const focus = typeof msg.focus === 'string' ? msg.focus : ''
       if (rootKey === 'docRoot') {
@@ -420,8 +434,7 @@ window.addEventListener('message', async (ev) => {
           if (Object.prototype.hasOwnProperty.call(msg, 'label')) {
             const incoming = msg.label
             if (incoming === null) options.label = null
-            else if (typeof incoming === 'string' && incoming.trim())
-              options.label = incoming.trim()
+            else if (typeof incoming === 'string' && incoming.trim()) options.label = incoming.trim()
           }
           state.pendingFocus = focus
           await persistDocRoot(msg.path, options)
@@ -453,18 +466,30 @@ window.addEventListener('message', async (ev) => {
         search.value = q
         search.dispatchEvent(new Event('input', { bubbles: true }))
       }
+      ack({ status: 'ok' })
       return
     }
-    if (msg.type === 'expandAll') return expandCollapseAll(true)
-    if (msg.type === 'collapseAll') return expandCollapseAll(false)
+    if (msg.type === 'expandAll') {
+      expandCollapseAll(true)
+      ack({ status: 'ok' })
+      return
+    }
+    if (msg.type === 'collapseAll') {
+      expandCollapseAll(false)
+      ack({ status: 'ok' })
+      return
+    }
     if (msg.type === 'applyTheme') {
       const theme = msg.theme === 'light' ? 'light' : 'dark'
       state.theme = theme
       localStorage.setItem('theme', theme)
       applyTheme(state)
+      ack({ status: 'ok' })
       return
     }
+    if (msg.channel === messageChannel.CHANNEL) ack({ status: 'ignored' })
   } catch (e) {
+    ack({ status: 'error', error: e?.message || String(e) })
     console.warn('message handler failed', e)
   }
 })
