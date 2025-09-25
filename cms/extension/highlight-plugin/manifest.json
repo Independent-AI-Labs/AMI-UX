@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "AMI Highlight Tools",
+  "version": "0.1.0",
+  "description": "Reusable highlight utilities that surface structured content targets on any page.",
+  "action": {
+    "default_title": "AMI Highlight Tools"
+  },
+  "permissions": [],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle",
+      "type": "module"
+    }
+  ]
+}
