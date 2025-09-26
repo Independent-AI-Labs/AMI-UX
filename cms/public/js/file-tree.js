@@ -1,4 +1,5 @@
 import { normalizeFsPath } from './utils.js'
+import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 
 function joinFsPath(base, rel) {
   const baseStr = typeof base === 'string' ? base : ''
@@ -74,13 +75,10 @@ function buildNodeIndex(roots) {
 }
 
 const ICONS = {
-  chevronRight:
-    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>',
-  chevronDown:
-    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>',
-  folder:
-    '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h5.5l2 2H21a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"></path><path d="M2 10.5h20"></path></svg>',
-  file: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>',
+  chevronRight: iconMarkup('arrow-right-s-line', { size: 16 }),
+  chevronDown: iconMarkup('arrow-down-s-line', { size: 16 }),
+  folder: iconMarkup('folder-3-line', { size: 20 }),
+  file: iconMarkup('file-3-line', { size: 20 }),
 }
 
 function isSelectableNode(node, mode) {
@@ -433,7 +431,7 @@ export function createFileTreeToolkit(React) {
               'button',
               {
                 type: 'button',
-                className: 'btn',
+                className: 'dialog-button dialog-button--subtle',
                 onClick: handleCreate,
                 disabled: !canCreate,
                 title: canCreate ? '' : 'Select a directory first',

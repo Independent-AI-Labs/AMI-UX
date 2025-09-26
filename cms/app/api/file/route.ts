@@ -4,6 +4,7 @@ import path from 'path'
 import { loadRuntimeConfig } from '../../lib/runtime-config'
 import { getTextFormats, isAllowedTextFormat } from '../../lib/text-formats'
 import { resolveMediaRoot } from '../../lib/media-roots'
+import { withSession } from '../../lib/auth-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,8 +14,8 @@ function withinRoot(rootAbs: string, targetAbs: string) {
   return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel)
 }
 
-export async function GET(req: Request) {
-  const url = new URL(req.url)
+export const GET = withSession(async ({ request }) => {
+  const url = new URL(request.url)
   const relPath = url.searchParams.get('path') || ''
   if (!relPath) return new NextResponse('Missing path', { status: 400 })
 
@@ -35,7 +36,7 @@ export async function GET(req: Request) {
   try {
     const st = await fs.stat(targetAbs)
     const etag = `W/"${st.size}-${Number(st.mtimeMs).toString(16)}"`
-    const ifNoneMatch = req.headers.get('if-none-match')
+    const ifNoneMatch = request.headers.get('if-none-match')
     if (ifNoneMatch && ifNoneMatch === etag) {
       return new NextResponse(null, {
         status: 304,
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
       status: 200,
       headers: { 'Content-Type': type, ETag: etag, 'Cache-Control': 'no-cache' },
     })
-  } catch (e) {
+  } catch {
     return new NextResponse('Not found', { status: 404 })
   }
-}
+})

@@ -1,3 +1,5 @@
+import { icon as iconMarkup } from './icon-pack.js?v=20250306'
+
 const DEFAULT_LANGUAGE = 'plaintext'
 const viewRegistry = new WeakMap()
 let copyHandlerBound = false
@@ -362,8 +364,7 @@ export class CodeView {
         this.copyBtn.type = 'button'
         this.copyBtn.className = 'code-view__copy'
         this.copyBtn.setAttribute('aria-label', 'Copy code to clipboard')
-        this.copyBtn.innerHTML =
-          '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+        this.copyBtn.innerHTML = iconMarkup('file-copy-line', { size: 18 })
         right.appendChild(this.copyBtn)
       }
 

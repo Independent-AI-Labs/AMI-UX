@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 
+import { withSession } from '../../lib/auth-guard'
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export const GET = withSession(async () => {
   const encoder = new TextEncoder()
   let closed = false
 
@@ -57,4 +59,4 @@ export async function GET() {
       'X-Accel-Buffering': 'no',
     },
   })
-}
+})

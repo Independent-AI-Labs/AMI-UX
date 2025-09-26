@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
 
+import { withSession } from '../../lib/auth-guard'
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -58,8 +60,8 @@ function buildCspHeader({ allowInlineScript = false }: { allowInlineScript?: boo
   ].join('; ')
 }
 
-export async function GET(req: Request) {
-  const url = new URL(req.url)
+export const GET = withSession(async ({ request }) => {
+  const url = new URL(request.url)
   const rel = url.searchParams.get('path') || ''
   const rootParam = url.searchParams.get('root') || 'docRoot'
   const mode = url.searchParams.get('mode') || ''
@@ -81,7 +83,7 @@ export async function GET(req: Request) {
   try {
     const st = await fs.stat(targetAbs)
     const etag = `W/"${st.size}-${Number(st.mtimeMs).toString(16)}"`
-    const ifNoneMatch = req.headers.get('if-none-match')
+    const ifNoneMatch = request.headers.get('if-none-match')
     if (ifNoneMatch && ifNoneMatch === etag) {
       const h304 = new Headers({
         ETag: etag,
@@ -184,7 +186,7 @@ export async function GET(req: Request) {
       ETag: etag,
     })
     return new NextResponse(body as any, { status: 200, headers })
-  } catch (e) {
+  } catch {
     return new NextResponse('Not found', { status: 404 })
   }
-}
+})

@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server'
 import { listServed, saveServed } from '../../../lib/store'
+import { withSession } from '../../../lib/auth-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withSession(async ({ context }) => {
   const { id } = await context.params
   const list = await listServed()
   const inst = list.find((s) => s.id === id)
   if (!inst) return NextResponse.json({ error: 'not found' }, { status: 404 })
   return NextResponse.json(inst)
-}
+})
 
-export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
+export const DELETE = withSession(async ({ context }) => {
   const { id } = await context.params
   const list = await listServed()
   const idx = list.findIndex((s) => s.id === id)
@@ -21,4 +22,4 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
   list[idx] = { ...list[idx], status: 'stopped' }
   await saveServed(list)
   return NextResponse.json({ ok: true })
-}
+})

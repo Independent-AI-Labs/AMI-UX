@@ -403,7 +403,7 @@ export class HighlightManager {
             <h2 class="dialog-title">Highlight Settings</h2>
             <p class="dialog-subtitle">Configure highlight targets and hover tools.</p>
           </div>
-          <button type="button" class="dialog-close" aria-label="Close highlight settings"><span aria-hidden="true">×</span></button>
+          <button type="button" class="icon-button dialog-close" aria-label="Close highlight settings"><span aria-hidden="true">×</span></button>
         </div>
         <div class="highlight-settings__section" data-section="targets">
           <h3>Highlight Targets</h3>

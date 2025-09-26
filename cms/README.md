@@ -33,6 +33,13 @@ npm run dev   # defaults to http://localhost:3000; run in background or separate
   - `npm run serve -- logs --port 3000` — print recent log
   - `npm run serve -- kill-orphans` — kill stray Next processes bound to this app dir
 
+## Authentication
+
+- The CMS now requires a signed-in session for `/index.html`, `/api/**`, and all static assets. Unauthenticated requests are redirected to `/auth/signin` by `middleware.ts`.
+- Credentials are validated through the shared `ux/auth` module. In local development (or automated tests) where `next-auth` is not installed, the module falls back to a stub implementation that yields a deterministic "admin" session and logs a warning.
+- Legacy vanilla JS modules automatically include cookies via `public/js/auth-fetch.js` and dispatch `ami:unauthorized` on `401` responses, which triggers the redirect to the sign-in page.
+- To exercise the full NextAuth flow, install `next-auth@5` and `next-auth/providers/credentials` in a workspace-visible location (e.g. promote `ux/` to a pnpm workspace) and set the environment variables below.
+
 ## Configuration
 
 Environment (`.env.local`) or process env:
@@ -40,6 +47,12 @@ Environment (`.env.local`) or process env:
 - `DOC_ROOT` — docs directory to index (default: `../../../AMI-REACH/social` relative to app cwd)
 - `ALLOWED_EXTENSIONS` — served text file extensions (default: `.md,.csv,.txt`)
 - `MEDIA_ROOTS` — optional extra media roots in `/api/media/list` as a comma-separated list; supports `Label::/abs/path` or `/abs/path`
+- `AUTH_SECRET` — symmetric secret (32+ chars) used by NextAuth for JWT signing/encryption.
+- `AUTH_TRUST_HOST` — set to `true` when terminating TLS upstream; otherwise cookies default to strict host checks.
+- `DATAOPS_AUTH_URL` — optional URL of the DataOps auth gateway; enables remote credential validation instead of the local JSON file.
+- `DATAOPS_INTERNAL_TOKEN` — bearer token presented to the DataOps gateway when the URL above is configured.
+- `AUTH_CREDENTIALS_FILE` — path to a JSON array of `{ email, password, roles }` records used for offline/local credential checks.
+- `AUTH_ALLOWED_EMAILS` — optional comma-separated allow-list enforced by the local credential file loader.
 
 Config persistence lives under `ux/cms/data/` as JSON files. The `/api/config` endpoint reads/writes:
 
@@ -107,6 +120,7 @@ Data directories checked into git:
 
 ## Security Notes
 
-- Path traversal protections on all file-serving endpoints; CSP applied to media routes
-- Client-side Markdown sanitized using DOMPurify; Mermaid/KaTeX loaded from CDN
-- App serving (mode D) is intentionally disabled server‑side by default (501)
+- Middleware-enforced auth guards wrap `/index.html`, API routes, and static assets; `/auth/*` is the only unauthenticated surface.
+- Path traversal protections remain on all file-serving endpoints; CSP is applied to media routes.
+- Client-side Markdown is sanitized using DOMPurify; Mermaid/KaTeX are loaded from a CDN.
+- App serving (mode D) is intentionally disabled server‑side by default (501).

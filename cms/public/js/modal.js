@@ -1,7 +1,9 @@
 // React-based Select Media Modal
 import { humanizeName, normalizeFsPath } from './utils.js'
 import { createFileTreeToolkit, normalizeTreeFromApi } from './file-tree.js'
-async function ensureReact() {
+import { createDrawerChrome } from './drawer-chrome.js?v=20250306'
+import { icon as iconMarkup, spinnerIcon as spinnerIconMarkup } from './icon-pack.js?v=20250306'
+export async function ensureReact() {
   if (window.React && window.ReactDOM) return { React: window.React, ReactDOM: window.ReactDOM }
   const load = (src) =>
     new Promise((resolve, reject) => {
@@ -23,20 +25,43 @@ export async function openSelectMediaModal({ onSelect } = {}) {
   const { React, ReactDOM } = await ensureReact()
   const { useEffect, useRef, useState, useMemo, useCallback } = React
   const { FileTreeSelector } = createFileTreeToolkit(React)
-  // Icons
-  const Icon = ({ name }) => {
-    const paths = {
-      file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline>',
-      folder:
-        '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path>',
-      app: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"><\/path>',
-    }
-    const svg = paths[name] || paths.file
-    return React.createElement('span', {
-      dangerouslySetInnerHTML: {
-        __html: `<svg class="icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>`,
-      },
+  const { DrawerHeader, DrawerListItem } = createDrawerChrome(React)
+
+  const ICONS = {
+    file: iconMarkup('file-3-line'),
+    folder: iconMarkup('folder-3-line'),
+    app: iconMarkup('window-2-line'),
+    play: iconMarkup('play-circle-line'),
+    pause: iconMarkup('pause-circle-line'),
+    stop: iconMarkup('stop-circle-line'),
+    retry: iconMarkup('refresh-line'),
+    clear: iconMarkup('delete-bin-6-line'),
+  }
+
+  const spinnerIcon = spinnerIconMarkup()
+
+  const joinWithBullet = (nodes) => {
+    const filtered = (Array.isArray(nodes) ? nodes : []).filter(Boolean)
+    if (!filtered.length) return null
+    if (filtered.length === 1) return filtered[0]
+    const children = []
+    filtered.forEach((node, index) => {
+      if (index > 0) {
+        children.push(
+          React.createElement(
+            'span',
+            { key: `sep-${index}`, className: 'drawer-list-item__separator', 'aria-hidden': 'true' },
+            '•',
+          ),
+        )
+      }
+      if (React.isValidElement(node)) {
+        children.push(React.cloneElement(node, { key: `node-${index}` }))
+      } else {
+        children.push(node)
+      }
     })
+    return React.createElement(React.Fragment, null, ...children)
   }
 
   const formatBytes = (value) => {
@@ -134,44 +159,42 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }, [actions])
 
     const renderAction = (action) => {
-      const isPrimary = action.variant === 'primary'
-      const baseStyle = {
-        minWidth: 96,
-        padding: '8px 16px',
-        borderRadius: 10,
-        fontWeight: 600,
-      }
-      const primaryStyle = isPrimary
-        ? { background: 'var(--accent)', color: '#0b1324' }
-        : { background: 'color-mix(in oklab, var(--panel) 65%, transparent)', color: 'var(--text)' }
+      const variant = action.variant || 'primary'
+      const classes = ['dialog-button']
+      if (variant === 'danger') classes.push('dialog-button--danger')
+      else if (variant !== 'primary' && variant !== 'accent') classes.push('dialog-button--subtle')
+      if (action.fullWidth) classes.push('dialog-button--wide')
+      const label = String(action.label || '').trim()
+      const displayLabel = label ? label.toUpperCase() : 'ACTION'
       return React.createElement(
         'button',
         {
           key: action.key,
-          className: 'btn',
+          className: classes.join(' '),
           onClick: (e) => {
             e.preventDefault()
             if (!action.disabled) action.onClick?.(e)
           },
           disabled: action.disabled,
           type: action.type,
-          style: { ...baseStyle, ...primaryStyle, ...(action.style || {}) },
+          style: action.style || undefined,
         },
-        action.label,
+        displayLabel,
       )
     }
 
     const closeButton = React.createElement(
       'button',
       {
-        className: 'dialog-close',
+        className: 'icon-button dialog-close',
         onClick: (e) => {
           e.preventDefault()
           closeWithAnimation()
         },
         'aria-label': 'Close dialog',
+        type: 'button',
       },
-      '×',
+      React.createElement('span', { 'aria-hidden': 'true' }, '×'),
     )
 
     const surfaceStyle = {
@@ -199,11 +222,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           onMouseDown: (event) => event.stopPropagation(),
         },
         React.createElement(
-          'div',
-          { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-          title
-            ? React.createElement('strong', { style: { fontSize: '16px', flex: 1 } }, title)
-            : React.createElement('span', { style: { flex: 1 } }),
+          'header',
+          { className: 'dialog-header modal-dialog__header' },
+          React.createElement(
+            'div',
+            { className: 'dialog-header__titles' },
+            title ? React.createElement('h2', { className: 'dialog-title' }, title) : null,
+          ),
           closeButton,
         ),
         React.createElement('div', { style: { overflowY: 'auto', ...bodyStyle } }, children),
@@ -211,7 +236,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           ? React.createElement(
               'div',
               {
-                style: { display: 'flex', justifyContent: footerAlign, gap: 10, marginTop: 'auto' },
+                className: 'dialog-actions',
+                style: { justifyContent: footerAlign, marginTop: 'auto' },
               },
               cappedActions.map(renderAction),
             )
@@ -237,229 +263,68 @@ export async function openSelectMediaModal({ onSelect } = {}) {
   }) {
     const isUpload = !!upload
     if (isUpload || busy) ensureUploadStyles()
+
     const uploadStatus = upload?.status || 'ready'
-    const base = entry.path.split('/').pop() || entry.path
-    const label = entry.label || (entry.kind === 'file' ? humanizeName(base, 'file') : base)
-    const kind = entry.kind
-    const [hovered, setHovered] = useState(false)
-    const spinner = React.createElement(
-      'svg',
-      {
-        viewBox: '0 0 50 50',
-        width: 16,
-        height: 16,
-        style: { marginLeft: 8, animation: 'spin 1s linear infinite' },
-      },
-      React.createElement('circle', {
-        cx: 25,
-        cy: 25,
-        r: 20,
-        fill: 'none',
-        stroke: 'currentColor',
-        strokeWidth: 5,
-        strokeDasharray: '31.4 31.4',
-        strokeLinecap: 'round',
-      }),
-    )
-    const onRowDoubleClick = () => {
-      if (!isUpload) onOpen(entry)
-    }
-    const onRowContext = (e) => {
-      if (isUpload) return
-      e.preventDefault()
-      onContext(e, entry)
-    }
-    const baseBackground = selected
-      ? 'color-mix(in oklab, var(--accent) 12%, transparent)'
-      : hovered
-        ? 'color-mix(in oklab, var(--accent) 6%, transparent)'
-        : 'transparent'
-    const background =
-      isUpload &&
-      (uploadStatus === 'uploading' || uploadStatus === 'checking' || uploadStatus === 'queued')
-        ? 'color-mix(in oklab, var(--accent) 10%, transparent)'
-        : baseBackground
+    const kind = upload?.kind || entry?.kind || 'file'
+    const icon = kind === 'dir' ? ICONS.folder : kind === 'app' ? ICONS.app : ICONS.file
 
-    const uploadControls = (() => {
-      if (!isUpload) return null
-      const buttons = []
-      const icon = (svg) =>
-        React.createElement('span', { dangerouslySetInnerHTML: { __html: svg } })
-      const makeButton = (key, svg, title, onClick, disabled = false) =>
-        React.createElement(
-          'button',
-          {
-            key,
-            className: 'btn',
-            onClick: (e) => {
-              e.stopPropagation()
-              if (!disabled) onClick?.()
-            },
-            title,
-            disabled,
-            style: { padding: '4px 6px', borderRadius: 999 },
-          },
-          icon(svg),
-        )
-      const playIcon =
-        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="8 5 19 12 8 19 8 5"/></svg>'
-      const pauseIcon =
-        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>'
-      const clearIcon =
-        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
-      const retryIcon =
-        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 4 1 7 4"/><path d="M3 1v6a4 4 0 0 0 4 4h3"/><polyline points="23 20 20 23 17 20"/><path d="M21 23v-6a4 4 0 0 0-4-4h-3"/></svg>'
-      if (
-        uploadStatus === 'uploading' ||
-        uploadStatus === 'checking' ||
-        uploadStatus === 'queued' ||
-        uploadStatus === 'finalizing'
-      ) {
-        buttons.push(
-          makeButton(
-            'pause',
-            pauseIcon,
-            'Pause upload',
-            () => onUploadPause?.(upload),
-            uploadStatus === 'finalizing',
-          ),
-        )
-      } else if (uploadStatus === 'paused') {
-        buttons.push(
-          makeButton('resume', playIcon, 'Resume upload', () => onUploadResume?.(upload)),
-        )
-        buttons.push(
-          makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)),
-        )
-      } else if (uploadStatus === 'error') {
-        buttons.push(makeButton('retry', retryIcon, 'Retry upload', () => onUploadStart?.(upload)))
-        buttons.push(
-          makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)),
-        )
-      } else if (uploadStatus === 'ready') {
-        buttons.push(makeButton('start', playIcon, 'Start upload', () => onUploadStart?.(upload)))
-        buttons.push(
-          makeButton('clear', clearIcon, 'Remove from queue', () => onUploadClear?.(upload)),
-        )
-      }
-      return React.createElement(
-        'div',
-        { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
-        ...buttons,
-      )
-    })()
-
-    const serveControls = (() => {
-      if (isUpload) return null
-      const isStarting = status === 'starting'
-      const isOn = status === 'running'
-      const onClick = (e) => {
-        e.stopPropagation()
-        if (isStarting) return
-        ;(isOn ? onStop : onStart)(entry)
-      }
-      if (isStarting) {
-        return React.createElement(
-          'span',
-          {
-            className: 'muted',
-            title: 'Starting…',
-            style: { display: 'inline-flex', alignItems: 'center' },
-          },
-          spinner,
-        )
-      }
-      const svg = isOn
-        ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>'
-        : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="8 5 19 12 8 19 8 5"/></svg>'
-      return React.createElement(
-        'button',
-        {
-          className: 'btn',
-          onClick,
-          title: isOn ? 'Stop serving' : 'Start serving',
-          style: { padding: '4px 6px', borderRadius: 999 },
-        },
-        React.createElement('span', { dangerouslySetInnerHTML: { __html: svg } }),
-      )
-    })()
-
-    const totalBytes = upload?.totalBytes || 0
-    const uploadedBytes = upload?.uploadedBytes || 0
-    const explicitProgress =
-      typeof upload?.progress === 'number' && Number.isFinite(upload.progress)
-        ? Math.max(0, Math.min(1, upload.progress))
-        : null
-    const derivedProgress =
-      totalBytes > 0 ? Math.max(0, Math.min(1, uploadedBytes / totalBytes)) : null
-    const progressValue = isUpload ? (explicitProgress ?? derivedProgress) : null
-    const showProgressBar = isUpload || busy
-    const progressBar = showProgressBar
-      ? React.createElement(
-          'div',
-          {
-            style: {
-              marginTop: 6,
-              height: 6,
-              borderRadius: 999,
-              background: 'color-mix(in oklab, var(--border) 70%, transparent)',
-              overflow: 'hidden',
-            },
-          },
-          React.createElement('div', {
-            style:
-              isUpload && progressValue != null
-                ? {
-                    width: `${Math.max(progressValue, 0.02) * 100}%`,
-                    height: '100%',
-                    borderRadius: 999,
-                    background: 'var(--accent)',
-                    transition: 'width 160ms ease',
-                  }
-                : {
-                    width: '40%',
-                    minWidth: '90px',
-                    height: '100%',
-                    borderRadius: 999,
-                    backgroundImage:
-                      'linear-gradient(90deg, rgba(255,255,255,0.12) 0%, var(--accent) 50%, rgba(255,255,255,0.12) 100%)',
-                    backgroundSize: '200% 100%',
-                    animation: 'upload-indeterminate 1s linear infinite',
-                    opacity: 0.9,
-                  },
-          }),
-        )
-      : null
+    const pathValue = entry?.path || ''
+    const base = pathValue.split('/').pop() || pathValue
+    const label =
+      upload?.label ||
+      entry?.label ||
+      (kind === 'file' ? humanizeName(base, 'file') : base) ||
+      pathValue ||
+      'Untitled item'
 
     let statusText = ''
-    let statusColor = 'var(--muted)'
-    if (isUpload) {
-      const pct = progressValue != null ? `${Math.round(progressValue * 100)}%` : ''
-      if (uploadStatus === 'ready') statusText = 'Ready to upload'
-      else if (uploadStatus === 'paused') statusText = 'Upload paused'
-      else if (
-        uploadStatus === 'uploading' ||
-        uploadStatus === 'checking' ||
-        uploadStatus === 'queued'
-      )
-        statusText = pct ? `Uploading ${pct}` : 'Uploading…'
-      else if (uploadStatus === 'finalizing') statusText = 'Finalizing…'
-      else if (uploadStatus === 'done') {
-        statusText = 'Upload complete'
-        statusColor = 'var(--ok)'
-      } else if (uploadStatus === 'error') {
-        statusText = upload?.error || 'Upload failed'
-        statusColor = '#ef4444'
-      }
-    } else if (busy) {
-      statusText = 'Working…'
-    }
-
+    let statusTone = 'muted'
     const detailParts = []
+
+    let progressValue = null
+    let progressIndeterminate = false
+
     if (isUpload) {
       const fileCount = upload?.files?.length || 0
+      const totalBytes = upload?.totalBytes || 0
       if (fileCount) detailParts.push(`${fileCount} item${fileCount === 1 ? '' : 's'}`)
       if (totalBytes) detailParts.push(formatBytes(totalBytes))
+
+      const uploadedBytes = upload?.uploadedBytes || 0
+      const explicitProgress =
+        typeof upload?.progress === 'number' && Number.isFinite(upload.progress)
+          ? Math.max(0, Math.min(1, upload.progress))
+          : null
+      const derivedProgress =
+        totalBytes > 0 ? Math.max(0, Math.min(1, uploadedBytes / totalBytes)) : null
+      progressValue = explicitProgress ?? derivedProgress
+
+      if (uploadStatus === 'ready') {
+        statusText = 'Ready to upload'
+      } else if (uploadStatus === 'paused') {
+        statusText = 'Upload paused'
+      } else if (uploadStatus === 'error') {
+        statusText = upload?.error || 'Upload failed'
+        statusTone = 'danger'
+      } else if (uploadStatus === 'done') {
+        statusText = 'Upload complete'
+        statusTone = 'success'
+      } else if (uploadStatus === 'finalizing') {
+        statusText = 'Finalizing…'
+      } else if (uploadStatus === 'checking') {
+        statusText = 'Checking files…'
+      } else if (uploadStatus === 'queued') {
+        statusText = 'Queued for upload'
+      } else if (uploadStatus === 'uploading') {
+        statusText = progressValue != null ? `Uploading ${Math.round(progressValue * 100)}%` : 'Uploading…'
+      }
+
+      if (
+        progressValue == null &&
+        ['uploading', 'checking', 'queued', 'finalizing'].includes(uploadStatus)
+      ) {
+        progressIndeterminate = true
+      }
     } else {
       const meta = entry?.metrics || entry?.meta || {}
       const itemValue =
@@ -468,144 +333,172 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           : typeof meta.itemCount === 'number'
             ? meta.itemCount
             : null
+      if (itemValue != null) detailParts.push(`${itemValue} item${itemValue === 1 ? '' : 's'}`)
       const bytesValue =
         typeof meta.bytes === 'number'
           ? meta.bytes
           : typeof meta.size === 'number'
             ? meta.size
             : null
-      if (itemValue != null) detailParts.push(`${itemValue} item${itemValue === 1 ? '' : 's'}`)
       if (bytesValue != null) detailParts.push(formatBytes(bytesValue))
       if (meta.truncated) detailParts.push('Partial scan')
+      if (status === 'starting') statusText = 'Starting…'
+      if (busy) statusText = statusText || 'Working…'
+      progressIndeterminate = busy
     }
 
-    return React.createElement(
-      'div',
-      {
-        className: 'row',
-        onDoubleClick: onRowDoubleClick,
-        onContextMenu: onRowContext,
-        onMouseEnter: () => setHovered(true),
-        onMouseLeave: () => setHovered(false),
-        style: {
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: '10px',
-          borderBottom: '1px solid var(--border)',
-          cursor: 'default',
-          background,
-        },
-      },
-      React.createElement(Icon, {
-        name: kind === 'dir' ? 'folder' : kind === 'app' ? 'app' : 'file',
-      }),
-      React.createElement(
+    const detailLine = detailParts.length ? detailParts.join(' • ') : null
+    let statusColor = null
+    if (statusTone === 'danger') statusColor = '#ef4444'
+    else if (statusTone === 'success') statusColor = 'var(--ok)'
+    else if (statusTone === 'info') statusColor = 'var(--accent)'
+
+    const statusNode = statusText
+      ? React.createElement('span', { style: statusColor ? { color: statusColor } : undefined }, statusText)
+      : null
+
+    const normalizeLine = (value) => {
+      if (!value) return null
+      if (typeof value === 'string' && !value.trim()) return null
+      return value
+    }
+
+    let primaryLine = null
+    let secondaryLine = null
+
+    if (isUpload) {
+      primaryLine = normalizeLine(statusNode) || normalizeLine(detailLine) || normalizeLine(pathValue) || 'Queued upload'
+      const secondaryParts = []
+      if (detailLine && detailLine !== primaryLine) secondaryParts.push(detailLine)
+      if (pathValue && pathValue !== primaryLine) secondaryParts.push(pathValue)
+      secondaryLine = joinWithBullet(secondaryParts)
+    } else {
+      primaryLine = normalizeLine(pathValue) || normalizeLine(statusNode) || normalizeLine(detailLine)
+      const secondaryParts = []
+      if (statusNode && primaryLine !== statusNode) secondaryParts.push(statusNode)
+      if (detailLine && detailLine !== primaryLine) secondaryParts.push(detailLine)
+      secondaryLine = joinWithBullet(secondaryParts)
+    }
+
+    const actions = []
+    if (isUpload) {
+      if (['uploading', 'checking', 'queued', 'finalizing'].includes(uploadStatus)) {
+        actions.push({
+          key: 'pause',
+          icon: ICONS.pause,
+          label: 'Pause upload',
+          onClick: () => onUploadPause?.(upload),
+          disabled: uploadStatus === 'finalizing',
+          variant: 'ghost',
+        })
+      } else if (uploadStatus === 'paused') {
+        actions.push({
+          key: 'resume',
+          icon: ICONS.play,
+          label: 'Resume upload',
+          onClick: () => onUploadResume?.(upload),
+          variant: 'accent',
+        })
+        actions.push({
+          key: 'clear',
+          icon: ICONS.clear,
+          label: 'Remove from queue',
+          onClick: () => onUploadClear?.(upload),
+          variant: 'danger',
+        })
+      } else if (uploadStatus === 'error') {
+        actions.push({
+          key: 'retry',
+          icon: ICONS.retry,
+          label: 'Retry upload',
+          onClick: () => onUploadStart?.(upload),
+          variant: 'accent',
+        })
+        actions.push({
+          key: 'clear',
+          icon: ICONS.clear,
+          label: 'Remove from queue',
+          onClick: () => onUploadClear?.(upload),
+          variant: 'danger',
+        })
+      } else if (uploadStatus === 'ready') {
+        actions.push({
+          key: 'start',
+          icon: ICONS.play,
+          label: 'Start upload',
+          onClick: () => onUploadStart?.(upload),
+          variant: 'accent',
+        })
+        actions.push({
+          key: 'clear',
+          icon: ICONS.clear,
+          label: 'Remove from queue',
+          onClick: () => onUploadClear?.(upload),
+          variant: 'danger',
+        })
+      } else if (uploadStatus === 'done') {
+        actions.push({
+          key: 'clear',
+          icon: ICONS.clear,
+          label: 'Remove from queue',
+          onClick: () => onUploadClear?.(upload),
+          variant: 'ghost',
+        })
+      }
+    } else {
+      if (status === 'starting') {
+        actions.push({
+          key: 'starting',
+          icon: spinnerIcon,
+          label: 'Starting…',
+          disabled: true,
+          variant: 'accent',
+        })
+      } else {
+        const isRunning = status === 'running'
+        actions.push({
+          key: 'serve-toggle',
+          icon: isRunning ? ICONS.stop : ICONS.play,
+          label: isRunning ? 'Stop serving' : 'Start serving',
+          onClick: () => (isRunning ? onStop?.(entry) : onStart?.(entry)),
+          variant: isRunning ? 'danger' : 'accent',
+          disabled: busy,
+        })
+      }
+    }
+
+    const showProgressBar = isUpload || busy
+    let footer = null
+    if (showProgressBar) {
+      const barClasses = ['drawer-list-item__progress-bar']
+      if (progressIndeterminate || progressValue == null) barClasses.push('is-indeterminate')
+      footer = React.createElement(
         'div',
-        { style: { flex: 1, minWidth: 0 } },
-        React.createElement(
-          'div',
-          { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-          React.createElement(
-            'div',
-            {
-              style: {
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                flex: 1,
-                overflow: 'hidden',
-              },
-            },
-            React.createElement(
-              'span',
-              {
-                style: {
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  fontWeight: 600,
-                },
-              },
-              label,
-            ),
-            !isUpload &&
-              status === 'running' &&
-              React.createElement('span', { className: 'serve-dot', title: 'Served' }),
-          ),
-          isUpload ? uploadControls : serveControls,
-          !isUpload && busy && spinner,
-          isUpload &&
-            (uploadStatus === 'uploading' ||
-              uploadStatus === 'checking' ||
-              uploadStatus === 'queued' ||
-              uploadStatus === 'finalizing') &&
-            spinner,
-        ),
-        isUpload
-          ? React.createElement(
-              React.Fragment,
-              null,
-              progressBar,
-              statusText &&
-                React.createElement(
-                  'div',
-                  { style: { color: statusColor, fontSize: 12, marginTop: 6 } },
-                  statusText,
-                ),
-              detailParts.length
-                ? React.createElement(
-                    'div',
-                    { style: { color: 'var(--muted)', fontSize: 12, marginTop: 4 } },
-                    detailParts.join(' • '),
-                  )
-                : null,
-            )
-          : React.createElement(
-              React.Fragment,
-              null,
-              progressBar,
-              statusText &&
-                React.createElement(
-                  'div',
-                  { style: { color: statusColor, fontSize: 12, marginTop: 6 } },
-                  statusText,
-                ),
-              entry.path
-                ? React.createElement(
-                    'div',
-                    {
-                      style: {
-                        color: 'var(--muted)',
-                        fontSize: 12,
-                        marginTop: 4,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      },
-                    },
-                    entry.path,
-                  )
-                : null,
-              detailParts.length
-                ? React.createElement(
-                    'div',
-                    {
-                      style: {
-                        color: 'var(--muted)',
-                        fontSize: 12,
-                        marginTop: entry.path ? 2 : 4,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      },
-                    },
-                    detailParts.join(' • '),
-                  )
-                : null,
-            ),
-      ),
-    )
+        { className: 'drawer-list-item__progress' },
+        React.createElement('div', {
+          className: barClasses.join(' '),
+          style:
+            progressValue != null
+              ? { width: `${Math.max(progressValue, 0.02) * 100}%` }
+              : undefined,
+        }),
+      )
+    }
+
+    const subtitles = [normalizeLine(primaryLine), normalizeLine(secondaryLine)].filter(Boolean)
+
+    return React.createElement(DrawerListItem, {
+      key: entry.id,
+      icon,
+      title: label,
+      active: !isUpload && status === 'running',
+      subtitles,
+      actions,
+      selected,
+      footer,
+      onDoubleClick: isUpload ? undefined : () => onOpen(entry),
+      onContextMenu: isUpload ? undefined : (event) => onContext(event, entry),
+    })
   }
 
   async function readEntryTree(entry, prefix = '') {
@@ -2402,297 +2295,253 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       if (e?.target) e.target.value = ''
     }
 
-    return React.createElement(
-      React.Fragment,
-      null,
+    const drawerContent = React.createElement(
+      'div',
+      { className: 'drawer-shell content-drawer-shell' },
+      React.createElement(DrawerHeader, {
+        title: 'Content Directory',
+        description: 'Serve, upload, and manage workspace resources without leaving the shell.',
+        onClose: requestClose,
+        closeLabel: 'Close content directory',
+        filter: {
+          placeholder: 'Filter…',
+          ariaLabel: 'Filter content',
+          value: filter,
+          onChange: (event) => setFilter(event.target.value),
+        },
+        actions: [
+          {
+            key: 'upload-files',
+            label: 'Select files to upload',
+            icon: iconMarkup('upload-2-line'),
+            onClick: triggerFilePicker,
+          },
+          {
+            key: 'upload-folder',
+            label: 'Select folder to upload',
+            icon: iconMarkup('folder-add-line'),
+            onClick: triggerDirectoryPicker,
+          },
+          {
+            key: 'server-source',
+            label: 'Add from server',
+            icon: iconMarkup('server-line'),
+            onClick: () => setServerPickerOpen(true),
+          },
+        ],
+      }),
+      React.createElement('input', {
+        type: 'file',
+        ref: fileSelectRef,
+        multiple: true,
+        onChange: handleFileInputChange,
+        style: { display: 'none' },
+      }),
+      React.createElement('input', {
+        type: 'file',
+        ref: dirSelectRef,
+        multiple: true,
+        onChange: handleDirInputChange,
+        webkitdirectory: 'webkitdirectory',
+        mozdirectory: 'mozdirectory',
+        directory: 'directory',
+        style: { display: 'none' },
+      }),
       React.createElement(
         'div',
-        { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
-        React.createElement('div', {
-          onClick: requestClose,
+        {
           style: {
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            pointerEvents: 'auto',
-            opacity: isVisible ? 1 : 0,
-            transition: 'opacity 220ms ease',
+            flex: 1,
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            border: dropActive ? '1px dashed var(--accent)' : '1px solid transparent',
+            borderRadius: 10,
+            transition: 'border 120ms ease, background 120ms ease',
+            background: dropActive
+              ? 'color-mix(in oklab, var(--accent) 12%, transparent)'
+              : 'transparent',
           },
-        }),
+          onDragOver: (e) => {
+            e.preventDefault()
+            setDropActive(true)
+          },
+          onDragEnter: (e) => {
+            e.preventDefault()
+            setDropActive(true)
+          },
+          onDragLeave: (e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) setDropActive(false)
+          },
+          onDrop: async (e) => {
+            e.preventDefault()
+            setDropActive(false)
+            const collected = await gatherFromDataTransfer(e.dataTransfer)
+            if (!collected.length) {
+              setToast({ kind: 'err', text: 'No files detected from drop.' })
+              return
+            }
+            openDestinationPrompt(collected)
+          },
+        },
+        ...uploadJobs.map((job) =>
+          React.createElement(Row, {
+            key: job.id,
+            entry: { id: job.id, path: job.path, label: job.label, kind: job.kind },
+            status: job.status,
+            selected: false,
+            busy: job.status === 'uploading' || job.status === 'checking',
+            onOpen: () => {},
+            onContext: () => {},
+            onStart: () => {},
+            onStop: () => {},
+            upload: job,
+            onUploadStart: () => startUploadJob(job.id),
+            onUploadPause: () => pauseUploadJob(job.id),
+            onUploadResume: () => resumeUploadJob(job.id),
+            onUploadClear: () => removeUploadJob(job.id),
+          }),
+        ),
+        loadingEntries && !uploadJobs.length
+          ? React.createElement(
+              'div',
+              {
+                className: 'loading-indicator loading-indicator--compact drawer-loading',
+                style: { justifyContent: 'center' },
+              },
+              React.createElement('span', {
+                className: 'loading-indicator__spinner',
+                'aria-hidden': 'true',
+              }),
+              React.createElement('span', null, 'Loading content…'),
+            )
+          : filtered.length
+            ? filtered.map((entry) =>
+                React.createElement(Row, {
+                  key: entry.id,
+                  entry,
+                  status: servingMap.get(entry.id) || 'idle',
+                  selected: selectedId === entry.id,
+                  busy: busyId === entry.id,
+                  onOpen: openEntry,
+                  onContext: ctx,
+                  onStart: startServing,
+                  onStop: stopServing,
+                }),
+              )
+            : !uploadJobs.length && trimmedFilter
+              ? React.createElement(
+                  'div',
+                  {
+                    key: noResultsToken || 0,
+                    className: 'no-results-blur',
+                    style: {
+                      margin: 'auto',
+                      padding: '40px',
+                      textAlign: 'center',
+                      color: 'var(--muted)',
+                    },
+                  },
+                  React.createElement(
+                    'div',
+                    { style: { fontSize: 16, fontWeight: 600 } },
+                    `No results for "${trimmedFilter}".`,
+                  ),
+                  React.createElement(
+                    'div',
+                    {
+                      style: {
+                        marginTop: 16,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      },
+                    },
+                    React.createElement('span', {
+                      style: {
+                        display: 'inline-flex',
+                        width: 60,
+                        height: 60,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--accent)',
+                      },
+                      dangerouslySetInnerHTML: {
+                        __html: iconMarkup('upload-cloud-2-line', { size: 56 }),
+                      },
+                    }),
+                  ),
+                  React.createElement(
+                    'div',
+                    {
+                      style: {
+                        marginTop: 14,
+                        fontSize: 15,
+                      },
+                    },
+                    'Drag files & folders here to add content.',
+                  ),
+                )
+              : null,
+      ),
+      toast &&
         React.createElement(
           'div',
           {
             style: {
-              position: 'absolute',
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: '560px',
-              maxWidth: '95vw',
-              background: 'var(--panel)',
+              padding: '8px 10px',
+              borderTop: '1px solid var(--border)',
+              background:
+                toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
               color: 'var(--text)',
-              borderLeft: '1px solid var(--border)',
-              boxShadow: '0 0 30px rgba(0,0,0,0.4)',
-              pointerEvents: !closeTimerRef.current && isVisible ? 'auto' : 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              transform: isVisible ? 'translateX(0)' : 'translateX(36px)',
-              opacity: isVisible ? 1 : 0,
-              transition: 'transform 220ms ease, opacity 220ms ease',
-              willChange: 'transform, opacity',
             },
           },
-          React.createElement(
-            'div',
-            {
-              style: {
-                display: 'flex',
-                gap: '8px',
-                alignItems: 'center',
-                padding: '10px',
-                borderBottom: '1px solid var(--border)',
-              },
-            },
-            React.createElement('strong', null, 'Content Directory'),
-            React.createElement('input', {
-              placeholder: 'Filter…',
-              value: filter,
-              onChange: (e) => setFilter(e.target.value),
-              style: {
-                marginLeft: 'auto',
-                flex: 1,
-                padding: '6px 8px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                background: 'var(--bg)',
-                color: 'var(--text)',
-              },
-            }),
-            React.createElement(
-              'button',
-              {
-                className: 'btn',
-                onClick: triggerFilePicker,
-                title: 'Select files to upload',
-                'aria-label': 'Select files',
-              },
-              React.createElement('span', {
-                dangerouslySetInnerHTML: {
-                  __html:
-                    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>',
-                },
-              }),
-            ),
-            React.createElement(
-              'button',
-              {
-                className: 'btn',
-                onClick: triggerDirectoryPicker,
-                title: 'Select folder to upload',
-                'aria-label': 'Select folder',
-              },
-              React.createElement('span', {
-                dangerouslySetInnerHTML: {
-                  __html:
-                    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h9a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h5l2 2"></path><path d="M12 12v5"></path><path d="M9.5 14.5 12 17l2.5-2.5"></path></svg>',
-                },
-              }),
-            ),
-            React.createElement(
-              'button',
-              {
-                className: 'btn',
-                onClick: () => setServerPickerOpen(true),
-                title: 'Add from server',
-                'aria-label': 'Add from server',
-              },
-              React.createElement('span', {
-                dangerouslySetInnerHTML: {
-                  __html:
-                    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"></rect><rect x="2" y="13" width="20" height="8" rx="2"></rect><line x1="6" y1="7" x2="6.01" y2="7"></line><line x1="6" y1="17" x2="6.01" y2="17"></line><line x1="10" y1="7" x2="10.01" y2="7"></line><line x1="10" y1="17" x2="10.01" y2="17"></line></svg>',
-                },
-              }),
-            ),
-            React.createElement(
-              'button',
-              { className: 'btn', onClick: requestClose, title: 'Close', 'aria-label': 'Close' },
-              React.createElement('span', {
-                dangerouslySetInnerHTML: {
-                  __html:
-                    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-                },
-              }),
-            ),
-            React.createElement('input', {
-              type: 'file',
-              ref: fileSelectRef,
-              multiple: true,
-              onChange: handleFileInputChange,
-              style: { display: 'none' },
-            }),
-            React.createElement('input', {
-              type: 'file',
-              ref: dirSelectRef,
-              multiple: true,
-              onChange: handleDirInputChange,
-              webkitdirectory: 'webkitdirectory',
-              mozdirectory: 'mozdirectory',
-              directory: 'directory',
-              style: { display: 'none' },
-            }),
-          ),
-          React.createElement(
-            'div',
-            {
-              style: {
-                flex: 1,
-                overflow: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                border: dropActive ? '1px dashed var(--accent)' : '1px solid transparent',
-                borderRadius: 10,
-                transition: 'border 120ms ease, background 120ms ease',
-                background: dropActive
-                  ? 'color-mix(in oklab, var(--accent) 12%, transparent)'
-                  : 'transparent',
-              },
-              onDragOver: (e) => {
-                e.preventDefault()
-                setDropActive(true)
-              },
-              onDragEnter: (e) => {
-                e.preventDefault()
-                setDropActive(true)
-              },
-              onDragLeave: (e) => {
-                if (!e.currentTarget.contains(e.relatedTarget)) setDropActive(false)
-              },
-              onDrop: async (e) => {
-                e.preventDefault()
-                setDropActive(false)
-                const collected = await gatherFromDataTransfer(e.dataTransfer)
-                if (!collected.length) {
-                  setToast({ kind: 'err', text: 'No files detected from drop.' })
-                  return
-                }
-                openDestinationPrompt(collected)
-              },
-            },
-            ...uploadJobs.map((job) =>
-              React.createElement(Row, {
-                key: job.id,
-                entry: { id: job.id, path: job.path, label: job.label, kind: job.kind },
-                status: job.status,
-                selected: false,
-                busy: job.status === 'uploading' || job.status === 'checking',
-                onOpen: () => {},
-                onContext: () => {},
-                onStart: () => {},
-                onStop: () => {},
-                upload: job,
-                onUploadStart: () => startUploadJob(job.id),
-                onUploadPause: () => pauseUploadJob(job.id),
-                onUploadResume: () => resumeUploadJob(job.id),
-                onUploadClear: () => removeUploadJob(job.id),
-              }),
-            ),
-            loadingEntries && !uploadJobs.length
-              ? React.createElement(
-                  'div',
-                  {
-                    className: 'loading-indicator loading-indicator--compact drawer-loading',
-                    style: { justifyContent: 'center' },
-                  },
-                  React.createElement('span', {
-                    className: 'loading-indicator__spinner',
-                    'aria-hidden': 'true',
-                  }),
-                  React.createElement('span', null, 'Loading content…'),
-                )
-              : filtered.length
-                ? filtered.map((e) =>
-                    React.createElement(Row, {
-                      key: e.id,
-                      entry: e,
-                      status: servingMap.get(e.id) || 'idle',
-                      selected: selectedId === e.id,
-                      busy: busyId === e.id,
-                      onOpen: openEntry,
-                      onContext: ctx,
-                      onStart: startServing,
-                      onStop: stopServing,
-                    }),
-                  )
-                : !uploadJobs.length && trimmedFilter
-                  ? React.createElement(
-                      'div',
-                      {
-                        key: noResultsToken || 0,
-                        className: 'no-results-blur',
-                        style: {
-                          margin: 'auto',
-                          padding: '40px',
-                          textAlign: 'center',
-                          color: 'var(--muted)',
-                        },
-                      },
-                      React.createElement(
-                        'div',
-                        { style: { fontSize: 16, fontWeight: 600 } },
-                        `No results for "${trimmedFilter}".`,
-                      ),
-                      React.createElement(
-                        'div',
-                        {
-                          style: {
-                            marginTop: 16,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          },
-                        },
-                        React.createElement('span', {
-                          style: {
-                            display: 'inline-flex',
-                            width: 60,
-                            height: 60,
-                            color: 'var(--accent)',
-                          },
-                          dangerouslySetInnerHTML: {
-                            __html:
-                              '<svg viewBox="0 0 80 80" width="60" height="60" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M40 12v32"></path><polyline points="28 36 40 48 52 36"></polyline><path d="M18 50h44"></path><path d="M16 56l4 12h40l4-12"></path><path d="M20 72h40"></path><animateTransform attributeName="transform" type="translate" values="0 0; 0 3; 0 0" dur="1.1s" repeatCount="indefinite"/></svg>',
-                          },
-                        }),
-                      ),
-                      React.createElement(
-                        'div',
-                        {
-                          style: {
-                            marginTop: 14,
-                            fontSize: 15,
-                          },
-                        },
-                        'Drag files & folders here to add content.',
-                      ),
-                    )
-                  : null,
-          ),
-          toast &&
-            React.createElement(
-              'div',
-              {
-                style: {
-                  padding: '8px 10px',
-                  borderTop: '1px solid var(--border)',
-                  background:
-                    toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-                  color: 'var(--text)',
-                },
-              },
-              toast.text,
-            ),
+          toast.text,
         ),
-      ),
+    )
+
+    const surfaceNode = React.createElement(
+      'div',
+      {
+        className: 'drawer-surface content-drawer-surface',
+        style: {
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: '560px',
+          maxWidth: '95vw',
+          pointerEvents: !closeTimerRef.current && isVisible ? 'auto' : 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          transform: isVisible ? 'translateX(0)' : 'translateX(36px)',
+          opacity: isVisible ? 1 : 0,
+          transition: 'transform 220ms ease, opacity 220ms ease',
+          willChange: 'transform, opacity',
+        },
+      },
+      drawerContent,
+    )
+
+    const overlayNode = React.createElement(
+      'div',
+      { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
+      React.createElement('div', {
+        onClick: requestClose,
+        style: {
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          pointerEvents: 'auto',
+          opacity: isVisible ? 1 : 0,
+          transition: 'opacity 220ms ease',
+        },
+      }),
+      surfaceNode,
+    )
+
+    const portalChildren = [
+      overlayNode,
       menu &&
         React.createElement('div', {
           style: { position: 'fixed', inset: 0, zIndex: 1001, pointerEvents: 'auto' },
@@ -2752,7 +2601,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           onClose: () => setServerPickerOpen(false),
           onConfirm: addServerSelection,
         }),
-    )
+    ].filter(Boolean)
+
+    return React.createElement(React.Fragment, null, portalChildren)
   }
 
   function RecentTab({ onPick }) {
@@ -2786,12 +2637,12 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           'button',
           {
             key: i,
-            className: 'btn',
-            style: { display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' },
+            className: 'dialog-button dialog-button--list',
+            style: { margin: '6px 0' },
             title: e.path,
             onClick: () => onPick(e),
           },
-          `[${e.mode || e.type}] ${e.path}`,
+          `[${(e.mode || e.type || '').toUpperCase()}] ${e.path}`,
         ),
       ),
     )
@@ -2827,12 +2678,12 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           'button',
           {
             key: i,
-            className: 'btn',
-            style: { display: 'block', width: '100%', textAlign: 'left', margin: '6px 0' },
+            className: 'dialog-button dialog-button--list',
+            style: { margin: '6px 0' },
             title: e.path,
             onClick: () => onPick({ type: 'dir', path: e.path, mode: 'C' }),
           },
-          `[dir] ${[e.label || '', e.path].filter(Boolean).join(' ')}`,
+          `[DIR] ${[e.label || '', e.path].filter(Boolean).join(' ')}`,
         ),
       ),
     )
@@ -2877,7 +2728,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             borderRadius: '6px',
           },
         }),
-        React.createElement('button', { className: 'btn', onClick: validate }, 'Validate'),
+        React.createElement('button', { className: 'dialog-button', onClick: validate }, 'Validate'),
       ),
       React.createElement(
         'div',
@@ -2889,14 +2740,14 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             React.Fragment,
             null,
             `Type: ${info.type}${info.hasJs ? ' (has JS)' : ''} `,
-            React.createElement(
-              'button',
-              {
-                className: 'btn',
-                onClick: () => onPick({ type: info.type, path: info.path, mode: info.mode }),
-              },
-              'Select',
-            ),
+              React.createElement(
+                'button',
+                {
+                  className: 'dialog-button dialog-button--subtle',
+                  onClick: () => onPick({ type: info.type, path: info.path, mode: info.mode }),
+                },
+                'Select',
+              ),
           ),
       ),
     )

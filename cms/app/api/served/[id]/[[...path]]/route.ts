@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { listServed, listLibrary } from '../../../../lib/store'
+import { withSession } from '../../../../lib/auth-guard'
 import path from 'path'
 import { promises as fs } from 'fs'
 
@@ -57,10 +58,8 @@ function guessMime(p: string) {
   }
 }
 
-export async function GET(
-  req: Request,
-  context: { params: Promise<{ id: string; path?: string[] }> },
-) {
+export const GET = withSession<{ params: Promise<{ id: string; path?: string[] }> }>(
+  async ({ request, context }) => {
   const { id, path: pathParts } = await context.params
   const p = (pathParts || []).join('/')
   const served = await listServed()
@@ -71,7 +70,7 @@ export async function GET(
   if (!entry) return NextResponse.json({ error: 'entry missing' }, { status: 404 })
 
   if (inst.kind === 'app' && inst.port) {
-    return proxyToPort(inst.port, p, req)
+    return proxyToPort(inst.port, p, request)
   }
 
   if (inst.kind === 'file') {
@@ -149,3 +148,4 @@ export async function GET(
   }
   return NextResponse.json({ error: 'unsupported' }, { status: 400 })
 }
+)

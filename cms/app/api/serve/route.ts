@@ -1,28 +1,22 @@
 import { NextResponse } from 'next/server'
 import { listLibrary, listServed, saveServed, type ServeInstance } from '../../lib/store'
+import { withSession } from '../../lib/auth-guard'
 import crypto from 'crypto'
-import { spawn } from 'child_process'
-import path from 'path'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-function pickPort() {
-  const base = 48000
-  return base + Math.floor(Math.random() * 5000)
-}
 
 function idGen() {
   return crypto.randomBytes(6).toString('hex')
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const list = await listServed()
   return NextResponse.json({ instances: list })
-}
+})
 
-export async function POST(req: Request) {
-  const body = await req.json().catch(() => null)
+export const POST = withSession(async ({ request }) => {
+  const body = await request.json().catch(() => null)
   if (!body || !body.entryId)
     return NextResponse.json({ error: 'entryId required' }, { status: 400 })
   const entries = await listLibrary()
@@ -50,4 +44,4 @@ export async function POST(req: Request) {
     await saveServed(served)
   }
   return NextResponse.json({ ok: true, id: inst.id })
-}
+})

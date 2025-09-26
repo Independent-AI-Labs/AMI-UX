@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
 
+import { withSession } from '../../../../lib/auth-guard'
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -40,10 +42,10 @@ const MIME: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 }
 
-export async function GET(
+export const GET = withSession(async (
   _req: Request,
   context: { params: Promise<{ root: string; path?: string[] }> },
-) {
+) => {
   const { root, path: pathParts } = await context.params
   const { docRoot } = await loadCfg()
   const cwd = process.cwd()
@@ -69,4 +71,4 @@ export async function GET(
   } catch {
     return new NextResponse('Not found', { status: 404 })
   }
-}
+})
