@@ -1,3 +1,5 @@
+import './auth-fetch.js'
+
 import {
   registerVisualizer,
   detectVisualizer,
@@ -8,6 +10,12 @@ import {
 import { openSelectMediaModal } from './modal.js'
 import { humanizeName, normalizeFsPath } from './utils.js'
 import { createDocMessenger } from './message-channel.js?v=20250310'
+import { openAccountDrawer } from './account-drawer.js?v=20250316'
+import { icon as iconMarkup } from './icon-pack.js?v=20250306'
+
+window.addEventListener('ami:unauthorized', () => {
+  window.dispatchEvent(new Event('ami:navigate-signin'))
+})
 
 // Visualizer C: iframe to doc.html embed
 const VisualizerC = {
@@ -27,6 +35,14 @@ registerVisualizer(VisualizerC)
 registerVisualizer(VisualizerA)
 registerVisualizer(VisualizerB)
 registerVisualizer(VisualizerD)
+
+function setThemeIcon(theme) {
+  const icon = document.getElementById('iconTheme')
+  if (!icon) return
+  icon.classList.remove('ri-sun-line', 'ri-moon-clear-line')
+  icon.classList.add(theme === 'light' ? 'ri-sun-line' : 'ri-moon-clear-line')
+  icon.setAttribute('aria-hidden', 'true')
+}
 
 function setLabels(_vizId, _info) {
   // Intentionally blank: no noisy mode/path in header
@@ -244,12 +260,10 @@ function buildDocMessageForDir(tab, cfg) {
   return msg
 }
 
-function iconSvg(kind) {
-  if (kind === 'dir')
-    return '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path>'
-  if (kind === 'app')
-    return '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20V4"></path>'
-  return '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline>'
+function iconForTab(kind) {
+  if (kind === 'dir') return iconMarkup('folder-3-line')
+  if (kind === 'app') return iconMarkup('window-2-line')
+  return iconMarkup('file-3-line')
 }
 
 function renderTabs() {
@@ -267,7 +281,11 @@ function renderTabs() {
       t.kind === 'app' ? (isRunningApp ? 'App running' : '') : t.servedId ? 'Served' : ''
     const baseName = t.path.split('/').pop() || t.path
     const tabLabel = t.label || (t.kind === 'file' ? humanizeName(baseName, 'file') : baseName)
-    el.innerHTML = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconSvg(t.kind)}</svg><span>${tabLabel}</span>${showPill ? `<span class="pill serve-dot" title="${pillTitle}"></span>` : ''}<span class="close" title="Close">×</span>`
+    const statusNode = showPill
+      ? `<span class="status-indicator serve-dot status-indicator--positive" title="${pillTitle}"></span>`
+      : ''
+    const leadingIcon = `<span class="icon" aria-hidden="true">${iconForTab(t.kind)}</span>`
+    el.innerHTML = `${leadingIcon}${statusNode}<span>${tabLabel}</span><span class="close" title="Close">×</span>`
     el.addEventListener('click', (e) => {
       if (e.target.classList && e.target.classList.contains('close')) {
         closeTab(t.id)
@@ -587,13 +605,7 @@ async function boot() {
     const saved = localStorage.getItem('theme')
     const theme = saved === 'light' ? 'light' : 'dark'
     document.documentElement.setAttribute('data-theme', theme)
-    const icon = document.getElementById('iconTheme')
-    if (icon) {
-      // crescent for dark (current icon), sun icon swapped in light
-      if (theme === 'light')
-        icon.innerHTML =
-          '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
-    }
+    setThemeIcon(theme)
   } catch {}
 
   const cfg = await loadConfig()
@@ -678,13 +690,7 @@ async function boot() {
       document.documentElement.setAttribute('data-theme', next)
       localStorage.setItem('theme', next)
       // swap icon
-      const icon = document.getElementById('iconTheme')
-      if (icon) {
-        icon.innerHTML =
-          next === 'light'
-            ? '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
-            : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
-      }
+      setThemeIcon(next)
       applyThemeIntoIframe(next)
     } catch {}
   })
@@ -729,6 +735,16 @@ document.addEventListener('DOMContentLoaded', () => {
     welcomeBtn.addEventListener('click', () => {
       openContentDirectory()
     })
+  const accountBtn = document.getElementById('accountDrawerBtn')
+  if (accountBtn) {
+    if (!accountBtn.hasAttribute('aria-expanded')) accountBtn.setAttribute('aria-expanded', 'false')
+    accountBtn.addEventListener('click', (event) => {
+      event.preventDefault()
+      openAccountDrawer({ trigger: accountBtn }).catch((err) => {
+        console.error('Failed to open account drawer', err)
+      })
+    })
+  }
   const highlightBtn = document.getElementById('highlightSettingsBtnShell')
   if (highlightBtn) {
     if (!highlightBtn.hasAttribute('aria-expanded')) highlightBtn.setAttribute('aria-expanded', 'false')

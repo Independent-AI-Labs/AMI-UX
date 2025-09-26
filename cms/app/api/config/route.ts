@@ -8,6 +8,7 @@ import {
   defaultDocRootLabel,
   deriveDocRootLabel,
 } from '../../lib/doc-root'
+import { withSession } from '../../lib/auth-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,7 +23,7 @@ function normalizeDocRootForStorage(absPath: string): string {
   return cleaned
 }
 
-export async function GET() {
+async function handleGet() {
   const cfg = await getConfig()
   // Ensure stable defaults
   const rawDocRoot = cfg.docRoot || defaultDocRoot()
@@ -47,7 +48,7 @@ export async function GET() {
   return NextResponse.json({ ...filled, docRootAbsolute })
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   const body = await req.json().catch(() => ({}) as Partial<CmsConfig>)
   const current = await getConfig()
   const next: CmsConfig = { ...current }
@@ -123,6 +124,8 @@ export async function POST(req: Request) {
   })
 }
 
-export async function PATCH(req: Request) {
-  return POST(req)
-}
+export const GET = withSession(async () => handleGet())
+
+export const POST = withSession(async ({ request }) => handlePost(request))
+
+export const PATCH = withSession(async ({ request }) => handlePost(request))

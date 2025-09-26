@@ -1,0 +1,119 @@
+:root {
+  color-scheme: dark light;
+}
+
+.auth-layout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: radial-gradient(circle at top, rgba(82, 125, 255, 0.18), transparent 45%),
+    linear-gradient(180deg, rgba(12, 18, 38, 0.96), rgba(10, 12, 20, 0.92));
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  padding: 36px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 15, 32, 0.95);
+  box-shadow: 0 40px 120px rgba(6, 12, 30, 0.4);
+  color: #f6f7fb;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.auth-card header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.auth-card header .muted {
+  margin: 8px 0 0;
+  color: rgba(246, 247, 251, 0.7);
+}
+
+.signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.signin-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.signin-form label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(246, 247, 251, 0.85);
+}
+
+.signin-form input {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(6, 10, 24, 0.8);
+  color: #f6f7fb;
+  font-size: 16px;
+}
+
+.signin-form input:focus {
+  outline: 2px solid rgba(90, 140, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.signin-form .btn {
+  border-radius: 999px;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(82, 125, 255, 0.9), rgba(146, 95, 255, 0.9));
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.signin-form .btn[disabled] {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.signin-form .btn:hover:not([disabled]) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 40px rgba(82, 125, 255, 0.35);
+}
+
+.error {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 64, 105, 0.18);
+  color: #ff90a8;
+  font-size: 14px;
+}
+
+.auth-card footer {
+  font-size: 13px;
+  color: rgba(246, 247, 251, 0.6);
+}
+
+.auth-card footer a {
+  color: rgba(146, 195, 255, 0.9);
+}
+
+@media (max-width: 640px) {
+  .auth-layout {
+    padding: 16px;
+  }
+  .auth-card {
+    padding: 28px;
+    border-radius: 18px;
+  }
+}

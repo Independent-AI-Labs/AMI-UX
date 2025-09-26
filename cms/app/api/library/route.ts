@@ -3,6 +3,7 @@ import path from 'path'
 import crypto from 'crypto'
 import { listLibrary, saveLibrary, type LibraryEntry, type LibraryKind } from '../../lib/store'
 import { loadDocRootInfo } from '../../lib/doc-root'
+import { withSession } from '../../lib/auth-guard'
 import { promises as fs } from 'fs'
 import type { Dirent } from 'fs'
 
@@ -101,7 +102,7 @@ function idFromPath(p: string) {
   return crypto.createHash('sha1').update(p).digest('hex').slice(0, 12)
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const stored = await listLibrary()
   const entries: LibraryEntry[] = [...stored]
   try {
@@ -121,10 +122,10 @@ export async function GET() {
     }),
   )
   return NextResponse.json({ entries: augmented })
-}
+})
 
-export async function POST(req: Request) {
-  const body = await req.json().catch(() => null)
+export const POST = withSession(async ({ request }) => {
+  const body = await request.json().catch(() => null)
   if (!body || !body.path) return NextResponse.json({ error: 'path required' }, { status: 400 })
   const abs = path.resolve(process.cwd(), body.path)
   try {
@@ -148,4 +149,4 @@ export async function POST(req: Request) {
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'failed' }, { status: 400 })
   }
-}
+})

@@ -10,9 +10,26 @@
     #tabsBar { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); }
     .tab { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; cursor: pointer; }
     .tab.active { outline: 2px solid var(--accent); }
-    .tab .icon { width: 16px; height: 16px; }
+    .tab .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      font-size: 18px;
+      color: inherit;
+    }
+    .tab .icon i {
+      font-size: inherit;
+      line-height: 1;
+      color: inherit;
+    }
     /* Served: bump icon size; keep default color */
-    .tab.served .icon { width: 24px; height: 24px; color: inherit; }
+    .tab.served .icon {
+      width: 22px;
+      height: 22px;
+      font-size: 22px;
+    }
     /* Served indicator: unified green dot */
     .tab .pill { margin-left: 6px; }
     .tab .close { margin-left: 8px; opacity: 0.7; }
@@ -135,6 +152,7 @@
     })();
   </script>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css">
 </head>
 <body>
   <header>
@@ -146,12 +164,15 @@
       </div>
     </div>
     <input id="globalSearch" type="search" placeholder="Search (/)" />
-    <button class="btn" id="btnTheme" title="Toggle Theme" aria-label="Toggle Theme"><svg id="iconTheme" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
+    <button class="btn" id="btnTheme" title="Toggle Theme" aria-label="Toggle Theme"><i id="iconTheme" class="ri-moon-clear-line" aria-hidden="true"></i></button>
     <button class="btn" id="selectMediaBtn" title="Content Directory" aria-label="Content Directory">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path></svg>
+      <i class="ri-folders-line" aria-hidden="true"></i>
+    </button>
+    <button class="btn" id="accountDrawerBtn" title="Account Management" aria-label="Account Management">
+      <i class="ri-user-settings-line" aria-hidden="true"></i>
     </button>
     <button class="btn" id="highlightSettingsBtnShell" title="Highlight settings" aria-label="Highlight settings">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.37 1.05V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-.37-1.05 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.05-1 1.65 1.65 0 0 0-1.05-.37H2a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.05-.37 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .37-1.05V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 .37 1.05 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.05.37H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.05.37 1.65 1.65 0 0 0-.46.66z" /></svg>
+      <i class="ri-settings-3-line" aria-hidden="true"></i>
     </button>
     <span class="right">
       <span id="statusPill" class="muted"></span>
@@ -167,7 +188,7 @@
         <h2>Welcome to the AMI Data Portal</h2>
         <p>Open the Content Directory to browse playbooks, resources, and live tools.</p>
         <button id="welcomeOpenBtn" class="btn welcome-action">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2z"></path></svg>
+          <i class="ri-folders-line" aria-hidden="true"></i>
           Open Content Directory
         </button>
         <p class="welcome-hint muted">Tip: press / to focus search once you have a workspace open.</p>

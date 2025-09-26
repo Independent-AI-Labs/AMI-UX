@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { repoRoot } from '../../lib/doc-root'
+import { withSession } from '../../lib/auth-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,8 +24,8 @@ async function readJson(p: string): Promise<any | null> {
   }
 }
 
-export async function GET(req: Request) {
-  const url = new URL(req.url)
+export const GET = withSession(async ({ request }) => {
+  const url = new URL(request.url)
   const input = url.searchParams.get('path') || ''
   if (!input) return NextResponse.json({ error: 'path required' }, { status: 400 })
 
@@ -60,4 +61,4 @@ export async function GET(req: Request) {
   } catch {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
   }
-}
+})

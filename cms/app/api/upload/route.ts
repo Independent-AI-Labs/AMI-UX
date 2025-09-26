@@ -8,6 +8,7 @@ import { pipeline } from 'stream/promises'
 import { createHash } from 'crypto'
 import { loadDocRootInfo, repoRoot as sharedRepoRoot } from '../../lib/doc-root'
 import { appRoot, uploadsRoot as sharedUploadsRoot } from '../../lib/store'
+import { withSession } from '../../lib/auth-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -149,8 +150,8 @@ function summarizeResponse(target: RootTarget, rel: string, absolute: string, me
   }
 }
 
-export async function GET(req: Request) {
-  const url = new URL(req.url)
+export const GET = withSession(async ({ request }) => {
+  const url = new URL(request.url)
   const relParam = url.searchParams.get('path') || ''
   const sizeParam = url.searchParams.get('size') || ''
   const rootParam = url.searchParams.get('root') || undefined
@@ -200,15 +201,15 @@ export async function GET(req: Request) {
     hash,
     existing: statSize > 0 || !!meta,
   })
-}
+})
 
-export async function PUT(req: Request) {
-  const url = new URL(req.url)
+export const PUT = withSession(async ({ request }) => {
+  const url = new URL(request.url)
   const relParam = url.searchParams.get('path') || ''
   const sizeParam = url.searchParams.get('size') || ''
   const rootParam = url.searchParams.get('root') || undefined
   const expectedSize = Number(sizeParam)
-  const offsetHeader = req.headers.get('x-upload-offset') || '0'
+  const offsetHeader = request.headers.get('x-upload-offset') || '0'
   const providedOffset = Number(offsetHeader)
 
   if (!relParam) return NextResponse.json({ error: 'path required' }, { status: 400 })
@@ -218,7 +219,7 @@ export async function PUT(req: Request) {
   if (!Number.isFinite(providedOffset) || providedOffset < 0) {
     return NextResponse.json({ error: 'invalid offset' }, { status: 400 })
   }
-  if (!req.body) {
+  if (!request.body) {
     return NextResponse.json({ error: 'empty body' }, { status: 400 })
   }
 
@@ -268,7 +269,7 @@ export async function PUT(req: Request) {
     }
   }
 
-  const nodeStream = Readable.fromWeb(req.body as any)
+  const nodeStream = Readable.fromWeb(request.body as any)
   let chunkBytes = 0
   const counter = new Transform({
     transform(chunk, _enc, callback) {
@@ -326,4 +327,4 @@ export async function PUT(req: Request) {
     offset: finalSize,
     size: expectedSize,
   })
-}
+})

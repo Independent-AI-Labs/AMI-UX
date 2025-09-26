@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { listLibrary, saveLibrary, DATA_DIR } from '../../../../lib/store'
+import { listLibrary, saveLibrary } from '../../../../lib/store'
+import { withSession } from '../../../../lib/auth-guard'
 import path from 'path'
 import { promises as fs } from 'fs'
 
@@ -12,7 +13,7 @@ async function rmrf(p: string) {
   } catch {}
 }
 
-export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withSession(async ({ context }) => {
   const { id } = await context.params
   const entries = await listLibrary()
   const entry = entries.find((e) => e.id === id)
@@ -28,4 +29,4 @@ export async function POST(_req: Request, context: { params: Promise<{ id: strin
   const next = entries.filter((e) => e.id !== id)
   await saveLibrary(next)
   return NextResponse.json({ ok: true })
-}
+})

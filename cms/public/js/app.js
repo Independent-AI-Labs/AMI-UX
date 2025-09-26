@@ -1,3 +1,5 @@
+import './auth-fetch.js'
+
 import {
   registerVisualizer,
   detectVisualizer,

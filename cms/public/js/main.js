@@ -1,3 +1,5 @@
+import './auth-fetch.js'
+
 import { humanizeName } from './utils.js'
 import { fetchConfig, fetchTree, setDocRoot } from './api.js'
 import {
@@ -13,6 +15,11 @@ import { activateHighlight } from './highlight/effects.js'
 import { connectSSE } from './sse.js'
 import { createHighlightManager } from './highlight/manager.js'
 import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
+import { icon as iconMarkup } from './icon-pack.js?v=20250306'
+
+window.addEventListener('ami:unauthorized', () => {
+  window.dispatchEvent(new Event('ami:navigate-signin'))
+})
 
 const highlightManager = createHighlightManager({ document })
 
@@ -140,16 +147,14 @@ function ensureTreeContainer() {
   expandBtn.className = 'btn'
   expandBtn.id = 'treeExpandAll'
   expandBtn.type = 'button'
-  expandBtn.innerHTML =
-    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="12" y1="7" x2="12" y2="17"></line><line x1="7" y1="12" x2="17" y2="12"></line></svg><span>Expand All</span>'
+  expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 18 })}<span>Expand All</span>`
   expandBtn.addEventListener('click', () => expandCollapseAll(true))
 
   const collapseBtn = document.createElement('button')
   collapseBtn.className = 'btn'
   collapseBtn.id = 'treeCollapseAll'
   collapseBtn.type = 'button'
-  collapseBtn.innerHTML =
-    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="7" y1="12" x2="17" y2="12"></line></svg><span>Collapse All</span>'
+  collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 18 })}<span>Collapse All</span>`
   collapseBtn.addEventListener('click', () => expandCollapseAll(false))
 
   actions.appendChild(expandBtn)

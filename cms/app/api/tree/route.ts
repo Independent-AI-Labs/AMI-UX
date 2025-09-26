@@ -4,6 +4,7 @@ import path from 'path'
 import { loadRuntimeConfig } from '../../lib/runtime-config'
 import { getTextFormats, isAllowedTextFormat, type TextFormats } from '../../lib/text-formats'
 import { resolveMediaRoot } from '../../lib/media-roots'
+import { withSession } from '../../lib/auth-guard'
 
 type Node = {
   name: string
@@ -22,8 +23,8 @@ async function statSafe(p: string) {
   }
 }
 
-export async function GET(req: Request) {
-  const url = new URL(req.url)
+export const GET = withSession(async ({ request }) => {
+  const url = new URL(request.url)
   const requestedRoot = url.searchParams.get('root') || 'docRoot'
   const rootInfo = await resolveMediaRoot(requestedRoot)
 
@@ -98,4 +99,4 @@ export async function GET(req: Request) {
     rootAbsolute: rootAbs,
     rootLabel: rootInfo.label,
   })
-}
+})

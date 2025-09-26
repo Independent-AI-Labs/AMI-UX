@@ -1,3 +1,5 @@
+import { icon as iconMarkup } from '../icon-pack.js?v=20250306'
+
 const STYLE_ID = 'fx-glow-highlight-style'
 
 const INTENSITY_PRESETS = {
@@ -335,13 +337,13 @@ function createHoverOverlay(doc, selectors, callbacks) {
   overlay.className = HOVER_OVERLAY_CLASS
   overlay.setAttribute('aria-hidden', 'true')
 
-  const mkBtn = (cls, title, svg, onClick) => {
+  const mkBtn = (cls, title, markup, onClick) => {
     const btn = doc.createElement('button')
     btn.className = `${HOVER_BTN_CLASS} ${cls}`
     btn.type = 'button'
     btn.title = title
     btn.setAttribute('aria-label', title)
-    btn.innerHTML = svg
+    btn.innerHTML = markup
     btn.addEventListener('mousedown', (e) => e.preventDefault())
     btn.addEventListener('click', (event) => {
       event.stopPropagation()
@@ -353,13 +355,13 @@ function createHoverOverlay(doc, selectors, callbacks) {
   const commentBtn = mkBtn(
     'act-comment',
     'Comment',
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
+    iconMarkup('chat-1-line', { size: 18 }),
     callbacks.onComment,
   )
   const searchBtn = mkBtn(
     'act-search',
     'Search',
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    iconMarkup('search-line', { size: 18 }),
     callbacks.onSearch,
   )
 
