@@ -4,6 +4,34 @@ import { observeMutations } from './runtime/mutations.js'
 import { setupMessageBridge } from './runtime/message-bridge.js'
 
 const INIT_FLAG = '__amiHighlightPlugin'
+const ACTIVE_ATTR = 'data-ami-highlight-active'
+const ACTIVE_OWNER_ATTR = 'data-ami-highlight-owner'
+
+function getDocumentRoot(doc) {
+  if (!doc) return null
+  return doc.documentElement || doc.body || null
+}
+
+function markDocumentActive(doc, ownerId) {
+  const root = getDocumentRoot(doc)
+  if (!root) return
+  try {
+    root.setAttribute(ACTIVE_ATTR, '1')
+    if (ownerId) root.setAttribute(ACTIVE_OWNER_ATTR, ownerId)
+  } catch {}
+}
+
+function clearDocumentActive(doc, ownerId) {
+  const root = getDocumentRoot(doc)
+  if (!root) return
+  try {
+    const currentOwner = root.getAttribute(ACTIVE_OWNER_ATTR)
+    if (!ownerId || !currentOwner || currentOwner === ownerId) {
+      root.removeAttribute(ACTIVE_ATTR)
+      root.removeAttribute(ACTIVE_OWNER_ATTR)
+    }
+  } catch {}
+}
 
 const DEFAULT_SELECTORS = {
   block: [
@@ -101,16 +129,44 @@ export function bootstrapHighlightPlugin(config = {}) {
   const doc = config.document || (typeof document !== 'undefined' ? document : null)
   if (!doc) throw new Error('Highlight plugin requires a document context')
 
+  const root = getDocumentRoot(doc)
+  const hasActiveFlag = root ? root.hasAttribute(ACTIVE_ATTR) : false
+  if (hasActiveFlag && !config.forceStart) {
+    const existingApi = (() => {
+      if (globalRef[INIT_FLAG]) return globalRef[INIT_FLAG]
+      try {
+        return doc?.defaultView?.__AMI_HIGHLIGHT_PLUGIN__ || null
+      } catch {
+        return null
+      }
+    })()
+    if (existingApi) return existingApi
+    return null
+  }
+
+  const instanceId = `ami-highlight-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  let markedActive = false
+  try {
+    markDocumentActive(doc, instanceId)
+    markedActive = true
+  } catch {}
+
   const selectors = mergeSelectors(
     DEFAULT_SELECTORS,
     config.selectors && typeof config.selectors === 'object' ? config.selectors : null,
   )
 
-  const manager = new HighlightManager({
-    document: doc,
-    storageKey: config.storageKey || 'amiHighlightPluginSettings',
-    settings: config.settings,
-  })
+  let manager
+  try {
+    manager = new HighlightManager({
+      document: doc,
+      storageKey: config.storageKey || 'amiHighlightPluginSettings',
+      settings: config.settings,
+    })
+  } catch (err) {
+    if (markedActive) clearDocumentActive(doc, instanceId)
+    throw err
+  }
 
   const contextHandle = manager.registerContext({
     id: config.contextId || 'ami-highlight-default',
@@ -121,13 +177,32 @@ export function bootstrapHighlightPlugin(config = {}) {
     handlers: config.handlers || {},
   })
 
+  const view = doc.defaultView || null
+  const isTopWindow = (() => {
+    if (!view) return true
+    try {
+      return view.top === view
+    } catch {
+      return true
+    }
+  })()
+  const allowFloatingToggle = (() => {
+    if (config.createFallbackToggle === true) return true
+    if (config.createFallbackToggle === false) return false
+    const body = doc.body || null
+    const isShellHost = isTopWindow && !!(body && body.classList && body.classList.contains('shell-app'))
+    if (isShellHost) return false
+    return !isTopWindow
+  })()
+
   const toggle = resolveToggleButton(doc, config.toggleButton)
   const ui = createHighlightSettingsUI({
     document: doc,
     manager,
     toggleButton: toggle || null,
-    createFallbackToggle: config.createFallbackToggle !== false,
+    createFallbackToggle: allowFloatingToggle,
     renderImmediately: config.renderImmediately === true,
+    ownerId: instanceId,
   })
 
   const disconnectMutations = observeMutations(manager, contextHandle.id, {
@@ -142,40 +217,63 @@ export function bootstrapHighlightPlugin(config = {}) {
     notifyInitialState: true,
   })
 
-  const api = {
-    manager,
-    ui,
-    context: contextHandle,
-    refresh(options = {}) {
-      manager.refreshAll(options)
-    },
-    destroy() {
-      try {
-        teardownBridge?.()
-      } catch {}
-      try {
-        disconnectMutations?.()
-      } catch {}
-      try {
-        contextHandle?.destroy()
-      } catch {}
-      try {
-        ui?.destroy()
-      } catch {}
-      delete globalRef[INIT_FLAG]
-      try {
-        if (globalRef.__AMI_HIGHLIGHT_PLUGIN__ === api) {
-          delete globalRef.__AMI_HIGHLIGHT_PLUGIN__
-        }
-      } catch {}
-    },
-  }
-
-  globalRef[INIT_FLAG] = api
+  let completed = false
   try {
-    globalRef.__AMI_HIGHLIGHT_PLUGIN__ = api
-  } catch {}
-  return api
+    const api = {
+      manager,
+      ui,
+      context: contextHandle,
+      refresh(options = {}) {
+        manager.refreshAll(options)
+      },
+      destroy() {
+        try {
+          teardownBridge?.()
+        } catch {}
+        try {
+          disconnectMutations?.()
+        } catch {}
+        try {
+          contextHandle?.destroy()
+        } catch {}
+        try {
+          ui?.destroy()
+        } catch {}
+        delete globalRef[INIT_FLAG]
+        try {
+          if (globalRef.__AMI_HIGHLIGHT_PLUGIN__ === api) {
+            delete globalRef.__AMI_HIGHLIGHT_PLUGIN__
+          }
+        } catch {}
+        clearDocumentActive(doc, instanceId)
+      },
+    }
+
+    globalRef[INIT_FLAG] = api
+    try {
+      globalRef.__AMI_HIGHLIGHT_PLUGIN__ = api
+    } catch {}
+    completed = true
+    return api
+  } catch (err) {
+    try {
+      teardownBridge?.()
+    } catch {}
+    try {
+      disconnectMutations?.()
+    } catch {}
+    try {
+      contextHandle?.destroy()
+    } catch {}
+    try {
+      ui?.destroy()
+    } catch {}
+    throw err
+  } finally {
+    if (!completed) {
+      if (markedActive) clearDocumentActive(doc, instanceId)
+    }
+  }
 }
 
 function autoStart() {

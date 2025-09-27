@@ -2,10 +2,38 @@ import { HighlightManager } from './core/manager.js'
 import { createHighlightSettingsUI } from './ui/panel.js'
 import { observeMutations } from './runtime/mutations.js'
 import { setupMessageBridge } from './runtime/message-bridge.js'
-import { shouldIgnoreNode } from './core/dom-utils.js'
+import { shouldIgnoreNode, isPluginNode } from './core/dom-utils.js'
 import { debugLog, setDebugEnabled } from './core/debug.js'
 
 const INIT_FLAG = '__amiHighlightPlugin'
+const ACTIVE_ATTR = 'data-ami-highlight-active'
+const ACTIVE_OWNER_ATTR = 'data-ami-highlight-owner'
+
+function getDocumentRoot(doc) {
+  if (!doc) return null
+  return doc.documentElement || doc.body || null
+}
+
+function markDocumentActive(doc, ownerId) {
+  const root = getDocumentRoot(doc)
+  if (!root) return
+  try {
+    root.setAttribute(ACTIVE_ATTR, '1')
+    if (ownerId) root.setAttribute(ACTIVE_OWNER_ATTR, ownerId)
+  } catch {}
+}
+
+function clearDocumentActive(doc, ownerId) {
+  const root = getDocumentRoot(doc)
+  if (!root) return
+  try {
+    const currentOwner = root.getAttribute(ACTIVE_OWNER_ATTR)
+    if (!ownerId || !currentOwner || currentOwner === ownerId) {
+      root.removeAttribute(ACTIVE_ATTR)
+      root.removeAttribute(ACTIVE_OWNER_ATTR)
+    }
+  } catch {}
+}
 
 const DEFAULT_SELECTORS = {
   block: [
@@ -97,150 +125,93 @@ function resolveToggleButton(doc, toggle) {
 }
 
 function watchInitialTargets(doc, manager, options = {}) {
-  const root = options.root || doc.body || doc.documentElement || doc
-  const fallbackDelay = Math.max(Number(options.fallbackDelay) || 1500, 250)
-  const minInterval = Math.max(Number(options.minInterval) || 160, 60)
   const ElementRef = doc?.defaultView?.Element || (typeof Element !== 'undefined' ? Element : null)
-  const NodeFilterRef = doc?.defaultView?.NodeFilter || (typeof NodeFilter !== 'undefined' ? NodeFilter : null)
   const NodeRef = doc?.defaultView?.Node || (typeof Node !== 'undefined' ? Node : null)
-
+  const cleanup = []
   let observer = null
-  let fallbackHandle = null
-  let stopped = false
-  let lastRefreshTs = 0
+  let activated = false
 
   const stop = () => {
-    if (stopped) return
-    stopped = true
     try {
       observer?.disconnect()
     } catch {}
     observer = null
-    if (fallbackHandle) {
-      clearTimeout(fallbackHandle)
-      fallbackHandle = null
-    }
-  }
-
-  const findFirstHighlightable = () => {
-    const scope = doc.body || doc.documentElement || doc
-    if (!scope) return null
-
-    if (doc.createTreeWalker && NodeFilterRef) {
+    while (cleanup.length) {
+      const fn = cleanup.pop()
       try {
-        const walker = doc.createTreeWalker(scope, NodeFilterRef.SHOW_ELEMENT, {
-          acceptNode(node) {
-            if (!node || node === scope) return NodeFilterRef.FILTER_SKIP
-            if (shouldIgnoreNode(node)) return NodeFilterRef.FILTER_SKIP
-            return NodeFilterRef.FILTER_ACCEPT
-          },
-        })
-        const next = walker.nextNode()
-        if (next && next !== scope) return next
-      } catch (err) {
-        debugLog('bootstrap:initial:walker-error', { error: err?.message || String(err) })
-      }
+        fn()
+      } catch {}
     }
-
-    if (ElementRef && scope instanceof ElementRef) {
-      const queue = Array.from(scope.children || [])
-      while (queue.length) {
-        const candidate = queue.shift()
-        if (!candidate) continue
-        if (shouldIgnoreNode(candidate)) {
-          if (candidate.children && candidate.children.length) {
-            queue.unshift(...Array.from(candidate.children))
-          }
-          continue
-        }
-        return candidate
-      }
-    }
-    return null
+    activated = true
   }
 
-  const attemptRefresh = (reason, hint) => {
-    const scope = doc.body || doc.documentElement || doc
-    debugLog('bootstrap:initial:body-info', {
-      reason,
-      hasBody: !!doc.body,
-      childCount: scope && scope.children ? scope.children.length : undefined,
-      readyState: doc.readyState,
-    })
-
-    const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
-      ? performance.now()
-      : Date.now()
-    if (lastRefreshTs && now - lastRefreshTs < minInterval) return false
-
-    let candidate = hint && ElementRef && hint instanceof ElementRef ? hint : null
-    if (candidate && shouldIgnoreNode(candidate)) candidate = null
-    if (!candidate) candidate = findFirstHighlightable()
-
-    debugLog('bootstrap:initial:probe', {
-      reason,
-      matched: !!candidate,
-      tag: candidate?.tagName,
-      classList: candidate?.className,
-    })
-    if (!candidate) return false
-
-    lastRefreshTs = now
+  const trigger = (reason) => {
+    if (activated || !doc.body) return
+    activated = true
+    debugLog('bootstrap:initial:activate', { reason })
     try {
       manager.refreshAll({ rebuild: true })
     } catch (err) {
       debugLog('refresh-error', { error: err?.message || String(err) })
     }
-    return true
+    stop()
   }
 
-  const scheduleFallback = () => {
-    if (stopped) return
-    fallbackHandle = setTimeout(() => {
-      fallbackHandle = null
-      if (stopped) return
-      attemptRefresh('fallback')
-      scheduleFallback()
-    }, fallbackDelay)
+  const readyStates = ['interactive', 'complete']
+  if (readyStates.includes(doc.readyState) && doc.body) {
+    trigger('ready-state')
+    return stop
   }
 
-  attemptRefresh('initial')
+  const onReady = () => trigger('dom-content-loaded')
+  try {
+    doc.addEventListener('DOMContentLoaded', onReady, { once: true })
+    cleanup.push(() => doc.removeEventListener('DOMContentLoaded', onReady))
+  } catch {}
 
-  if (root && typeof MutationObserver !== 'undefined') {
-    const handleAdded = (node) => {
-      if (stopped || !node) return false
-      if (ElementRef && node instanceof ElementRef) {
-        if (shouldIgnoreNode(node)) return false
-        return attemptRefresh('mutation', node)
-      }
-      if (NodeRef && node.nodeType === NodeRef.DOCUMENT_FRAGMENT_NODE) {
-        let triggered = false
-        const children = Array.from(node.childNodes || [])
-        for (const child of children) {
-          if (handleAdded(child)) triggered = true
+  if (typeof MutationObserver === 'undefined') return stop
+
+  const root = options.root || doc
+  observer = new MutationObserver((records) => {
+    if (activated) return
+    if (doc.body) {
+      trigger('body-present')
+      return
+    }
+    for (const record of records) {
+      const added = record?.addedNodes ? Array.from(record.addedNodes) : []
+      for (const node of added) {
+        if (activated) return
+        if (ElementRef && node instanceof ElementRef) {
+          if (shouldIgnoreNode(node) || isPluginNode(node)) continue
+          trigger('element-added')
+          return
         }
-        return triggered
+        if (NodeRef && node?.nodeType === NodeRef.DOCUMENT_FRAGMENT_NODE) {
+          const fragmentChildren = Array.from(node.childNodes || [])
+          for (const child of fragmentChildren) {
+            if (
+              ElementRef &&
+              child instanceof ElementRef &&
+              !shouldIgnoreNode(child) &&
+              !isPluginNode(child)
+            ) {
+              trigger('fragment-child')
+              return
+            }
+          }
+        }
       }
-      return false
     }
+  })
 
-    observer = new MutationObserver((records) => {
-      if (stopped) return
-      for (const record of records) {
-        if (!record || record.type !== 'childList') continue
-        const added = record.addedNodes || []
-        for (const node of added) handleAdded(node)
-      }
-    })
-    try {
-      observer.observe(root, { childList: true, subtree: true })
-      debugLog('bootstrap:initial:observe', { root: root === doc.body ? 'body' : 'custom' })
-    } catch (err) {
-      debugLog('bootstrap:initial:observe-error', { error: err?.message || String(err) })
-    }
+  try {
+    observer.observe(root, { childList: true, subtree: true })
+    debugLog('bootstrap:initial:observe', { root: root === doc ? 'document' : 'custom-root' })
+  } catch (err) {
+    debugLog('bootstrap:initial:observe-error', { error: err?.message || String(err) })
+    stop()
   }
-
-  scheduleFallback()
 
   return stop
 }
@@ -255,8 +226,37 @@ export function bootstrapHighlightPlugin(config = {}) {
   const doc = config.document || (typeof document !== 'undefined' ? document : null)
   if (!doc) throw new Error('Highlight plugin requires a document context')
 
+  const root = getDocumentRoot(doc)
+  const hasActiveFlag = root ? root.hasAttribute(ACTIVE_ATTR) : false
+  if (hasActiveFlag && !config.forceStart) {
+    const activeOwner = root ? root.getAttribute(ACTIVE_OWNER_ATTR) : null
+    const existingApi = (() => {
+      if (globalRef[INIT_FLAG]) return globalRef[INIT_FLAG]
+      try {
+        return doc?.defaultView?.__AMI_HIGHLIGHT_PLUGIN__ || null
+      } catch {
+        return null
+      }
+    })()
+    if (existingApi) {
+      debugLog('bootstrap:skipped', { reason: 'document-active', owner: activeOwner || null })
+      return existingApi
+    }
+    debugLog('bootstrap:skipped', { reason: 'document-active-no-api', owner: activeOwner || null })
+    return null
+  }
+
+  const instanceId = `ami-highlight-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  let markedActive = false
+  try {
+    markDocumentActive(doc, instanceId)
+    markedActive = true
+  } catch {}
+
+  if (Object.prototype.hasOwnProperty.call(config, 'debug')) {
+    setDebugEnabled(config.debug)
+  }
   const debugEnabled = config.debug !== false
-  setDebugEnabled(debugEnabled)
   debugLog('bootstrap:start', {
     scopeSelector: config.scopeSelector,
     overlayFollow: config.overlayFollow,
@@ -268,96 +268,153 @@ export function bootstrapHighlightPlugin(config = {}) {
     config.selectors && typeof config.selectors === 'object' ? config.selectors : null,
   )
 
-  const manager = new HighlightManager({
-    document: doc,
-    storageKey: config.storageKey || 'amiHighlightPluginSettings',
-    settings: config.settings,
-    debug: debugEnabled,
-  })
-  debugLog('manager:created', { contextCount: manager.contexts?.size || 0 })
+  let manager
+  try {
+    manager = new HighlightManager({
+      document: doc,
+      storageKey: config.storageKey || 'amiHighlightPluginSettings',
+      settings: config.settings,
+      debug: debugEnabled,
+    })
+  } catch (err) {
+    if (markedActive) clearDocumentActive(doc, instanceId)
+    throw err
+  }
+  let stopInitialMonitor = () => {}
+  let teardownBridge = () => {}
+  let contextHandle
+  let ui
+  let completed = false
+  try {
+    debugLog('manager:created', { contextCount: manager.contexts?.size || 0 })
 
-  const contextHandle = manager.registerContext({
-    id: config.contextId || 'ami-highlight-default',
-    document: doc,
-    scopeSelector: config.scopeSelector || 'body',
-    selectors,
-    overlayFollow: config.overlayFollow || ['block', 'inline', 'heading'],
-    handlers: config.handlers || {},
-  })
-  debugLog('context:registered', {
-    id: contextHandle.id,
-    scopeSelector: config.scopeSelector || 'body',
-    overlayFollow: Array.isArray(config.overlayFollow) ? config.overlayFollow : undefined,
-  })
+    contextHandle = manager.registerContext({
+      id: config.contextId || 'ami-highlight-default',
+      document: doc,
+      scopeSelector: config.scopeSelector || 'body',
+      selectors,
+      overlayFollow: config.overlayFollow || ['block', 'inline', 'heading'],
+      handlers: config.handlers || {},
+    })
+    debugLog('context:registered', {
+      id: contextHandle.id,
+      scopeSelector: config.scopeSelector || 'body',
+      overlayFollow: Array.isArray(config.overlayFollow) ? config.overlayFollow : undefined,
+    })
 
+    const toggle = resolveToggleButton(doc, config.toggleButton)
+    const view = doc.defaultView || null
+    const isTopWindow = (() => {
+      if (!view) return true
+      try {
+        return view.top === view
+      } catch {
+        return true
+      }
+    })()
+    const allowFloatingToggle = (() => {
+      if (config.createFallbackToggle === true) return true
+      if (config.createFallbackToggle === false) return false
+      const body = doc.body || null
+      const isShellHost = isTopWindow && !!(body && body.classList && body.classList.contains('shell-app'))
+      if (isShellHost) return false
+      return !isTopWindow
+    })()
 
-  const toggle = resolveToggleButton(doc, config.toggleButton)
-  const ui = createHighlightSettingsUI({
-    document: doc,
-    manager,
-    toggleButton: toggle || null,
-    createFallbackToggle: config.createFallbackToggle !== false,
-    renderImmediately: config.renderImmediately === true,
-  })
+    ui = createHighlightSettingsUI({
+      document: doc,
+      manager,
+      toggleButton: toggle || null,
+      createFallbackToggle: allowFloatingToggle,
+      renderImmediately: config.renderImmediately === true,
+      ownerId: instanceId,
+    })
 
-  const disconnectMutations = observeMutations(manager, contextHandle.id, {
-    document: doc,
-    root: config.mutationRoot || doc.body || doc.documentElement,
-  })
-  debugLog('mutations:observing', {
-    root: config.mutationRoot ? 'custom' : 'document',
-  })
+    const disconnectMutations = observeMutations(manager, contextHandle.id, {
+      document: doc,
+      root: config.mutationRoot || doc.body || doc.documentElement,
+    })
+    debugLog('mutations:observing', {
+      root: config.mutationRoot ? 'custom' : 'document',
+    })
 
-  const stopInitialMonitor = watchInitialTargets(doc, manager)
+    stopInitialMonitor = doc.body ? () => {} : watchInitialTargets(doc, manager, {
+      root: config.mutationRoot || doc,
+    })
 
-  const teardownBridge = setupMessageBridge({
-    targetWindow: config.window || (typeof window !== 'undefined' ? window : null),
-    ui,
-    manager,
-    notifyInitialState: true,
-  })
-  debugLog('bridge:ready', { hasUI: !!ui })
+    teardownBridge = setupMessageBridge({
+      targetWindow: config.window || (typeof window !== 'undefined' ? window : null),
+      ui,
+      manager,
+      notifyInitialState: true,
+    })
+    debugLog('bridge:ready', { hasUI: !!ui })
 
-  const api = {
-    manager,
-    ui,
-    context: contextHandle,
-    refresh(options = {}) {
-      debugLog('api:refresh', options)
-      manager.refreshAll(options)
-    },
-    destroy() {
-      debugLog('api:destroy')
+    const api = {
+      manager,
+      ui,
+      context: contextHandle,
+      refresh(options = {}) {
+        debugLog('api:refresh', options)
+        manager.refreshAll(options)
+      },
+      destroy() {
+        debugLog('api:destroy')
+        try {
+          teardownBridge?.()
+        } catch {}
+        try {
+          disconnectMutations?.()
+        } catch {}
+        try {
+          contextHandle?.destroy()
+        } catch {}
+        try {
+          ui?.destroy()
+        } catch {}
+        try {
+          stopInitialMonitor?.()
+        } catch {}
+        delete globalRef[INIT_FLAG]
+        try {
+          if (globalRef.__AMI_HIGHLIGHT_PLUGIN__ === api) {
+            delete globalRef.__AMI_HIGHLIGHT_PLUGIN__
+          }
+        } catch {}
+        clearDocumentActive(doc, instanceId)
+      },
+    }
+
+    globalRef[INIT_FLAG] = api
+    try {
+      globalRef.__AMI_HIGHLIGHT_PLUGIN__ = api
+    } catch {}
+    debugLog('bootstrap:complete', { contextId: contextHandle.id })
+    completed = true
+    return api
+  } catch (err) {
+    if (contextHandle && typeof contextHandle.destroy === 'function') {
+      try {
+        contextHandle.destroy()
+      } catch {}
+    }
+    if (ui && typeof ui.destroy === 'function') {
+      try {
+        ui.destroy()
+      } catch {}
+    }
+    throw err
+  } finally {
+    if (!completed) {
       try {
         teardownBridge?.()
       } catch {}
       try {
-        disconnectMutations?.()
-      } catch {}
-      try {
-        contextHandle?.destroy()
-      } catch {}
-      try {
-        ui?.destroy()
-      } catch {}
-      try {
         stopInitialMonitor?.()
       } catch {}
-      delete globalRef[INIT_FLAG]
-      try {
-        if (globalRef.__AMI_HIGHLIGHT_PLUGIN__ === api) {
-          delete globalRef.__AMI_HIGHLIGHT_PLUGIN__
-        }
-      } catch {}
-    },
+      if (markedActive) clearDocumentActive(doc, instanceId)
+    }
   }
-
-  globalRef[INIT_FLAG] = api
-  try {
-    globalRef.__AMI_HIGHLIGHT_PLUGIN__ = api
-  } catch {}
-  debugLog('bootstrap:complete', { contextId: contextHandle.id })
-  return api
 }
 
 function autoStart() {

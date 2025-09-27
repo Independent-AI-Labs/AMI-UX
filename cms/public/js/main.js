@@ -32,6 +32,8 @@ const state = {
   treeShell: null,
   treeOverlay: null,
   treeOverlayLabel: null,
+  treeFilterInput: null,
+  treeFilterValue: '',
   rootKey: 'docRoot',
   rootLabelOverride: null,
   pendingFocus: '',
@@ -126,34 +128,70 @@ function ensureTreeContainer() {
   content.innerHTML = ''
 
   const toolbar = document.createElement('div')
-  toolbar.className = 'tree-toolbar'
+  toolbar.className = 'drawer-shell-header tree-toolbar'
   toolbar.id = 'treeToolbar'
 
-  const titleWrap = document.createElement('div')
-  titleWrap.className = 'tree-toolbar__title'
-  titleWrap.textContent = 'Document Tree'
-  toolbar.appendChild(titleWrap)
+  const row = document.createElement('div')
+  row.className = 'drawer-shell-header__row'
+
+  const titles = document.createElement('div')
+  titles.className = 'drawer-shell-header__titles'
+  const title = document.createElement('strong')
+  title.className = 'drawer-shell-header__title'
+  title.textContent = 'Interactive Document Viewer'
+  titles.appendChild(title)
+  row.appendChild(titles)
+
+  const controls = document.createElement('div')
+  controls.className = 'drawer-shell-header__controls tree-toolbar__controls'
+
+  const filterWrap = document.createElement('div')
+  filterWrap.className = 'drawer-shell-header__filter tree-toolbar__filter'
+  const filterInput = document.createElement('input')
+  filterInput.type = 'search'
+  filterInput.id = 'treeFilter'
+  filterInput.placeholder = 'Filter tree items'
+  filterInput.className = 'drawer-shell-header__search-input'
+  filterInput.setAttribute('aria-label', 'Filter tree')
+  if (state.treeFilterValue) filterInput.value = state.treeFilterValue
+  filterWrap.appendChild(filterInput)
+  controls.appendChild(filterWrap)
 
   const actions = document.createElement('div')
-  actions.className = 'tree-toolbar__actions'
+  actions.className = 'drawer-shell-header__actions tree-toolbar__actions'
 
   const expandBtn = document.createElement('button')
-  expandBtn.className = 'btn'
+  expandBtn.className = 'btn btn--ghost'
   expandBtn.id = 'treeExpandAll'
   expandBtn.type = 'button'
   expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 18 })}<span>Expand All</span>`
+  expandBtn.dataset.amiHighlightIgnore = '1'
+  expandBtn.dataset.highlightIgnore = '1'
+  expandBtn.classList.add('ami-highlight-ignore')
   expandBtn.addEventListener('click', () => expandCollapseAll(true))
 
   const collapseBtn = document.createElement('button')
-  collapseBtn.className = 'btn'
+  collapseBtn.className = 'btn btn--ghost'
   collapseBtn.id = 'treeCollapseAll'
   collapseBtn.type = 'button'
   collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 18 })}<span>Collapse All</span>`
+  collapseBtn.dataset.amiHighlightIgnore = '1'
+  collapseBtn.dataset.highlightIgnore = '1'
+  collapseBtn.classList.add('ami-highlight-ignore')
   collapseBtn.addEventListener('click', () => expandCollapseAll(false))
 
   actions.appendChild(expandBtn)
   actions.appendChild(collapseBtn)
-  toolbar.appendChild(actions)
+  controls.appendChild(actions)
+
+  row.appendChild(controls)
+  toolbar.appendChild(row)
+
+  const subtitle = document.createElement('p')
+  subtitle.className = 'drawer-shell-header__subtitle tree-toolbar__subtitle'
+  subtitle.id = 'treeToolbarSubtitle'
+  subtitle.textContent = 'Explore and inspect structured documentation.'
+  toolbar.appendChild(subtitle)
 
   const shell = document.createElement('div')
   shell.className = 'tree-root-shell'
@@ -186,6 +224,10 @@ function ensureTreeContainer() {
   state.treeShell = shell
   state.treeOverlay = overlay
   state.treeOverlayLabel = label
+  state.treeFilterInput = filterInput
+  if (typeof state.registerTreeFilterInput === 'function') {
+    state.registerTreeFilterInput(filterInput)
+  }
   return container
 }
 
@@ -203,6 +245,9 @@ function debounceRefreshTree() {
       state.tree = newTree
       if (!root) return
       renderTree(state, root, newTree)
+      if (typeof state.applyTreeFilter === 'function') {
+        state.applyTreeFilter(state.treeFilterValue || '')
+      }
       updateTOC(state)
       window.scrollTo(0, scrollY)
       setTreeStatus('idle')
@@ -309,6 +354,24 @@ export async function startCms(fromSelect = false) {
       rootLabelEl.textContent = fallbackLabel ? '(' + fallbackLabel + ')' : ''
     }
   }
+  const treeSubtitleEl = document.getElementById('treeToolbarSubtitle')
+  if (treeSubtitleEl) {
+    let subtitleText = 'Explore and inspect structured documentation.'
+    if (activeRootKey === 'uploads') {
+      const label = (state.rootLabelOverride || 'Uploads').trim()
+      subtitleText = label ? `Uploads workspace sourced from ${label}` : 'Uploads workspace'
+    } else {
+      const override = (state.rootLabelOverride || '').trim()
+      const cfgLabel = cfg ? (cfg.docRootLabel || cfg.docRoot || '').trim() : ''
+      const absolutePath = (cfg ? cfg.docRootAbsolute : state.docRootAbsolute) || ''
+      const infoParts = []
+      const displayLabel = override || cfgLabel
+      if (displayLabel) infoParts.push(displayLabel)
+      if (absolutePath && absolutePath !== displayLabel) infoParts.push(absolutePath)
+      if (infoParts.length) subtitleText = `Docs sourced from ${infoParts.join(' · ')}`
+    }
+    treeSubtitleEl.textContent = subtitleText
+  }
   const root = ensureTreeContainer()
   if (!root) return
   const hasDetails = root.querySelector('details')
@@ -332,6 +395,9 @@ export async function startCms(fromSelect = false) {
     title.textContent = humanizeName(treeName, 'dir')
   }
   renderTree(state, root, tree)
+  if (typeof state.applyTreeFilter === 'function') {
+    state.applyTreeFilter(state.treeFilterValue || '')
+  }
   setTreeStatus('idle')
   updateTOC(state)
   restoreHashTarget()

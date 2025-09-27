@@ -53,9 +53,17 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  font-family: 'Montserrat', -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 /* Ensure positioning context for row actions regardless of glow toggle */
@@ -160,35 +168,9 @@ header .btn i[class*=' ri-'] {
   header, nav { display: none; }
 }
 
-.tree-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+.tree-toolbar.drawer-shell-header {
+  padding-right: 52px;
   margin: 0 0 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel);
-}
-.tree-toolbar__title {
-  font-weight: 600;
-  font-size: 14px;
-}
-.tree-toolbar__actions {
-  display: inline-flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.tree-toolbar .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.tree-toolbar .btn svg,
-.tree-toolbar .btn i[class^='ri-'],
-.tree-toolbar .btn i[class*=' ri-'] {
-  margin-right: 0;
 }
 
 .tree-root-shell {
@@ -576,6 +558,53 @@ details:focus-within > summary .row-actions {
 }
 .drawer-shell-header__actions .icon-button {
   min-width: 36px;
+}
+
+/* Document tree header overrides */
+.drawer-shell-header.tree-toolbar .drawer-shell-header__titles {
+  flex: 0 0 auto;
+}
+.drawer-shell-header.tree-toolbar .drawer-shell-header__controls.tree-toolbar__controls {
+  margin-left: 20px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+.drawer-shell-header.tree-toolbar .tree-toolbar__filter {
+  flex: 1 1 auto;
+  min-width: 200px;
+  display: flex;
+}
+.drawer-shell-header.tree-toolbar .tree-toolbar__filter .drawer-shell-header__search-input {
+  width: 100%;
+  max-width: none;
+}
+.drawer-shell-header.tree-toolbar .tree-toolbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn svg,
+.drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn i[class^='ri-'],
+.drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn i[class*=' ri-'] {
+  margin-right: 0;
+  width: 18px;
+  height: 18px;
+}
+.drawer-shell-header.tree-toolbar .tree-toolbar__subtitle {
+  color: var(--muted);
 }
 
 .drawer-icon-button {
