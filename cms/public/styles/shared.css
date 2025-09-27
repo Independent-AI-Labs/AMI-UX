@@ -171,6 +171,204 @@ header .btn i[class*=' ri-'] {
 .html-document iframe {
   max-width: 100%;
 }
+#toc {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 16px 32px;
+  font-size: 13px;
+}
+#toc h3 {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+#toc .structure-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#toc .structure-nav a {
+  display: block;
+  padding: 6px 8px 6px var(--struct-indent, 36px);
+  border-radius: 6px;
+  color: var(--muted);
+  transition: color var(--duration-medium) var(--easing-standard),
+    background var(--duration-medium) var(--easing-standard);
+}
+#toc .structure-nav a:hover {
+  background: color-mix(in oklab, var(--panel) 65%, transparent);
+  color: var(--text);
+}
+#toc .structure-nav a.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+#toc .structure-nav details summary {
+  position: relative;
+  padding: 6px 8px 6px var(--struct-indent, 36px);
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--muted);
+  border-radius: 6px;
+  transition: color var(--duration-medium) var(--easing-standard),
+    background var(--duration-medium) var(--easing-standard);
+  cursor: pointer;
+}
+#toc .structure-nav details summary:hover {
+  background: color-mix(in oklab, var(--panel) 65%, transparent);
+  color: var(--text);
+}
+#toc .structure-nav details summary.is-active {
+  color: var(--accent);
+}
+#toc .structure-nav details summary a {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#toc .structure-nav details summary .struct-toggle {
+  position: absolute;
+  left: var(--struct-toggle-offset, 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+#toc .structure-nav details summary .struct-toggle i {
+  font-size: 16px;
+  line-height: 1;
+}
+#toc .structure-nav details > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 0;
+}
+#toc .toc-headings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#toc .toc-headings a {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--muted);
+  transition: color var(--duration-medium) var(--easing-standard),
+    background var(--duration-medium) var(--easing-standard);
+}
+#toc .toc-headings a:hover {
+  background: color-mix(in oklab, var(--panel) 65%, transparent);
+  color: var(--text);
+}
+.toc-progress {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.toc-progress.is-active {
+  display: flex;
+}
+.toc-progress__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.toc-progress__icon i {
+  font-size: 16px;
+  line-height: 1;
+}
+.latex-document {
+  position: relative;
+  width: 100%;
+  --latex-page-height: 960px;
+  --latex-page-width: 816px;
+}
+.latex-document__viewport {
+  position: relative;
+  height: min(var(--latex-page-height), calc(100vh - 160px));
+  max-height: var(--latex-page-height);
+  overflow: auto;
+  padding: 32px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  box-shadow: 0 18px 36px color-mix(in oklab, var(--shadow) 24%, transparent);
+  transition: box-shadow 0.24s ease;
+}
+.latex-document__viewport:hover {
+  box-shadow: 0 20px 42px color-mix(in oklab, var(--shadow) 32%, transparent);
+}
+.latex-document__page {
+  position: relative;
+  margin: 0 auto;
+  width: min(100%, var(--latex-page-width));
+  min-height: calc(var(--latex-page-height) - 64px);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--border) 70%, transparent);
+  padding: 24px 36px 48px;
+  border-radius: 8px;
+}
+.latex-document__fallback {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px dashed color-mix(in oklab, var(--border) 70%, transparent);
+  background: color-mix(in oklab, var(--panel) 30%, transparent);
+  color: color-mix(in oklab, var(--text) 72%, transparent);
+  font-size: 13px;
+}
+.latex-document__page h1,
+.latex-document__page h2,
+.latex-document__page h3,
+.latex-document__page h4 {
+  scroll-margin-top: 64px;
+}
+.latex-document--empty {
+  padding: 32px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in oklab, var(--border) 70%, transparent);
+  color: color-mix(in oklab, var(--text) 65%, transparent);
+  text-align: center;
+  font-style: italic;
+}
+@media (max-width: 960px) {
+  .latex-document__viewport {
+    height: min(var(--latex-page-height), calc(100vh - 120px));
+    padding: 24px;
+  }
+  .latex-document__page {
+    padding: 24px;
+  }
+}
+@media (max-width: 640px) {
+  .latex-document__viewport {
+    padding: 18px;
+  }
+  .latex-document__page {
+    padding: 18px;
+  }
+}
 .btn--ghost:hover {
   background: color-mix(in oklab, var(--panel) 35%, transparent);
 }
@@ -235,6 +433,44 @@ header .btn i[class*=' ri-'] {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
+}
+
+.doc-viewer__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 20px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s var(--easing-standard);
+  z-index: 8;
+}
+
+.doc-viewer__overlay--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.doc-viewer__overlay-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.doc-viewer__overlay-spinner i {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.doc-viewer__overlay-label {
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .tree-root-shell--busy .tree-root__overlay {

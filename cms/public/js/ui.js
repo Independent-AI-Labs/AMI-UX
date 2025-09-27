@@ -1,6 +1,7 @@
 import { displayName, pathAnchor } from './utils.js'
 import { fetchFile } from './api.js'
 import { resolveFileView, getFallbackFileView } from './file-view-registry.js'
+import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 
 const DOM_NODE = typeof Node === 'function' ? Node : null
 
@@ -168,6 +169,11 @@ export async function preloadFileContent(state, node) {
 
 export async function loadFileNode(state, details, node, body) {
   if (!details || !body || !node) return
+  const label = node?.name ? `Loading ${displayName(node)}…` : 'Loading document…'
+  const releaseLoading =
+    typeof state?.beginDocumentLoading === 'function'
+      ? state.beginDocumentLoading(label)
+      : () => {}
   try {
     const entry = await ensureFileContent(state, node)
     if (!entry) return
@@ -188,6 +194,12 @@ export async function loadFileNode(state, details, node, body) {
     }
   } catch (e) {
     body.textContent = 'Failed to load file.'
+  } finally {
+    if (typeof releaseLoading === 'function') {
+      try {
+        releaseLoading()
+      } catch {}
+    }
   }
 }
 
@@ -260,26 +272,36 @@ function attachFileLoader(details, state, body) {
     const key = cacheKey(state, node.path)
     if (state.cache.has(key)) {
       const cached = state.cache.get(key)
+      let releaseLoading = null
       try {
-        body.innerHTML = ''
-        const anchor = document.createElement('a')
-        anchor.id = pathAnchor(node.path)
-        body.appendChild(anchor)
-        const cloned =
-          cached && cached.html && typeof cached.html.cloneNode === 'function'
-            ? cached.html.cloneNode(true)
-            : cached.html || document.createTextNode('')
-        body.appendChild(cloned)
-      } catch {
-        await loadFileNode(state, details, node, body)
-      }
-      state.activePath = node.path || ''
-      restoreHashTarget()
-      updateTOC(state)
-      if (state._structureWatcher) {
+        if (typeof state.beginDocumentLoading === 'function') {
+          releaseLoading = state.beginDocumentLoading(`Loading ${displayName(node)}…`)
+        }
         try {
-          state._structureWatcher.refresh(true)
-        } catch {}
+          body.innerHTML = ''
+          const anchor = document.createElement('a')
+          anchor.id = pathAnchor(node.path)
+          body.appendChild(anchor)
+          const cloned =
+            cached && cached.html && typeof cached.html.cloneNode === 'function'
+              ? cached.html.cloneNode(true)
+              : cached.html || document.createTextNode('')
+          body.appendChild(cloned)
+        } catch {
+          if (typeof releaseLoading === 'function') releaseLoading()
+          await loadFileNode(state, details, node, body)
+          return
+        }
+        state.activePath = node.path || ''
+        restoreHashTarget()
+        updateTOC(state)
+        if (state._structureWatcher) {
+          try {
+            state._structureWatcher.refresh(true)
+          } catch {}
+        }
+      } finally {
+        if (typeof releaseLoading === 'function') releaseLoading()
       }
       return
     }
@@ -297,10 +319,6 @@ function createSummary(node, depth, indexPath) {
   summary.dataset.type = node.type
   summary.dataset.path = node.path || ''
   summary.dataset.depth = String(depth)
-
-  const indent = document.createElement('span')
-  indent.className = 'indent'
-  summary.appendChild(indent)
 
   const numbering = document.createElement('span')
   numbering.className = 'tree-numbering'
@@ -327,6 +345,9 @@ function updateSummary(summary, node, depth, indexPath) {
   summary.dataset.type = node.type
   summary.dataset.path = node.path || ''
   summary.dataset.depth = String(depth)
+
+  const existingIndent = summary.querySelector('.indent')
+  if (existingIndent) existingIndent.remove()
 
   const numbering = summary.querySelector('.tree-numbering')
   if (numbering) numbering.textContent = formatIndex(indexPath)
@@ -438,6 +459,18 @@ function syncChildren(state, parentEl, children, depth = 0, indexPath = []) {
   ordered.forEach((child, idx) => {
     if (!child) return
     const childIndexPath = indexPath.concat(idx + 1)
+    try {
+      Object.defineProperty(child, '__indexPath', {
+        value: childIndexPath,
+        enumerable: false,
+        configurable: true,
+        writable: true,
+      })
+    } catch {
+      try {
+        child.__indexPath = childIndexPath
+      } catch {}
+    }
     const key = makeNodeKey(child, depth, idx)
     let details = lookup.get(key)
     if (details) {
@@ -475,8 +508,28 @@ export function renderTree(state, container, tree) {
   syncChildren(state, container, children, 0, [])
 }
 
-export function updateTOC(state) {
+function ensureTocProgress(state) {
+  if (!state) return null
+  if (state._tocProgress && state._tocProgress.ownerDocument === document) return state._tocProgress
+  const progress = document.createElement('div')
+  progress.className = 'toc-progress'
+  progress.setAttribute('aria-hidden', 'true')
+  const iconWrap = document.createElement('span')
+  iconWrap.className = 'toc-progress__icon'
+  iconWrap.innerHTML = iconMarkup('loader-4-line', { spin: true, label: 'Updating table of contents' })
+  const label = document.createElement('span')
+  label.className = 'toc-progress__label'
+  label.textContent = 'Updating…'
+  progress.appendChild(iconWrap)
+  progress.appendChild(label)
+  state._tocProgress = progress
+  return progress
+}
+
+function rebuildTOC(state, progress) {
   const toc = document.getElementById('toc')
+  if (!toc) return
+
   toc.innerHTML = ''
 
   const structHdr = document.createElement('h3')
@@ -485,23 +538,33 @@ export function updateTOC(state) {
 
   const struct = document.createElement('div')
   struct.className = 'structure-nav'
-  function addStruct(node, indexPath = []) {
+
+  const structIndexPath = (node, fallback = []) => {
+    if (node && Array.isArray(node.__indexPath)) return node.__indexPath
+    return fallback
+  }
+
+  const renderStructToggle = (el, open = false) => {
+    if (!el) return
+    el.innerHTML = iconMarkup(open ? 'subtract-line' : 'add-line', { size: 16 })
+  }
+
+  const addStruct = (node, providedIndexPath = []) => {
     if (node.type === 'dir') {
       const det = document.createElement('details')
+      const indexPath = structIndexPath(node, providedIndexPath)
       det.open = indexPath.length <= 1
       det.dataset.path = node.path || ''
       const sum = document.createElement('summary')
       const depth = Math.max(indexPath.length - 1, 0)
-      const indentBase = 36
-      const indentStep = 16
-      const indent = indentBase + depth * indentStep
+      const baseIndent = 32
+      const indent = baseIndent + depth * 18
       sum.style.setProperty('--struct-indent', `${indent}px`)
       const num = indexPath.length ? indexPath.join('.') + '. ' : ''
       const label = displayName(node)
       const toggle = document.createElement('span')
       toggle.className = 'struct-toggle'
-      const toggleOffset = Math.max(12, indent - 24)
-      toggle.style.setProperty('--struct-toggle-offset', `${toggleOffset}px`)
+      toggle.style.setProperty('--struct-toggle-offset', `${Math.max(indent - 20, 12)}px`)
       toggle.setAttribute('aria-hidden', 'true')
       sum.appendChild(toggle)
       const a = document.createElement('a')
@@ -509,40 +572,42 @@ export function updateTOC(state) {
       a.href = '#' + ('dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root'))
       a.dataset.path = node.path || ''
       a.dataset.type = 'dir'
+      a.style.setProperty('--struct-indent', `${indent + 8}px`)
       sum.appendChild(a)
       det.appendChild(sum)
-      const container = document.createElement('div')
-      const kids = (node.children || []).slice()
-      // Mirror placement in TOC for root only
-      if (indexPath.length === 1) {
-        const i = kids.findIndex((ch) => ch.type === 'file' && isIntroFile(ch.name))
-        if (i >= 0) {
-          const rm = kids.splice(i, 1)[0]
-          kids.splice(0, 0, rm)
-        }
+      const setToggleState = () => {
+        renderStructToggle(toggle, det.hasAttribute('open'))
       }
+      det.__structToggle = toggle
+      det.__structToggleUpdate = setToggleState
+      setToggleState()
+      det.addEventListener('toggle', setToggleState)
+      const container = document.createElement('div')
+      const kids = Array.isArray(node.children) ? node.children : []
       let idx = 1
       kids.forEach((ch) => {
-        container.appendChild(addStruct(ch, indexPath.concat(idx++)))
+        const childIndexPath = structIndexPath(ch, indexPath.concat(idx))
+        container.appendChild(addStruct(ch, childIndexPath))
+        idx += 1
       })
       det.appendChild(container)
       return det
-    } else {
-      const a = document.createElement('a')
-      const num = indexPath.join('.') + '. '
-      a.textContent = num + displayName(node)
-      a.href = '#' + pathAnchor(node.path)
-      a.style.display = 'block'
-      const depth = Math.max(indexPath.length - 1, 0)
-      const indentBase = 36
-      const indentStep = 16
-      const indent = indentBase + depth * indentStep
-      a.style.setProperty('--struct-indent', `${indent}px`)
-      a.dataset.path = node.path || ''
-      a.dataset.type = 'file'
-      return a
     }
+    const a = document.createElement('a')
+    const indexPath = structIndexPath(node, providedIndexPath)
+    const num = indexPath.length ? indexPath.join('.') + '. ' : ''
+    a.textContent = num + displayName(node)
+    a.href = '#' + pathAnchor(node.path)
+    a.style.display = 'block'
+    const depth = Math.max(indexPath.length - 1, 0)
+    const baseIndent = 32
+    const indent = baseIndent + depth * 18
+    a.style.setProperty('--struct-indent', `${indent}px`)
+    a.dataset.path = node.path || ''
+    a.dataset.type = 'file'
+    return a
   }
+
   if (state.tree?.children) {
     let idx = 1
     state.tree.children.forEach((ch) => struct.appendChild(addStruct(ch, [idx++])))
@@ -552,6 +617,7 @@ export function updateTOC(state) {
   const headHdr = document.createElement('h3')
   headHdr.textContent = 'Table of Contents'
   toc.appendChild(headHdr)
+
   const hnav = document.createElement('div')
   hnav.className = 'toc-headings'
   const headingScope = document.getElementById('treeRoot') || document.getElementById('content')
@@ -562,6 +628,7 @@ export function updateTOC(state) {
         ),
       )
     : []
+
   headingNodes
     .filter((node) => {
       const details = node.closest('details.file')
@@ -573,7 +640,6 @@ export function updateTOC(state) {
       return true
     })
     .forEach((h) => {
-      const level = parseInt(h.tagName.slice(1), 10)
       const id = h.id
       if (!id) return
       const text = (h.textContent || '').replace('¶', '').trim()
@@ -581,8 +647,7 @@ export function updateTOC(state) {
       const a = document.createElement('a')
       a.href = '#' + id
       a.textContent = text
-      const headingIndent = 16 + Math.max(level - 1, 0) * 16
-      a.style.paddingLeft = headingIndent + 'px'
+      a.style.paddingLeft = '0px'
       hnav.appendChild(a)
     })
 
@@ -595,14 +660,57 @@ export function updateTOC(state) {
       const a = document.createElement('a')
       a.href = '#' + item.id
       a.textContent = item.text
-      const headingIndent = 16 + Math.max((item.level || 1) - 1, 0) * 16
-      a.style.paddingLeft = headingIndent + 'px'
+      a.style.paddingLeft = '0px'
       hnav.appendChild(a)
     })
   }
+
+  if (progress) hnav.appendChild(progress)
   toc.appendChild(hnav)
 
   if (state && state._structureWatcher) state._structureWatcher.refresh(true)
+}
+
+export function updateTOC(state) {
+  if (!state) return
+  const toc = document.getElementById('toc')
+  if (!toc) return
+
+  const progress = ensureTocProgress(state)
+  if (progress) {
+    progress.classList.add('is-active')
+    progress.setAttribute('aria-hidden', 'false')
+    if (!progress.parentElement) toc.appendChild(progress)
+  }
+
+  if (state._tocUpdateScheduled) return
+  state._tocUpdateScheduled = true
+
+  const run = () => {
+    state._tocUpdateScheduled = false
+    rebuildTOC(state, progress)
+    if (progress) {
+      progress.classList.remove('is-active')
+      progress.setAttribute('aria-hidden', 'true')
+    }
+  }
+
+  const execute = () => {
+    if (typeof Promise !== 'undefined') Promise.resolve().then(run)
+    else run()
+  }
+
+  if (typeof window !== 'undefined') {
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => execute(), { timeout: 160 })
+      return
+    }
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => execute())
+      return
+    }
+  }
+  setTimeout(() => execute(), 0)
 }
 
 export function expandCollapseAll(expand = true) {
@@ -612,12 +720,14 @@ export function expandCollapseAll(expand = true) {
       const isOpen = d.hasAttribute('open')
       if (expand && !isOpen) d.setAttribute('open', '')
       if (!expand && isOpen) d.removeAttribute('open')
+      if (typeof d.__structToggleUpdate === 'function') d.__structToggleUpdate()
     })
   }
   document.querySelectorAll('#toc details').forEach((d) => {
     const isOpen = d.hasAttribute('open')
     if (expand && !isOpen) d.setAttribute('open', '')
     if (!expand && isOpen) d.removeAttribute('open')
+    if (typeof d.__structToggleUpdate === 'function') d.__structToggleUpdate()
   })
 }
 
@@ -753,14 +863,51 @@ function createStructureWatcher(state) {
   let watcher = null
   let viewportEl = null
 
+  let updateQueued = false
+  let queuedForce = false
+
+  const scheduleWatcherUpdate = (force = false) => {
+    queuedForce = queuedForce || force
+    if (updateQueued) return
+    updateQueued = true
+    const runUpdate = () => {
+      updateQueued = false
+      const shouldForce = queuedForce
+      queuedForce = false
+      if (watcher) watcher.updateActive(shouldForce)
+      if (
+        watcher &&
+        defaultView &&
+        defaultView.location &&
+        defaultView.location.hash &&
+        Date.now() > watcher.ignoreHashClearUntil
+      ) {
+        try {
+          defaultView.history.replaceState(
+            null,
+            '',
+            defaultView.location.pathname + defaultView.location.search,
+          )
+        } catch {}
+      }
+    }
+
+    const schedule = (() => {
+      if (defaultView && typeof defaultView.requestIdleCallback === 'function') {
+        return (cb) => defaultView.requestIdleCallback(() => cb(), { timeout: 160 })
+      }
+      if (defaultView && typeof defaultView.requestAnimationFrame === 'function') {
+        return (cb) => defaultView.requestAnimationFrame(() => cb())
+      }
+      return (cb) => setTimeout(cb, 0)
+    })()
+
+    schedule(runUpdate)
+  }
+
   const handleScroll = () => {
     if (!watcher) return
-    watcher.updateActive()
-    if (location.hash && Date.now() > watcher.ignoreHashClearUntil) {
-      try {
-        history.replaceState(null, '', location.pathname + location.search)
-      } catch {}
-    }
+    scheduleWatcherUpdate(false)
   }
 
   const swapViewport = (next) => {
@@ -852,6 +999,9 @@ function createStructureWatcher(state) {
     links: [],
     lastActive: new Set(),
     ignoreHashClearUntil: 0,
+    scheduleUpdate(force = false) {
+      scheduleWatcherUpdate(force)
+    },
     ensureTargets(force = false) {
       const latestContainer = resolveContainer()
       if (latestContainer && latestContainer !== this.container) {
@@ -866,7 +1016,7 @@ function createStructureWatcher(state) {
       this.ensureTargets(true)
       this.links = Array.from(this.tocRoot.querySelectorAll('a[data-path]'))
       if (force) this.lastActive = new Set()
-      this.updateActive(true)
+      this.scheduleUpdate(true)
     },
     updateActive(force = false) {
       this.ensureTargets()
@@ -964,17 +1114,17 @@ function createStructureWatcher(state) {
           } catch {}
         }
         scrollToAnchorWhenReady(anchorId, { baseDelay: 60 })
-        setTimeout(() => watcher.updateActive(true), 220)
+        setTimeout(() => watcher && watcher.scheduleUpdate(true), 220)
       } else if (details && type === 'file') {
         scrollToAnchorWhenReady(pathAnchor(path), { baseDelay: 80 })
-        setTimeout(() => watcher.updateActive(true), 220)
+        setTimeout(() => watcher && watcher.scheduleUpdate(true), 220)
       }
       return
     }
     watcher.ignoreHashClearUntil = Date.now() + 1200
   })
-  tocRoot.addEventListener('toggle', () => watcher.updateActive(true), true)
-  window.addEventListener('resize', () => watcher.updateActive(true))
+  tocRoot.addEventListener('toggle', () => watcher.scheduleUpdate(true), true)
+  window.addEventListener('resize', () => watcher.scheduleUpdate(true))
 
   watcher.refresh(true)
 

@@ -43,6 +43,9 @@ const state = {
   cacheContext: 'docRoot',
   isLoading: false,
   eventsAttached: false,
+  docOverlay: null,
+  docOverlayLabel: null,
+  documentLoadTokens: new Set(),
 }
 
 // Theme
@@ -122,6 +125,65 @@ function setTreeStatus(kind, message, options = {}) {
     if (skeleton) viewport.appendChild(createTreeSkeleton())
   }
 }
+
+function ensureDocOverlay() {
+  const shell = getTreeShell()
+  if (!shell) return null
+  if (!state.docOverlay || !shell.contains(state.docOverlay)) {
+    let overlay = shell.querySelector('.doc-viewer__overlay')
+    if (!overlay) {
+      overlay = document.createElement('div')
+      overlay.className = 'doc-viewer__overlay'
+      overlay.setAttribute('aria-hidden', 'true')
+      overlay.setAttribute('aria-live', 'polite')
+      const spinner = document.createElement('span')
+      spinner.className = 'doc-viewer__overlay-spinner'
+      spinner.innerHTML = iconMarkup('loader-4-line', {
+        spin: true,
+        label: 'Loading document',
+      })
+      const label = document.createElement('span')
+      label.className = 'doc-viewer__overlay-label'
+      label.textContent = 'Loading…'
+      overlay.appendChild(spinner)
+      overlay.appendChild(label)
+      shell.appendChild(overlay)
+      state.docOverlayLabel = label
+    } else {
+      state.docOverlayLabel = overlay.querySelector('.doc-viewer__overlay-label')
+    }
+    state.docOverlay = overlay
+  } else if (!state.docOverlayLabel) {
+    state.docOverlayLabel = state.docOverlay.querySelector('.doc-viewer__overlay-label')
+  }
+  return state.docOverlay
+}
+
+function endDocumentLoading(token) {
+  if (!state.documentLoadTokens) state.documentLoadTokens = new Set()
+  if (token && state.documentLoadTokens.has(token)) state.documentLoadTokens.delete(token)
+  if (state.documentLoadTokens.size === 0 && state.docOverlay) {
+    state.docOverlay.classList.remove('doc-viewer__overlay--active')
+    state.docOverlay.setAttribute('aria-hidden', 'true')
+  }
+}
+
+function beginDocumentLoading(message = 'Loading document…') {
+  const overlay = ensureDocOverlay()
+  if (!overlay) return () => {}
+  if (!state.documentLoadTokens) state.documentLoadTokens = new Set()
+  if (state.docOverlayLabel && typeof message === 'string') {
+    state.docOverlayLabel.textContent = message
+  }
+  overlay.classList.add('doc-viewer__overlay--active')
+  overlay.setAttribute('aria-hidden', 'false')
+  const token = Symbol('doc-load')
+  state.documentLoadTokens.add(token)
+  return () => endDocumentLoading(token)
+}
+
+state.beginDocumentLoading = beginDocumentLoading
+state.endDocumentLoading = endDocumentLoading
 
 function ensureTreeContainer() {
   if (state.treeContainer && document.body.contains(state.treeContainer)) return state.treeContainer
@@ -230,6 +292,7 @@ function ensureTreeContainer() {
   state.treeOverlay = overlay
   state.treeOverlayLabel = label
   state.treeFilterInput = filterInput
+  ensureDocOverlay()
   if (typeof state.registerTreeFilterInput === 'function') {
     state.registerTreeFilterInput(filterInput)
   }
