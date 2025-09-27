@@ -2,7 +2,6 @@ import { displayName, pathAnchor } from './utils.js'
 import { fetchFile } from './api.js'
 import { renderMarkdown, renderCSV } from './renderers.js'
 import { CodeView, guessLanguageFromFilename } from './code-view.js'
-import { ensureDocHighlightContext, refreshDocHighlight } from './highlight/doc-context.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 
 function isIntroFile(name) {
@@ -89,7 +88,6 @@ export async function loadFileNode(state, details, node, body) {
     anchor.id = pathAnchor(node.path)
     body.appendChild(anchor)
     body.appendChild(contentEl)
-    refreshDocHighlight(state)
   } catch (e) {
     body.textContent = 'Failed to load file.'
   }
@@ -449,6 +447,9 @@ export function updateTOC(state) {
       det.open = indexPath.length <= 1
       det.dataset.path = node.path || ''
       const sum = document.createElement('summary')
+      const depth = Math.max(indexPath.length - 1, 0)
+      const indent = 20 + depth * 16
+      sum.style.paddingLeft = indent + 'px'
       const num = indexPath.length ? indexPath.join('.') + '. ' : ''
       const label = displayName(node)
       const toggle = document.createElement('span')
@@ -484,7 +485,9 @@ export function updateTOC(state) {
       a.textContent = num + displayName(node)
       a.href = '#' + pathAnchor(node.path)
       a.style.display = 'block'
-      a.style.paddingLeft = indexPath.length * 12 + 'px'
+      const depth = Math.max(indexPath.length - 1, 0)
+      const indent = 20 + depth * 16
+      a.style.paddingLeft = indent + 'px'
       a.dataset.path = node.path || ''
       a.dataset.type = 'file'
       return a
@@ -500,6 +503,7 @@ export function updateTOC(state) {
   headHdr.textContent = 'Table of Contents'
   toc.appendChild(headHdr)
   const hnav = document.createElement('div')
+  hnav.className = 'toc-headings'
   document.querySelectorAll('.md h1, .md h2, .md h3, .md h4').forEach((h) => {
     const level = parseInt(h.tagName.slice(1), 10)
     const id = h.id
@@ -507,7 +511,8 @@ export function updateTOC(state) {
     const a = document.createElement('a')
     a.href = '#' + id
     a.textContent = text
-    a.style.paddingLeft = (level - 1) * 12 + 'px'
+    const headingIndent = 16 + Math.max(level - 1, 0) * 16
+    a.style.paddingLeft = headingIndent + 'px'
     hnav.appendChild(a)
   })
   toc.appendChild(hnav)
@@ -611,9 +616,6 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
     if (scope) scope.querySelectorAll('details').forEach((d) => d.removeAttribute('open'))
     prevOpen.forEach((d) => d.setAttribute('open', ''))
   })
-
-  ensureDocHighlightContext(state)
-  refreshDocHighlight(state)
 
   if (!state._structureWatcher) state._structureWatcher = createStructureWatcher(state)
   else state._structureWatcher.refresh(true)

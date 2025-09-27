@@ -6,8 +6,8 @@ import path from 'node:path'
 async function main() {
   const here = path.dirname(fileURLToPath(import.meta.url))
   const cmsRoot = path.resolve(here, '..')
-  const srcHighlight = path.join(cmsRoot, 'public/js/highlight')
-  const destHighlight = path.join(cmsRoot, 'extension/highlight-plugin/highlight')
+  const srcHighlight = path.join(cmsRoot, 'public/js/highlight-plugin')
+  const destHighlight = path.join(cmsRoot, 'extension/highlight-plugin/pkg')
   const sharedFiles = ['dialog-controller.js', 'dialog-service.js', 'message-channel.js']
 
   await mkdir(destHighlight, { recursive: true })
@@ -26,4 +26,3 @@ main().catch((err) => {
   console.error('[sync-highlight-extension] failed:', err)
   process.exitCode = 1
 })
-

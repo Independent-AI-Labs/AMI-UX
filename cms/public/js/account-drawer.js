@@ -5,6 +5,7 @@ import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 
 const ACCOUNT_API_BASE = '/api/account-manager/accounts'
 const MESSAGE_TIMEOUT = 4200
+const OVERLAY_CLOSE_DELAY = 260
 
 const PROVIDERS = [
   {
@@ -74,31 +75,8 @@ const ACTION_ICONS = {
 }
 
 function createSlidingDrawerPortal(React) {
-  const { useState, useEffect, useCallback, useRef } = React
+  const { useEffect, useCallback, useRef } = React
   const e = React.createElement
-
-  let openCounter = 0
-
-  const addBodyState = () => {
-    const body = document.body
-    if (!body) return
-    openCounter += 1
-    body.classList.add('has-open-dialog')
-    body.setAttribute('data-dialog-open', '1')
-  }
-
-  const removeBodyState = () => {
-    const body = document.body
-    if (!body) return
-    openCounter = Math.max(0, openCounter - 1)
-    if (openCounter === 0 && body.classList.contains('has-open-dialog')) {
-      body.classList.remove('has-open-dialog')
-      const stillOpen = document.querySelector(
-        '.dialog-backdrop[data-state="open"], .dialog-backdrop[data-state="enter"][aria-hidden="false"]',
-      )
-      if (!stillOpen) body.removeAttribute('data-dialog-open')
-    }
-  }
 
   return function SlidingDrawerPortal({
     renderContent,
@@ -106,41 +84,28 @@ function createSlidingDrawerPortal(React) {
     registerClose,
     initialFocusSelector,
   }) {
-    const [stage, setStage] = useState('closed')
-    const closeTimerRef = useRef(null)
-    const openFrameRef = useRef({ enter: null, open: null })
+    const overlayRef = useRef(null)
     const surfaceRef = useRef(null)
+    const dialogHandleRef = useRef(null)
+    const closeCallbackRef = useRef(onCloseComplete)
+    const idRef = useRef(null)
 
-    const finishClose = useCallback(() => {
-      setStage('closed')
-      onCloseComplete?.()
+    if (!idRef.current) {
+      idRef.current = `account-drawer-${Math.random().toString(36).slice(2)}`
+    }
+
+    useEffect(() => {
+      closeCallbackRef.current = onCloseComplete
     }, [onCloseComplete])
 
-    const requestClose = useCallback(
-      (immediate = false) => {
-        if (immediate) {
-          if (closeTimerRef.current) {
-            clearTimeout(closeTimerRef.current)
-            closeTimerRef.current = null
-          }
-          finishClose()
-          return
-        }
-        setStage((prev) => {
-          if (prev === 'closing' || prev === 'closed') return prev
-          if (prev === 'enter') {
-            if (closeTimerRef.current) {
-              clearTimeout(closeTimerRef.current)
-              closeTimerRef.current = null
-            }
-            finishClose()
-            return 'closed'
-          }
-          return 'closing'
-        })
-      },
-      [finishClose],
-    )
+    const requestClose = useCallback((immediate = false) => {
+      const handle = dialogHandleRef.current
+      if (handle) {
+        handle.close(immediate)
+      } else {
+        closeCallbackRef.current?.()
+      }
+    }, [])
 
     useEffect(() => {
       if (typeof registerClose === 'function') registerClose(requestClose)
@@ -150,89 +115,37 @@ function createSlidingDrawerPortal(React) {
     }, [registerClose, requestClose])
 
     useEffect(() => {
-      addBodyState()
-      const frameIds = openFrameRef.current
-      frameIds.enter = window.requestAnimationFrame(() => {
-        setStage('enter')
-        frameIds.open = window.requestAnimationFrame(() => {
-          setStage('open')
-        })
+      const overlayEl = overlayRef.current
+      const surfaceEl = surfaceRef.current
+      if (!overlayEl || !surfaceEl) return undefined
+
+      const dialogId = idRef.current
+      const handle = dialogService.register(dialogId, {
+        overlay: overlayEl,
+        surface: surfaceEl,
+        allowBackdropClose: true,
+        closeDelay: OVERLAY_CLOSE_DELAY,
+        initialFocus: () => {
+          if (!surfaceEl) return null
+          if (typeof initialFocusSelector === 'string') {
+            const candidate = surfaceEl.querySelector(initialFocusSelector)
+            if (candidate) return candidate
+          }
+          return surfaceEl.querySelector('[data-drawer-autofocus]') || surfaceEl
+        },
+        onClose: () => {
+          closeCallbackRef.current?.()
+        },
       })
+
+      dialogHandleRef.current = handle
+      handle.open()
+
       return () => {
-        if (frameIds.enter != null) window.cancelAnimationFrame(frameIds.enter)
-        if (frameIds.open != null) window.cancelAnimationFrame(frameIds.open)
-        frameIds.enter = null
-        frameIds.open = null
-        if (closeTimerRef.current) {
-          clearTimeout(closeTimerRef.current)
-          closeTimerRef.current = null
-        }
-        removeBodyState()
+        dialogHandleRef.current = null
+        dialogService.unregister(dialogId)
       }
-    }, [])
-
-    useEffect(() => {
-      if (stage !== 'closing') return undefined
-      closeTimerRef.current = window.setTimeout(() => {
-        closeTimerRef.current = null
-        finishClose()
-      }, 260)
-      return () => {
-        if (closeTimerRef.current) {
-          clearTimeout(closeTimerRef.current)
-          closeTimerRef.current = null
-        }
-      }
-    }, [stage, finishClose])
-
-    useEffect(() => {
-      const handler = (event) => {
-        const key = event.key || event.code || ''
-        if (key === 'Escape' || key === 'Esc') {
-          event.preventDefault()
-          requestClose()
-        }
-      }
-      window.addEventListener('keydown', handler)
-      return () => window.removeEventListener('keydown', handler)
-    }, [requestClose])
-
-    useEffect(() => {
-      if (stage !== 'open') return
-      const surface = surfaceRef.current
-      if (!surface) return
-      const selector = typeof initialFocusSelector === 'string' ? initialFocusSelector : null
-      const focusTarget =
-        (selector && surface.querySelector(selector)) ||
-        surface.querySelector('[data-drawer-autofocus]') ||
-        surface
-      try {
-        focusTarget.focus({ preventScroll: true })
-      } catch {
-        try {
-          focusTarget.focus()
-        } catch {}
-      }
-    }, [stage, initialFocusSelector])
-
-    const overlayProps = {
-      className: 'dialog-backdrop dialog-backdrop--right account-drawer-backdrop',
-      'data-state': stage,
-      'aria-hidden': stage === 'closed' ? 'true' : 'false',
-      onMouseDown: (event) => {
-        if (event.target === event.currentTarget) requestClose()
-      },
-    }
-
-    const surfaceProps = {
-      className: 'drawer-surface content-drawer-surface account-drawer-surface',
-      'data-state': stage,
-      role: 'dialog',
-      'aria-modal': 'true',
-      ref: surfaceRef,
-      tabIndex: -1,
-      onMouseDown: (event) => event.stopPropagation(),
-    }
+    }, [initialFocusSelector])
 
     return e(
       'div',
@@ -242,17 +155,23 @@ function createSlidingDrawerPortal(React) {
           position: 'fixed',
           inset: 0,
           zIndex: 1600,
-          pointerEvents: stage === 'closed' ? 'none' : 'auto',
         },
-        'data-stage': stage,
+        'data-dialog-id': idRef.current,
       },
       e(
         'div',
-        overlayProps,
+        {
+          className: 'dialog-backdrop dialog-backdrop--right account-drawer-backdrop',
+          ref: overlayRef,
+        },
         e(
           'div',
-          surfaceProps,
-          renderContent({ requestClose, stage }),
+          {
+            className: 'drawer-surface account-drawer-surface',
+            ref: surfaceRef,
+            onMouseDown: (event) => event.stopPropagation(),
+          },
+          renderContent({ requestClose }),
         ),
       ),
     )
@@ -884,7 +803,6 @@ function createAccountDrawerComponent(React) {
         badges,
         subtitles,
         actions,
-        selected: isActive,
         onDoubleClick:
           !isActive && busyId !== account.id
             ? () => {
@@ -1170,6 +1088,7 @@ async function ensureAddDialog() {
       surface: addDialogSurface,
       allowBackdropClose: true,
       closeOnEscape: true,
+      closeDelay: OVERLAY_CLOSE_DELAY,
       onClose: () => {
         if (addDialogRoot) addDialogRoot.render(null)
       },

@@ -17,6 +17,16 @@ window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
 })
 
+// Prevent the highlight plugin from auto-starting in the shell document itself.
+;(() => {
+  try {
+    const existing = window.__AMI_HIGHLIGHT_CONFIG__
+    const cfg = existing && typeof existing === 'object' ? { ...existing } : {}
+    cfg.autoStart = false
+    window.__AMI_HIGHLIGHT_CONFIG__ = cfg
+  } catch {}
+})()
+
 // Visualizer C: iframe to doc.html embed
 const VisualizerC = {
   id: 'C',
@@ -35,6 +45,307 @@ registerVisualizer(VisualizerC)
 registerVisualizer(VisualizerA)
 registerVisualizer(VisualizerB)
 registerVisualizer(VisualizerD)
+
+const HIGHLIGHT_PLUGIN_SRC = '/js/highlight-plugin/bootstrap.js?v=20250310'
+const HIGHLIGHT_BOOTSTRAP_ID = 'amiHighlightBootstrapScript'
+const HIGHLIGHT_MAX_ATTEMPTS = 5
+const HIGHLIGHT_RETRY_BASE = 140
+
+function logHighlightShell(event, payload = {}) {
+  try {
+    if (typeof console !== 'undefined' && typeof console.log === 'function') {
+      console.log('[highlight-shell]', event, payload)
+    } else if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+      console.debug('[highlight-shell]', event, payload)
+    }
+  } catch {}
+}
+
+function isAboutBlankWindow(win) {
+  if (!win) return true
+  try {
+    const href = win.location && typeof win.location.href === 'string' ? win.location.href : ''
+    if (!href) return true
+    return href === 'about:blank'
+  } catch {
+    return true
+  }
+}
+
+function resetHighlightState(frame, state) {
+  if (!frame) return
+  const current = state || getHighlightBootstrapState(frame)
+  if (!current) return
+  current.ready = false
+  current.attempts = 0
+  current.warned = false
+  current.polls = 0
+  if (current.retryHandle) {
+    clearTimeout(current.retryHandle)
+    current.retryHandle = null
+  }
+}
+
+function collectSameOriginFrames(win) {
+  if (!win) return []
+  let doc
+  try {
+    doc = win.document || null
+  } catch {
+    return []
+  }
+  if (!doc) return []
+  let frames = []
+  try {
+    frames = Array.from(doc.querySelectorAll('iframe'))
+  } catch {
+    frames = []
+  }
+  return frames.filter((iframe) => {
+    if (!iframe) return false
+    try {
+      return !!iframe.contentWindow && !!iframe.contentWindow.document
+    } catch {
+      return false
+    }
+  })
+}
+
+function ensureHighlightPluginInWindowFrames(win) {
+  const frames = collectSameOriginFrames(win)
+  if (!frames.length) return
+  frames.forEach((iframe) => {
+    try {
+      ensureHighlightPluginInFrame(iframe)
+    } catch {}
+  })
+}
+
+function ensureHighlightPluginConfig(win) {
+  if (!win) return
+  const existing = win.__AMI_HIGHLIGHT_CONFIG__
+  const cfg = existing && typeof existing === 'object' ? existing : {}
+
+  if (!Array.isArray(cfg.overlayFollow) || cfg.overlayFollow.length === 0) {
+    cfg.overlayFollow = ['block', 'inline', 'heading']
+  }
+  cfg.createFallbackToggle = true
+  cfg.renderImmediately = true
+  cfg.scopeSelector = typeof cfg.scopeSelector === 'string' && cfg.scopeSelector.trim()
+    ? cfg.scopeSelector
+    : 'body'
+  if (cfg.autoStart === undefined) cfg.autoStart = true
+  cfg.debug = true
+  logHighlightShell('config', {
+    overlayFollow: cfg.overlayFollow,
+    scopeSelector: cfg.scopeSelector,
+  })
+
+  try {
+    win.__AMI_HIGHLIGHT_CONFIG__ = cfg
+  } catch {}
+  return cfg
+}
+
+function getHighlightBootstrapState(frame, win) {
+  if (!frame) return null
+  const state =
+    frame.__amiHighlightBootstrap ||
+    (frame.__amiHighlightBootstrap = {
+      attempts: 0,
+      ready: false,
+      window: null,
+      retryHandle: null,
+      warned: false,
+      polls: 0,
+    })
+  if (win && state.window !== win) {
+    state.window = win
+    state.attempts = 0
+    state.ready = false
+    state.warned = false
+    state.polls = 0
+    if (state.retryHandle) {
+      clearTimeout(state.retryHandle)
+      state.retryHandle = null
+    }
+  }
+  return state
+}
+
+function scheduleHighlightRetry(frame, delay = HIGHLIGHT_RETRY_BASE) {
+  if (!frame) return
+  const state = getHighlightBootstrapState(frame)
+  if (!state || state.ready) return
+  if (state.retryHandle) clearTimeout(state.retryHandle)
+  logHighlightShell('retry-scheduled', { delay })
+  state.retryHandle = setTimeout(() => {
+    state.retryHandle = null
+    ensureHighlightPluginInFrame(frame)
+  }, Math.max(delay, 60))
+}
+
+function ensureHighlightPluginInFrame(frame) {
+  try {
+    if (!frame) return false
+    const win = frame.contentWindow
+    const doc = win?.document
+    if (!win || !doc) return false
+    const state = getHighlightBootstrapState(frame, win)
+    if (!state) return false
+    logHighlightShell('ensure', {
+      attempts: state.attempts,
+      polls: state.polls,
+      ready: state.ready,
+    })
+    if (isAboutBlankWindow(win)) {
+      logHighlightShell('ensure-about-blank')
+      scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * Math.max(state.attempts || 1, 1))
+      return false
+    }
+    ensureHighlightPluginConfig(win)
+    ensureHighlightPluginInWindowFrames(win)
+    if (doc.readyState === 'loading' || !doc.body) {
+      logHighlightShell('ensure-wait-dom', { readyState: doc.readyState })
+      doc.addEventListener(
+        'DOMContentLoaded',
+        () => {
+          ensureHighlightPluginInFrame(frame)
+        },
+        { once: true },
+      )
+      scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * Math.max(state.attempts || 1, 1))
+      return false
+    }
+    const existingApi = (() => {
+      try {
+        return win.__AMI_HIGHLIGHT_PLUGIN__
+      } catch {
+        return null
+      }
+    })()
+    if (existingApi && existingApi.manager && existingApi.manager.document && existingApi.manager.document !== doc) {
+      try {
+        existingApi.destroy?.()
+      } catch (err) {
+        console.warn('Highlight plugin teardown before rebootstrap failed', err)
+      }
+      resetHighlightState(frame, state)
+    }
+    const pluginApi = (() => {
+      try {
+        return win.__AMI_HIGHLIGHT_PLUGIN__
+      } catch {
+        return null
+      }
+    })()
+    if (pluginApi && typeof pluginApi.refresh === 'function') {
+      state.ready = true
+      state.attempts = 0
+      state.polls = 0
+      if (state.retryHandle) {
+        clearTimeout(state.retryHandle)
+        state.retryHandle = null
+      }
+      logHighlightShell('ensure-refresh-existing')
+      try {
+        pluginApi.refresh({ rebuild: true })
+      } catch (err) {
+        console.warn('Highlight plugin refresh failed', err)
+        logHighlightShell('ensure-refresh-error', { error: err?.message || String(err) })
+      }
+      return true
+    }
+    if (state.attempts >= HIGHLIGHT_MAX_ATTEMPTS) {
+      if (!state.warned) {
+        state.warned = true
+        console.warn('Highlight plugin bootstrap exceeded retry limit')
+        logHighlightShell('retry-limit-exceeded')
+      }
+      state.polls = 0
+      return false
+    }
+    const existingScript = doc.getElementById(HIGHLIGHT_BOOTSTRAP_ID)
+    if (existingScript) {
+      state.polls = (state.polls || 0) + 1
+      if (state.polls >= HIGHLIGHT_MAX_ATTEMPTS) {
+        try {
+          existingScript.remove()
+        } catch {}
+        state.polls = 0
+        logHighlightShell('stale-script-removed')
+      } else {
+        scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * (state.attempts + 1))
+        return true
+      }
+    }
+    state.attempts += 1
+    state.polls = 0
+    const script = doc.createElement('script')
+    script.type = 'module'
+    script.id = HIGHLIGHT_BOOTSTRAP_ID
+    script.src = HIGHLIGHT_PLUGIN_SRC
+    script.crossOrigin = 'anonymous'
+    script.addEventListener('load', () => {
+      logHighlightShell('script-load')
+      scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE)
+    })
+    script.addEventListener('error', (event) => {
+      console.warn('Highlight plugin script failed to load', event?.error || event)
+      logHighlightShell('script-error', { error: event?.error || event })
+      try {
+        script.remove()
+      } catch {}
+      scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * (state.attempts + 1))
+    })
+    const target = doc.head || doc.documentElement || doc.body
+    target.appendChild(script)
+    logHighlightShell('script-appended')
+    ensureHighlightPluginInWindowFrames(win)
+    return true
+  } catch (err) {
+    console.warn('Failed to inject highlight plugin', err)
+    logHighlightShell('ensure-error', { error: err?.message || String(err) })
+    return false
+  }
+}
+
+function ensureHighlightPluginForActiveDoc() {
+  const frame = document.getElementById('vizFrame')
+  if (!frame) return false
+  logHighlightShell('ensure-active-doc')
+  const result = ensureHighlightPluginInFrame(frame)
+  try {
+    ensureHighlightPluginInWindowFrames(frame.contentWindow)
+  } catch {}
+  return result
+}
+
+function teardownHighlightPlugin(frame) {
+  if (!frame) return
+  try {
+    const api = frame.contentWindow?.__AMI_HIGHLIGHT_PLUGIN__
+    if (api && typeof api.destroy === 'function') {
+      logHighlightShell('teardown-destroy')
+      api.destroy()
+    }
+  } catch (err) {
+    console.warn('Highlight plugin destroy during teardown failed', err)
+    logHighlightShell('teardown-error', { error: err?.message || String(err) })
+  }
+  try {
+    const win = frame.contentWindow || null
+    if (win) {
+      collectSameOriginFrames(win).forEach((child) => teardownHighlightPlugin(child))
+    }
+  } catch {}
+  resetHighlightState(frame)
+  try {
+    const doc = frame.contentWindow?.document
+    const existingScript = doc?.getElementById(HIGHLIGHT_BOOTSTRAP_ID)
+    if (existingScript && existingScript.parentNode) existingScript.parentNode.removeChild(existingScript)
+  } catch {}
+}
 
 function setThemeIcon(theme) {
   const icon = document.getElementById('iconTheme')
@@ -99,6 +410,7 @@ function updateWelcomeVisibility() {
     frame.classList.toggle('is-hidden', !hasActive)
     if (!hasActive) {
       try {
+        teardownHighlightPlugin(frame)
         frame.src = 'about:blank'
       } catch {}
     }
@@ -155,20 +467,62 @@ async function saveTabs() {
 
 function collectDocContexts() {
   const contexts = []
-  try {
-    const frame = document.getElementById('vizFrame')
-    const topWin = frame?.contentWindow || null
-    if (topWin) {
-      contexts.push({ win: topWin, doc: topWin.document || null })
-      try {
-        const inner = topWin.document?.getElementById('d')
-        if (inner && inner.contentWindow) {
-          contexts.push({ win: inner.contentWindow, doc: inner.contentWindow.document || null })
-        }
-      } catch {}
+  const seen = new Set()
+  const gather = (iframe) => {
+    if (!iframe || seen.has(iframe)) return
+    seen.add(iframe)
+    let win
+    try {
+      win = iframe.contentWindow || null
+    } catch {
+      win = null
     }
+    if (!win) return
+    let doc = null
+    try {
+      doc = win.document || null
+    } catch {}
+    contexts.push({ frame: iframe, win, doc })
+    const innerFrames = collectSameOriginFrames(win)
+    if (innerFrames.length) innerFrames.forEach((inner) => gather(inner))
+  }
+  try {
+    const frames = Array.from(document.querySelectorAll('iframe'))
+    frames.forEach((frame) => gather(frame))
   } catch {}
   return contexts
+}
+
+function findFrameForWindow(win) {
+  if (!win) return null
+  const ctx = collectDocContexts().find((entry) => entry.win === win)
+  return ctx ? ctx.frame : null
+}
+
+function markHighlightPluginReady(win) {
+  if (!win) return
+  const contexts = collectDocContexts()
+  const ctx = contexts.find((entry) => entry.win === win)
+  if (!ctx || !ctx.frame) return
+  const frame = ctx.frame
+  const state = getHighlightBootstrapState(frame, frame.contentWindow)
+  if (!state) return
+  state.ready = true
+  state.attempts = 0
+  state.warned = false
+  state.polls = 0
+  logHighlightShell('ready', { matched: true })
+  if (state.retryHandle) {
+    clearTimeout(state.retryHandle)
+    state.retryHandle = null
+  }
+  try {
+    const api = frame.contentWindow?.__AMI_HIGHLIGHT_PLUGIN__
+    if (api && typeof api.refresh === 'function') {
+      api.refresh({ rebuild: true })
+    }
+  } catch {}
+  ensureHighlightPluginInWindowFrames(win)
 }
 
 const docMessenger = createDocMessenger({
@@ -192,6 +546,33 @@ function postToDoc(msg, options = {}) {
     }
   })
   return promise
+}
+
+let docIsReady = false
+const pendingDocMessages = []
+
+function resetDocMessagingState() {
+  docIsReady = false
+  pendingDocMessages.length = 0
+}
+
+function flushPendingDocMessages() {
+  while (pendingDocMessages.length) {
+    const entry = pendingDocMessages.shift()
+    try {
+      postToDoc(entry.msg, entry.options)
+    } catch (err) {
+      console.warn('Failed to deliver pending doc message', err)
+    }
+  }
+}
+
+function queueDocMessage(msg, options = {}) {
+  if (docIsReady) {
+    postToDoc(msg, options)
+  } else {
+    pendingDocMessages.push({ msg, options })
+  }
 }
 
 try {
@@ -377,6 +758,7 @@ async function activateTab(id) {
       if (r.ok) {
         const inst = await r.json()
         if (inst?.status === 'running') {
+          teardownHighlightPlugin(iframe)
           iframe.src = `/api/served/${tab.servedId}/`
           usedServed = true
         }
@@ -396,26 +778,32 @@ async function activateTab(id) {
       renderTabs()
     }
     if (tab.kind === 'dir') {
+      resetDocMessagingState()
       const docMessage = buildDocMessageForDir(tab, cfg)
       lastDocMessage = docMessage
+      if (docMessage) queueDocMessage(docMessage)
+      teardownHighlightPlugin(iframe)
       iframe.src = '/doc.html?embed=1'
       try {
         iframe.addEventListener(
           'load',
           () => {
-            if (docMessage) postToDoc(docMessage)
+            logHighlightShell('iframe-load-event')
+            ensureHighlightPluginInFrame(iframe)
             const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
-            postToDoc({ type: 'applyTheme', theme: curTheme })
+            queueDocMessage({ type: 'applyTheme', theme: curTheme })
           },
           { once: true },
         )
       } catch {}
       setTimeout(() => {
-        if (docMessage) postToDoc(docMessage)
+        logHighlightShell('iframe-load-timeout-retry')
+        ensureHighlightPluginInFrame(iframe)
         const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
-        postToDoc({ type: 'applyTheme', theme: curTheme })
+        queueDocMessage({ type: 'applyTheme', theme: curTheme })
       }, 60)
     } else if (tab.kind === 'file') {
+      teardownHighlightPlugin(iframe)
       const mode = tab.mode || 'A'
       let rel = tab.path || ''
       let root = 'docRoot'
@@ -443,12 +831,14 @@ async function activateTab(id) {
       const qp = new URLSearchParams({ path: rel, mode, root })
       iframe.src = `/api/media?${qp.toString()}`
     } else if (tab.kind === 'app') {
+      teardownHighlightPlugin(iframe)
       iframe.src = 'about:blank'
     }
   }
   if (tab.kind === 'dir') {
     const themeNow = document.documentElement.getAttribute('data-theme') || 'dark'
-    setTimeout(() => postToDoc({ type: 'applyTheme', theme: themeNow }), 80)
+    ensureHighlightPluginInFrame(document.getElementById('vizFrame'))
+    setTimeout(() => queueDocMessage({ type: 'applyTheme', theme: themeNow }), 80)
   }
   try {
     const vizId = usedServed
@@ -631,7 +1021,7 @@ async function boot() {
   const search = document.getElementById('globalSearch')
   if (search) {
     search.addEventListener('input', () => {
-      postToDoc({ type: 'search', q: search.value })
+      queueDocMessage({ type: 'search', q: search.value })
     })
     window.addEventListener('keydown', (e) => {
       if (e.key === '/' && document.activeElement !== search) {
@@ -649,27 +1039,45 @@ async function boot() {
       })
     } catch {}
     // Also message the iframe (with retries)
-    postToDoc({ type: 'applyTheme', theme })
+    queueDocMessage({ type: 'applyTheme', theme })
   }
   // Ensure we re-send theme and docRoot as soon as the embedded doc signals readiness
   window.addEventListener('message', (ev) => {
     try {
       const msg = ev && ev.data
       if (!msg || typeof msg !== 'object') return
+      if (msg.type === 'highlightPluginReady' || msg.type === 'highlightSettingsState') {
+        markHighlightPluginReady(ev?.source || null)
+        return
+      }
       if (msg.type === 'docReady') {
-        const active = tabsState.tabs.find((t) => t.id === tabsState.active)
-        const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
-        ;(async () => {
+        docIsReady = true
+        const sourceWin = ev?.source || null
+        if (sourceWin) {
+          const ownerFrame = findFrameForWindow(sourceWin)
+          if (ownerFrame) ensureHighlightPluginInFrame(ownerFrame)
+          ensureHighlightPluginInWindowFrames(sourceWin)
+        } else {
+          ensureHighlightPluginForActiveDoc()
+        }
+        if (!pendingDocMessages.length) {
+          const active = tabsState.tabs.find((t) => t.id === tabsState.active)
           if (active && active.kind === 'dir') {
-            const cfgNow = await loadConfig()
-            const docMessage = buildDocMessageForDir(active, cfgNow)
-            lastDocMessage = docMessage
-            if (docMessage) postToDoc(docMessage)
+            ;(async () => {
+              const cfgNow = await loadConfig()
+              const docMessage = buildDocMessageForDir(active, cfgNow)
+              lastDocMessage = docMessage
+              if (docMessage) queueDocMessage(docMessage)
+              queueDocMessage({
+                type: 'applyTheme',
+                theme: document.documentElement.getAttribute('data-theme') || 'dark',
+              })
+            })()
           } else if (lastDocMessage) {
-            postToDoc(lastDocMessage)
+            queueDocMessage(lastDocMessage)
           }
-          postToDoc({ type: 'applyTheme', theme: curTheme })
-        })()
+        }
+        flushPendingDocMessages()
         return
       }
       if (msg.type === 'docConfig') {
@@ -743,22 +1151,6 @@ document.addEventListener('DOMContentLoaded', () => {
       openAccountDrawer({ trigger: accountBtn }).catch((err) => {
         console.error('Failed to open account drawer', err)
       })
-    })
-  }
-  const highlightBtn = document.getElementById('highlightSettingsBtnShell')
-  if (highlightBtn) {
-    if (!highlightBtn.hasAttribute('aria-expanded')) highlightBtn.setAttribute('aria-expanded', 'false')
-    highlightBtn.addEventListener('click', (event) => {
-      event.preventDefault()
-      postToDoc({ type: 'highlightSettings', action: 'toggle' }, { waitForAck: true })
-        .then((ack) => {
-          const status = ack?.status
-          if (status === 'opened') highlightBtn.setAttribute('aria-expanded', 'true')
-          else if (status === 'closed') highlightBtn.setAttribute('aria-expanded', 'false')
-        })
-        .catch((err) => {
-          console.warn('Failed to toggle highlight settings', err)
-        })
     })
   }
 })

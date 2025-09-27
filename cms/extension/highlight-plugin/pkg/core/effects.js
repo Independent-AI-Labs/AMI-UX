@@ -1,4 +1,4 @@
-import { icon as iconMarkup } from '../icon-pack.js?v=20250306'
+import { filterIgnored, markPluginNode, shouldIgnoreNode } from './dom-utils.js'
 
 const STYLE_ID = 'fx-glow-highlight-style'
 
@@ -284,6 +284,7 @@ function matchesAny(el, selectors) {
 }
 
 function decorateElement(el, rules) {
+  if (shouldIgnoreNode(el)) return
   for (const rule of rules) {
     if (!rule.selectors.length) continue
     if (matchesAny(el, rule.selectors)) {
@@ -298,7 +299,7 @@ function decorateTreeAncestors(doc, treeSelectors) {
   const handler = (type) => (event) => {
     const target =
       event.target instanceof Element ? event.target.closest(treeSelectors.join(',')) : null
-    if (!target) return
+    if (!target || shouldIgnoreNode(target)) return
     if (type === 'enter') {
       const ancestors = []
       let details = target.parentElement?.closest('details')
@@ -336,32 +337,34 @@ function createHoverOverlay(doc, selectors, callbacks) {
   const overlay = doc.createElement('div')
   overlay.className = HOVER_OVERLAY_CLASS
   overlay.setAttribute('aria-hidden', 'true')
+  markPluginNode(overlay)
 
-  const mkBtn = (cls, title, markup, onClick) => {
+  const mkBtn = (cls, title, svg, onClick) => {
     const btn = doc.createElement('button')
     btn.className = `${HOVER_BTN_CLASS} ${cls}`
     btn.type = 'button'
     btn.title = title
     btn.setAttribute('aria-label', title)
-    btn.innerHTML = markup
+    btn.innerHTML = svg
     btn.addEventListener('mousedown', (e) => e.preventDefault())
     btn.addEventListener('click', (event) => {
       event.stopPropagation()
       if (anchorEl && typeof onClick === 'function') onClick(anchorEl)
     })
+    markPluginNode(btn)
     return btn
   }
 
   const commentBtn = mkBtn(
     'act-comment',
     'Comment',
-    iconMarkup('chat-1-line', { size: 18 }),
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
     callbacks.onComment,
   )
   const searchBtn = mkBtn(
     'act-search',
     'Search',
-    iconMarkup('search-line', { size: 18 }),
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
     callbacks.onSearch,
   )
 
@@ -593,10 +596,15 @@ export function initHighlightEffects(options = {}) {
     for (const rule of rules) {
       if (!rule.selectors.length) continue
       for (const selector of rule.selectors) {
+        let collection
         try {
-          doc.querySelectorAll(selector).forEach((el) => rule.apply(el))
+          collection = doc.querySelectorAll(selector)
         } catch {
           continue
+        }
+        const filtered = filterIgnored(collection)
+        for (const el of filtered) {
+          rule.apply(el)
         }
       }
     }
@@ -608,8 +616,12 @@ export function initHighlightEffects(options = {}) {
     for (const record of records) {
       record.addedNodes.forEach((node) => {
         if (!(node instanceof Element)) return
+        if (shouldIgnoreNode(node)) return
         decorateElement(node, rules)
-        node.querySelectorAll('*').forEach((child) => decorateElement(child, rules))
+        node.querySelectorAll('*').forEach((child) => {
+          if (shouldIgnoreNode(child)) return
+          decorateElement(child, rules)
+        })
       })
     }
   })

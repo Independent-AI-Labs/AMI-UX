@@ -11,17 +11,13 @@ import {
   restoreHashTarget,
   attachEvents,
 } from './ui.js'
-import { activateHighlight } from './highlight/effects.js'
 import { connectSSE } from './sse.js'
-import { createHighlightManager } from './highlight/manager.js'
 import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
 })
-
-const highlightManager = createHighlightManager({ document })
 
 const state = {
   tree: null,
@@ -43,8 +39,6 @@ const state = {
   cacheContext: 'docRoot',
   isLoading: false,
   eventsAttached: false,
-  highlightManager,
-  highlightContextHandle: null,
 }
 
 // Theme
@@ -209,7 +203,6 @@ function debounceRefreshTree() {
       state.tree = newTree
       if (!root) return
       renderTree(state, root, newTree)
-      if (state.highlightManager) state.highlightManager.refreshContext('doc-viewer')
       updateTOC(state)
       window.scrollTo(0, scrollY)
       setTreeStatus('idle')
@@ -260,8 +253,6 @@ function focusTreePath(relativePath) {
     try {
       lastDetails.scrollIntoView({ block: 'center', behavior: 'smooth' })
     } catch {}
-    const summary = lastDetails.querySelector(':scope > summary')
-    if (summary) activateHighlight(summary, 1600)
   }
 }
 
@@ -341,7 +332,6 @@ export async function startCms(fromSelect = false) {
     title.textContent = humanizeName(treeName, 'dir')
   }
   renderTree(state, root, tree)
-  if (state.highlightManager) state.highlightManager.refreshContext('doc-viewer')
   setTreeStatus('idle')
   updateTOC(state)
   restoreHashTarget()
@@ -411,7 +401,7 @@ export async function startCms(fromSelect = false) {
 }
 
 // Expose helpers for console debugging
-window.__CMS__ = { state, expandCollapseAll, highlightManager }
+window.__CMS__ = { state, expandCollapseAll }
 
 // Embed messaging API (for shell iframe integration)
 window.addEventListener('message', async (ev) => {
