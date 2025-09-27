@@ -261,14 +261,86 @@
     header .right { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
     #pathLabel { color: var(--muted); max-width: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     /* Branding */
-    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 280px; }
-    .brand-logo { height: 42px; width: auto; object-fit: contain; display: block; animation: logo-spin 120s linear infinite; will-change: transform; }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 280px;
+    }
+    .brand-logo-button {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 58px;
+      height: 58px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: none;
+      cursor: pointer;
+      transition: transform 220ms ease;
+    }
+    .brand-logo-button:focus-visible {
+      outline: 2px solid color-mix(in oklab, var(--accent) 72%, white 28%);
+      outline-offset: 3px;
+    }
+    .brand-logo-button:hover {
+      transform: scale(1.03);
+    }
+    .brand-logo {
+      width: 58px;
+      height: 58px;
+      display: block;
+      border-radius: 50%;
+      overflow: hidden;
+      box-shadow: 0 0 32px rgba(255, 255, 255, 0.22);
+      background: radial-gradient(circle at 50% 60%, rgba(255, 255, 255, 0.1) 0%, transparent 72%);
+      opacity: 0.88;
+      transition: opacity 260ms ease;
+    }
+    .brand-logo-button .brand-logo {
+      filter: invert(1);
+    }
+    .brand-logo.is-ready { opacity: 1; }
     .brand-text { display: flex; flex-direction: column; gap: 2px; }
     .brand-text h1 { margin: 0; font-size: 20px; font-weight: 800; }
     .brand-text .subtitle { font-size: 13px; line-height: 1.1; letter-spacing: 0.06em; }
-    @keyframes logo-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
-    /* Invert logo in dark theme for better contrast */
-    [data-theme="dark"] .brand-logo { filter: invert(1) contrast(0.95) brightness(1.1); }
+    .brand-singularity-dialog {
+      width: min(560px, calc(100vw - 48px));
+      max-height: min(92vh, 720px);
+      margin: auto;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      background: color-mix(in oklab, var(--panel) 65%, transparent);
+      border-radius: 22px;
+      border: 1px solid color-mix(in oklab, var(--border) 68%, transparent);
+      box-shadow: 0 42px 120px rgba(0, 0, 0, 0.48);
+      overflow: hidden;
+    }
+    .brand-singularity-dialog .dialog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand-singularity-dialog__canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #000;
+    }
+    .brand-singularity-dialog__canvas-wrap canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
     .is-hidden { display: none !important; }
     .welcome-screen {
       position: absolute;
@@ -389,7 +461,9 @@
   <div class="shell-chrome">
     <header>
       <div class="brand">
-        <img class="brand-logo" src="/res/LOGO_DCD.png" onerror="this.onerror=null;this.src='/res/ami-logo.svg'" alt="AMI Logo" />
+        <button id="brandSingularityTrigger" class="brand-logo-button" type="button" aria-label="Open singularity simulation" title="Open singularity simulation" aria-haspopup="dialog" aria-expanded="false">
+          <canvas id="brandSingularity" class="brand-logo brand-logo--singularity" width="72" height="72" aria-hidden="true"></canvas>
+        </button>
         <div class="brand-text">
           <h1>AMI DATA PORTAL</h1>
           <div class="muted subtitle">LIVE CONTENT DIRECTORY</div>
@@ -431,6 +505,90 @@
       </div>
     </div>
   </div>
+
+  <div id="brandSingularityDialog" class="dialog-backdrop" hidden aria-hidden="true">
+    <div class="dialog-surface brand-singularity-dialog" role="dialog" aria-modal="true" aria-labelledby="brandSingularityDialogTitle">
+      <div class="dialog-header">
+        <div class="dialog-header__titles">
+          <h2 id="brandSingularityDialogTitle" class="dialog-title">Singularity Simulation</h2>
+          <div class="dialog-subtitle">Monochromatic point cloud accretion disk</div>
+        </div>
+        <button class="icon-button dialog-close" type="button" aria-label="Close singularity simulation" title="Close">
+          <i class="ri-close-large-line" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="brand-singularity-dialog__canvas-wrap">
+        <canvas id="brandSingularityLarge" width="640" height="640" aria-describedby="brandSingularityDialogTitle"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { attachBlackHoleSimulation } from '/sim/black-hole.js?v=20250306'
+    import { dialogService } from '/js/dialog-service.js?v=20250306'
+    try {
+      const trigger = document.getElementById('brandSingularityTrigger')
+      const canvas = document.getElementById('brandSingularity')
+      const dialogOverlay = document.getElementById('brandSingularityDialog')
+      const dialogSurface = dialogOverlay?.querySelector('.dialog-surface')
+      const closeButton = dialogOverlay?.querySelector('.dialog-close')
+      const largeCanvas = document.getElementById('brandSingularityLarge')
+
+      let smallTeardown = null
+      let largeTeardown = null
+      let dialogHandle = null
+
+      if (canvas) {
+        smallTeardown = attachBlackHoleSimulation(canvas, {
+          enableAccretionDisk: true,
+          maxIterations: 360,
+          cameraSwing: 0.92,
+          resolutionScale: 2.3,
+        })
+        canvas.classList.add('is-ready')
+      }
+
+      if (trigger && dialogOverlay && dialogSurface && largeCanvas) {
+        dialogHandle = dialogService.register('brand-singularity', {
+          overlay: dialogOverlay,
+          surface: dialogSurface,
+          onOpen: () => {
+            trigger?.setAttribute('aria-expanded', 'true')
+            if (!largeTeardown) {
+              largeTeardown = attachBlackHoleSimulation(largeCanvas, {
+                enableAccretionDisk: true,
+                maxIterations: 420,
+                cameraSwing: 0.94,
+                resolutionScale: 2.45,
+              })
+            }
+          },
+          onClose: () => {
+            trigger?.setAttribute('aria-expanded', 'false')
+            if (typeof largeTeardown === 'function') {
+              try { largeTeardown() } catch {}
+            }
+            largeTeardown = null
+          },
+        })
+
+        const openDialog = () => dialogHandle?.open()
+        trigger?.addEventListener('click', openDialog)
+        closeButton?.addEventListener('click', () => dialogHandle?.close())
+      }
+
+      window.addEventListener('beforeunload', () => {
+        try { smallTeardown?.() } catch {}
+        try { largeTeardown?.() } catch {}
+        if (dialogHandle) {
+          try { dialogService.unregister('brand-singularity') } catch {}
+          dialogHandle = null
+        }
+      }, { once: true })
+    } catch (error) {
+      console.warn('[black-hole] init failed', error)
+    }
+  </script>
 
   <script defer src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script type="module" src="/js/shell.js?v=20250306"></script>
