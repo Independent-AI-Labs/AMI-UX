@@ -13,6 +13,8 @@ import { humanizeName, normalizeFsPath } from './utils.js'
 import { createDocMessenger } from './message-channel.js?v=20250310'
 import { openAccountDrawer } from './account-drawer.js?v=20250316'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
+import { createTabStrip } from './tab-strip.js?v=20250321'
+import { initShellConsole } from './shell-console.js?v=20250321'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -513,9 +515,11 @@ async function loadConfig(force = false) {
   return cachedConfig
 }
 
-const tabsState = { tabs: [], active: null, draggingId: null, dragDirty: false }
+const tabsState = { tabs: [], active: null }
 const servedMap = { instances: [] }
 const appRunning = new Map()
+
+let shellTabStrip = null
 
 const frameLoadingState = {
   overlay: null,
@@ -812,217 +816,109 @@ function iconForTab(kind) {
   return iconMarkup('file-3-line')
 }
 
-function handleTabDragStart(event, tabId) {
-  if (event.target?.classList?.contains('close') || event.target?.closest('.close')) {
-    event.preventDefault()
-    return
-  }
-  tabsState.draggingId = tabId
-  tabsState.dragDirty = false
-  event.dataTransfer?.setData('text/plain', tabId)
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    try {
-      event.dataTransfer.setDragImage(new Image(), 0, 0)
-    } catch {}
-  }
-  event.currentTarget?.classList?.add('dragging')
-}
-
-function handleTabDragEnd(event) {
-  const wasDragging = !!tabsState.draggingId
-  tabsState.draggingId = null
-  event.currentTarget?.classList?.remove('dragging')
-  if (wasDragging) {
-    renderTabs()
-    if (tabsState.dragDirty) {
+function getShellTabStrip() {
+  if (shellTabStrip) return shellTabStrip
+  const bar = document.getElementById('tabsBar')
+  if (!bar) return null
+  shellTabStrip = createTabStrip(bar, {
+    showAddButton: true,
+    addButtonLabel: '+',
+    addButtonTitle: 'Open content directory',
+    onAdd: () => {
       try {
-        saveTabs()
-      } catch {}
-      tabsState.dragDirty = false
-    }
-  }
-}
-
-function reorderTabs(draggedId, targetId, placeBefore, options = {}) {
-  if (!draggedId || draggedId === targetId) return false
-  const { save = true } = options
-  const tabs = tabsState.tabs
-  const draggedIndex = tabs.findIndex((x) => x.id === draggedId)
-  if (draggedIndex === -1) return false
-  const [dragged] = tabs.splice(draggedIndex, 1)
-  let insertIndex
-  if (!targetId) {
-    insertIndex = tabs.length
-  } else {
-    insertIndex = tabs.findIndex((x) => x.id === targetId)
-    if (insertIndex === -1) insertIndex = tabs.length
-    else if (!placeBefore) insertIndex += 1
-  }
-  if (insertIndex === draggedIndex) {
-    tabs.splice(draggedIndex, 0, dragged)
-    return false
-  }
-  tabs.splice(insertIndex, 0, dragged)
-  renderTabs()
-  if (save) {
-    saveTabs()
-    tabsState.dragDirty = false
-  } else {
-    tabsState.dragDirty = true
-  }
-  return true
-}
-
-function handleTabDrop(event, targetId) {
-  if (!tabsState.draggingId) return
-  event.preventDefault()
-  event.stopPropagation()
-  event.currentTarget?.classList?.remove('dragging')
-  const rect = event.currentTarget?.getBoundingClientRect()
-  let placeBefore = true
-  if (rect) {
-    const offset = event.clientX - rect.left
-    placeBefore = offset < rect.width / 2
-  }
-  const changed = reorderTabs(tabsState.draggingId, targetId, placeBefore, { save: true })
-  if (!changed && tabsState.dragDirty) {
-    try {
-      saveTabs()
-    } catch {}
-    tabsState.dragDirty = false
-  }
-  tabsState.draggingId = null
-  renderTabs()
-}
-
-function handleTabDragOver(event) {
-  if (!tabsState.draggingId) return
-  event.preventDefault()
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-  event.dataTransfer?.setData('text/plain', tabsState.draggingId)
-  const targetId = event.currentTarget?.dataset?.tabId
-  if (!targetId || targetId === tabsState.draggingId) return
-  const rect = event.currentTarget.getBoundingClientRect()
-  const offset = event.clientX - rect.left
-  const placeBefore = offset < rect.width / 2
-  const changed = reorderTabs(tabsState.draggingId, targetId, placeBefore, { save: false })
-  if (changed) {
-    const draggedEl = document.querySelector(`button.tab[data-tab-id="${tabsState.draggingId}"]`)
-    if (draggedEl) draggedEl.classList.add('dragging')
-  }
-}
-
-function handleTabBarDrop(event) {
-  if (!tabsState.draggingId) return
-  if (event.target !== event.currentTarget) return
-  event.preventDefault()
-  document.querySelectorAll('.tab.dragging').forEach((node) => node.classList.remove('dragging'))
-  const changed = reorderTabs(tabsState.draggingId, null, false, { save: true })
-  if (!changed && tabsState.dragDirty) {
-    try {
-      saveTabs()
-    } catch {}
-    tabsState.dragDirty = false
-  }
-  tabsState.draggingId = null
-  renderTabs()
-}
-
-function captureTabPositions(bar) {
-  const map = new Map()
-  if (!bar) return map
-  bar.querySelectorAll('button.tab[data-tab-id]').forEach((node) => {
-    const id = node.dataset.tabId
-    if (!id) return
-    map.set(id, node.getBoundingClientRect())
-  })
-  return map
-}
-
-function animateTabPositions(previous, bar) {
-  if (!previous || previous.size === 0 || !bar) return
-  bar.querySelectorAll('button.tab[data-tab-id]').forEach((node) => {
-    const id = node.dataset.tabId
-    if (!id || !previous.has(id)) return
-    const prev = previous.get(id)
-    const next = node.getBoundingClientRect()
-    const dx = prev.left - next.left
-    const dy = prev.top - next.top
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return
-    node.style.transition = 'none'
-    node.style.transform = `translate(${dx}px, ${dy}px)`
-    requestAnimationFrame(() => {
-      node.style.transition = 'transform 220ms var(--easing-standard)'
-      node.style.transform = 'translate(0px, 0px)'
-      const cleanup = (evt) => {
-        if (evt.propertyName !== 'transform') return
-        node.style.transition = ''
-        node.style.transform = ''
-        node.removeEventListener('transitionend', cleanup)
+        openContentDirectory()
+      } catch (err) {
+        console.error('Failed to open content directory from tab strip', err)
       }
-      node.addEventListener('transitionend', cleanup)
-    })
+    },
+    onSelect: (id) => {
+      if (!id || tabsState.active === id) return
+      activateTab(id)
+    },
+    onClose: (id) => {
+      closeTab(id)
+    },
+    onContextMenu: (event, id) => {
+      const tab = tabsState.tabs.find((t) => t.id === id)
+      if (!tab) return
+      try {
+        event.preventDefault()
+      } catch {}
+      openTabContextMenu(event.clientX, event.clientY, tab)
+    },
+    onReorder: (order) => {
+      applyTabOrder(Array.isArray(order) ? order : [])
+    },
   })
+  return shellTabStrip
 }
 
-function ensureTabBarDnDBindings(bar) {
-  if (!bar || bar.dataset.dndBound) return
-  bar.addEventListener('dragover', (event) => {
-    if (!tabsState.draggingId) return
-    if (event.target !== bar) return
-    event.preventDefault()
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+function applyTabOrder(order) {
+  if (!Array.isArray(order) || order.length === 0) return
+  const currentIds = tabsState.tabs.map((t) => t.id)
+  const currentKey = currentIds.join('|')
+  const normalized = order.filter(Boolean)
+  if (!normalized.length) return
+  const map = new Map()
+  tabsState.tabs.forEach((tab) => map.set(tab.id, tab))
+  const reordered = []
+  normalized.forEach((id) => {
+    const tab = map.get(id)
+    if (!tab) return
+    reordered.push(tab)
+    map.delete(id)
   })
-  bar.addEventListener('drop', handleTabBarDrop)
-  bar.dataset.dndBound = '1'
+  map.forEach((tab) => reordered.push(tab))
+  const nextKey = reordered.map((t) => t.id).join('|')
+  if (currentKey === nextKey) return
+  tabsState.tabs = reordered
+  if (!tabsState.tabs.some((tab) => tab.id === tabsState.active)) {
+    tabsState.active = tabsState.tabs[0]?.id || null
+  }
+  try {
+    saveTabs()
+  } catch {}
+  renderTabs()
+}
+
+function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function renderTabs() {
-  const bar = document.getElementById('tabsBar')
-  if (!bar) return
-  const previousPositions = captureTabPositions(bar)
-  bar.innerHTML = ''
-  ensureTabBarDnDBindings(bar)
-  tabsState.tabs.forEach((t) => {
-    const el = document.createElement('button')
+  const strip = getShellTabStrip()
+  if (!strip) return
+  const tabDescriptors = tabsState.tabs.map((t) => {
     const isRunningApp = t.kind === 'app' && !!appRunning.get(t.path)
     const showPill = !!t.servedId || isRunningApp
-    const isServed = showPill
-    el.className =
-      'tab' +
-      (tabsState.active === t.id ? ' active' : '') +
-      (isServed ? ' served' : '') +
-      (tabsState.draggingId === t.id ? ' dragging' : '')
-    el.dataset.tabId = t.id
-    const pillTitle =
-      t.kind === 'app' ? (isRunningApp ? 'App running' : '') : t.servedId ? 'Served' : ''
     const baseName = t.path.split('/').pop() || t.path
     const tabLabel = t.label || (t.kind === 'file' ? humanizeName(baseName, 'file') : baseName)
-    const statusNode = showPill
-      ? `<span class="status-indicator serve-dot status-indicator--positive" title="${pillTitle}"></span>`
+    const pillTitle =
+      t.kind === 'app' ? (isRunningApp ? 'App running' : '') : t.servedId ? 'Served' : ''
+    const indicatorHTML = showPill
+      ? `<span class="status-indicator serve-dot status-indicator--positive" title="${escapeHTML(pillTitle)}"></span>`
       : ''
-    const leadingIcon = `<span class="icon" aria-hidden="true">${iconForTab(t.kind)}</span>`
-    el.innerHTML = `${leadingIcon}${statusNode}<span>${tabLabel}</span><span class="close" title="Close">×</span>`
-    el.draggable = true
-    el.addEventListener('click', (e) => {
-      if (e.target.classList && e.target.classList.contains('close')) {
-        closeTab(t.id)
-      } else {
-        activateTab(t.id)
-      }
-    })
-    el.addEventListener('dragstart', (event) => handleTabDragStart(event, t.id))
-    el.addEventListener('dragend', handleTabDragEnd)
-    el.addEventListener('dragover', handleTabDragOver)
-    el.addEventListener('drop', (event) => handleTabDrop(event, t.id))
-    el.addEventListener('contextmenu', (e) => {
-      e.preventDefault()
-      openTabContextMenu(e.clientX, e.clientY, t)
-    })
-    bar.appendChild(el)
+    const classes = ['tab--' + (t.kind || 'unknown')]
+    if (showPill) classes.push('served')
+    return {
+      id: t.id,
+      label: tabLabel,
+      leadingHTML: `<span class="icon" aria-hidden="true">${iconForTab(t.kind)}</span>${indicatorHTML}`,
+      trailingHTML: '',
+      tooltip: t.path || '',
+      classes,
+      closable: true,
+      dataset: {
+        tabKind: t.kind || '',
+      },
+    }
   })
-  requestAnimationFrame(() => animateTabPositions(previousPositions, bar))
+  strip.setState({ tabs: tabDescriptors, activeId: tabsState.active })
   updateWelcomeVisibility()
 }
 
@@ -1531,6 +1427,7 @@ async function boot() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  initShellConsole()
   boot().catch((err) => console.error('boot failed', err))
   const btn = document.getElementById('selectMediaBtn')
   if (btn)

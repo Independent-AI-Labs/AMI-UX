@@ -1772,3 +1772,186 @@ details:focus-within > summary .row-actions {
   opacity: 1;
   background: rgba(255, 255, 255, 0.08);
 }
+
+/* Shell console overlay */
+.shell-console {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: min(48vh, 420px);
+  transform: translateY(calc(-100% - 16px));
+  transition: transform var(--duration-medium) var(--easing-standard),
+    opacity var(--duration-medium) var(--easing-standard),
+    filter var(--duration-medium) var(--easing-standard);
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  filter: blur(8px);
+}
+
+.shell-console--open {
+  transform: translateY(0);
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  filter: blur(0);
+}
+
+.shell-console__inner {
+  height: 100%;
+  width: min(1080px, 96%);
+  margin: 0 auto;
+  background: rgba(10, 14, 22, 0.94);
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  border: 1px solid rgba(138, 155, 191, 0.18);
+  border-top: none;
+  padding: 20px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  backdrop-filter: blur(12px);
+}
+
+.shell-console__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  letter-spacing: 0.16em;
+}
+
+.shell-console__tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shell-console__tabs .tab-strip {
+  flex: 1 1 auto;
+}
+
+.shell-console__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: 0.18em;
+}
+
+.shell-console__hint {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  letter-spacing: 0.16em;
+}
+
+.shell-console__terminal {
+  flex: 1 1 auto;
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(9, 12, 20, 0.92);
+  position: relative;
+}
+
+.shell-console--open .shell-console__inner {
+  animation: shell-console-intro var(--duration-medium) var(--easing-standard);
+}
+
+.shell-console--open .shell-console__terminal {
+  cursor: text;
+}
+
+@keyframes shell-console-intro {
+  from {
+    transform: translateY(-10px);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.shell-console .xterm {
+  padding: 6px 8px;
+}
+
+.shell-console .tab-strip__add {
+  height: 30px;
+  min-width: 30px;
+  font-size: 18px;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.shell-console .tab-strip__add:hover {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.shell-console .xterm-viewport {
+  background: transparent !important;
+}
+
+.shell-console .xterm-screen {
+  padding: 0 !important;
+}
+
+.console-tab-strip .tab {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.console-tab-strip .tab.active {
+  padding: 6px 12px;
+}
+
+.console-tab-strip .tab.console-tab {
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.console-tab-strip .tab.console-tab.active {
+  background: rgba(13, 17, 28, 0.92);
+  color: rgba(249, 251, 255, 0.96);
+}
+
+.shell-console .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(122, 162, 247, 0.6) rgba(7, 11, 20, 0.6);
+}
+
+.shell-console .xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.shell-console .xterm-viewport::-webkit-scrollbar-track {
+  background: rgba(7, 11, 20, 0.55);
+  border-radius: 12px;
+}
+
+.shell-console .xterm-viewport::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(122, 162, 247, 0.8) 0%, rgba(80, 145, 240, 0.7) 100%);
+  border-radius: 12px;
+  border: 2px solid rgba(7, 11, 20, 0.55);
+}
+
+.shell-console .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(138, 176, 255, 0.9) 0%, rgba(96, 158, 255, 0.85) 100%);
+}
+
+body.shell-console-active > :not(#shellConsole) {
+  filter: blur(6px);
+  transition: filter var(--duration-medium) var(--easing-standard);
+}
+
+@media (max-width: 980px) {
+  .shell-console__inner {
+    width: calc(100% - 24px);
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    padding: 16px;
+  }
+}
