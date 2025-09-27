@@ -629,6 +629,14 @@ details:focus-within > summary .row-actions {
   font-size: 18px;
   line-height: 1;
   color: inherit;
+  transition: transform 0.2s ease;
+}
+
+.drawer-icon-button:hover .drawer-icon-button__icon svg,
+.drawer-icon-button:hover .drawer-icon-button__icon i,
+.drawer-icon-button:focus-visible .drawer-icon-button__icon svg,
+.drawer-icon-button:focus-visible .drawer-icon-button__icon i {
+  transform: scale(1.1);
 }
 
 .icon-spin {
@@ -717,19 +725,26 @@ details:focus-within > summary .row-actions {
   background: transparent;
   transition:
     background var(--duration-fast) var(--easing-standard),
-    box-shadow var(--duration-fast) var(--easing-standard);
-  cursor: default;
+    box-shadow var(--duration-fast) var(--easing-standard),
+    transform var(--duration-fast) var(--easing-standard);
+  cursor: pointer;
+  transform: translateX(0);
 }
 .drawer-list-item:hover,
 .drawer-list-item:focus-visible {
-  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  background: transparent;
+  box-shadow: 0 18px 42px rgba(10, 14, 24, 0.25);
+  transform: translateX(6px);
 }
 .drawer-list-item.is-active {
   background: transparent;
 }
 .drawer-list-item.is-selected {
-  background: color-mix(in oklab, var(--accent) 24%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 32%, transparent) inset;
+  background: transparent;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 32%, transparent) inset,
+    0 18px 42px rgba(10, 14, 24, 0.25);
+  transform: translateX(6px);
 }
 .drawer-list-item:last-child {
   border-bottom: none;
@@ -1227,6 +1242,14 @@ details:focus-within > summary .row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.icon-button:hover svg,
+.icon-button:hover i,
+.icon-button:focus-visible svg,
+.icon-button:focus-visible i {
+  transform: scale(1.12);
 }
 
 .dialog-close {
@@ -1242,7 +1265,7 @@ details:focus-within > summary .row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
 }
 
@@ -1638,4 +1661,112 @@ details:focus-within > summary .row-actions {
 
 .code-view ::selection {
   background: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.toast-message {
+  pointer-events: auto;
+  position: fixed;
+  left: 50%;
+  bottom: calc(28px + var(--toast-offset, 0px));
+  z-index: 2147483600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 28px;
+  border-radius: 20px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.35;
+  --toast-ink: #ffffff;
+  --toast-glow: rgba(122, 162, 247, 0.58);
+  color: var(--toast-ink);
+  text-align: center;
+  background-color: rgba(14, 18, 28, 0.46);
+  background-image: var(--toast-texture, none);
+  background-repeat: no-repeat;
+  background-size: cover;
+  border: none;
+  box-shadow: 0 40px 120px rgba(8, 12, 26, 0.55);
+  min-width: min(280px, calc(100vw - 64px));
+  max-width: min(540px, calc(100vw - 64px));
+  width: min(540px, calc(100vw - 64px));
+  transform: translate(-50%, 16px);
+  opacity: 0;
+  transition:
+    opacity 200ms cubic-bezier(0.33, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.33, 0, 0.2, 1),
+    background 220ms ease,
+    color 220ms ease;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.toast-message:is(.is-visible, .is-hiding) {
+  transform: translate(-50%, 0);
+}
+
+.toast-message.is-visible {
+  opacity: 1;
+}
+
+.toast-message.is-hiding {
+  opacity: 0;
+}
+
+.toast-message__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.toast-message__label {
+  flex: 1;
+  min-width: 0;
+  text-wrap: balance;
+  display: inline-flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.toast-message--success {
+  --toast-glow: rgba(16, 185, 129, 0.6);
+  --toast-ink: #ffffff;
+}
+
+.toast-message--warning {
+  --toast-glow: rgba(251, 191, 36, 0.52);
+  --toast-ink: #ffffff;
+}
+
+.toast-message--danger {
+  --toast-glow: rgba(239, 68, 68, 0.52);
+  --toast-ink: #ffffff;
+}
+
+.toast-message--info {
+  --toast-glow: rgba(122, 162, 247, 0.6);
+  --toast-ink: #ffffff;
+}
+
+.toast-message button.toast-message__dismiss {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  color: inherit;
+  opacity: 0.72;
+  transition: background 180ms ease, opacity 180ms ease;
+}
+
+.toast-message button.toast-message__dismiss:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
 }
