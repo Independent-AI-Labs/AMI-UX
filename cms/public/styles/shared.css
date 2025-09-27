@@ -1300,7 +1300,9 @@ details:focus-within > summary .row-actions {
 
 .status-indicator--positive,
 .serve-dot.status-indicator--positive {
-  background: var(--ok);
+  background: color-mix(in oklab, var(--ok) 85%, white 15%);
+  border-color: color-mix(in oklab, var(--ok) 70%, transparent);
+  opacity: 1;
 }
 
 .status-indicator--warning,

@@ -951,7 +951,10 @@ function createAddAccountDialog(React) {
             'aria-label': 'Close add account dialog',
             title: 'Close add account dialog',
           },
-          e('span', { 'aria-hidden': 'true', dangerouslySetInnerHTML: { __html: iconMarkup('close-line') } }),
+          e('span', {
+            'aria-hidden': 'true',
+            dangerouslySetInnerHTML: { __html: iconMarkup('close-line', { size: 24 }) },
+          }),
         ),
       ),
       e(

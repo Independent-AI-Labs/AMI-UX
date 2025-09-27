@@ -201,10 +201,18 @@ export class HighlightSettingsUI {
     btn.title = 'Toggle highlight settings'
     btn.setAttribute('aria-label', 'Toggle highlight settings')
     btn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.37 1.05V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-.37-1.05 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.05-1 1.65 1.65 0 0 0-1.05-.37H2a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.05-.37 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .37-1.05V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 .37 1.05 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.05.37H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.05.37 1.65 1.65 0 0 0-.46.66z"></path>
-      </svg>
+      <span class="ami-highlight-toggle__icon ami-highlight-toggle__icon--gear" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.37 1.05V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-.37-1.05 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.05-1 1.65 1.65 0 0 0-1.05-.37H2a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.05-.37 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .37-1.05V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 .37 1.05 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.05.37H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.05.37 1.65 1.65 0 0 0-.46.66z"></path>
+        </svg>
+      </span>
+      <span class="ami-highlight-toggle__icon ami-highlight-toggle__icon--close" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </span>
     `
     markPluginNode(btn)
     btn.dataset.amiHighlightToggle = '1'
@@ -304,6 +312,64 @@ export class HighlightSettingsUI {
     this.ownsToggle = false
   }
 
+  positionPanelRelativeToToggle(options = {}) {
+    if (!this.panelEl || !this.toggleButton) return
+    if (this.overlayEl && this.overlayEl.hidden && !options.force) return
+
+    let rect
+    try {
+      rect = this.toggleButton.getBoundingClientRect()
+    } catch {
+      rect = null
+    }
+    if (!rect) return
+
+    const view = this.document.defaultView || window
+    const docEl = this.document.documentElement || this.document.body
+    const viewportWidth = view?.innerWidth || docEl?.clientWidth || 0
+    const viewportHeight = view?.innerHeight || docEl?.clientHeight || 0
+    if (!viewportWidth || !viewportHeight) return
+
+    const margin = Number.isFinite(options.margin) ? Math.max(4, options.margin) : 12
+    const panel = this.panelEl
+    panel.style.position = 'fixed'
+    panel.style.right = 'auto'
+    panel.style.bottom = 'auto'
+
+    let panelRect
+    try {
+      panelRect = panel.getBoundingClientRect()
+    } catch {
+      panelRect = { width: panel.offsetWidth || 0, height: panel.offsetHeight || 0 }
+    }
+    const panelWidth = panelRect.width || panel.offsetWidth || 0
+    const panelHeight = panelRect.height || panel.offsetHeight || 0
+
+    let left = rect.left
+    if (panelWidth) {
+      if (left + panelWidth > viewportWidth - margin) left = viewportWidth - panelWidth - margin
+      if (left < margin) left = margin
+    } else {
+      left = Math.max(margin, Math.min(left, viewportWidth - margin))
+    }
+
+    let top = rect.bottom + margin
+    if (panelHeight) {
+      const spaceBelow = viewportHeight - rect.bottom - margin
+      const spaceAbove = rect.top - margin
+      if (panelHeight > spaceBelow && spaceAbove >= panelHeight) {
+        top = rect.top - margin - panelHeight
+      } else if (panelHeight > spaceBelow) {
+        top = Math.max(margin, viewportHeight - panelHeight - margin)
+      }
+    } else {
+      top = Math.max(margin, Math.min(top, viewportHeight - margin))
+    }
+
+    panel.style.left = `${Math.round(left)}px`
+    panel.style.top = `${Math.round(top)}px`
+  }
+
   ensurePanel() {
     if (this.panelEl && this.overlayEl && this.dialogHandle) return
 
@@ -373,7 +439,10 @@ export class HighlightSettingsUI {
       surface: this.panelEl,
       allowBackdropClose: true,
       closeOnEscape: true,
-      onOpen: () => this.updateButtonExpanded(true),
+      onOpen: () => {
+        this.updateButtonExpanded(true)
+        this.positionPanelRelativeToToggle({ force: true })
+      },
       onClose: () => this.updateButtonExpanded(false),
     })
 
@@ -402,6 +471,9 @@ export class HighlightSettingsUI {
   updateButtonExpanded(expanded) {
     if (!this.toggleButton) return
     this.toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+    if (expanded) this.toggleButton.classList.add('is-active')
+    else this.toggleButton.classList.remove('is-active')
+    if (expanded) this.positionPanelRelativeToToggle({ force: true })
   }
 
   open() {

@@ -368,6 +368,64 @@ export class HighlightSettingsUI {
     }
   }
 
+  positionPanelRelativeToToggle(options = {}) {
+    if (!this.panelEl || !this.toggleButton) return
+    if (this.overlayEl && this.overlayEl.hidden && !options.force) return
+
+    let rect
+    try {
+      rect = this.toggleButton.getBoundingClientRect()
+    } catch {
+      rect = null
+    }
+    if (!rect) return
+
+    const view = this.document.defaultView || window
+    const docEl = this.document.documentElement || this.document.body
+    const viewportWidth = view?.innerWidth || docEl?.clientWidth || 0
+    const viewportHeight = view?.innerHeight || docEl?.clientHeight || 0
+    if (!viewportWidth || !viewportHeight) return
+
+    const margin = Number.isFinite(options.margin) ? Math.max(4, options.margin) : 12
+    const panel = this.panelEl
+    panel.style.position = 'fixed'
+    panel.style.right = 'auto'
+    panel.style.bottom = 'auto'
+
+    let panelRect
+    try {
+      panelRect = panel.getBoundingClientRect()
+    } catch {
+      panelRect = { width: panel.offsetWidth || 0, height: panel.offsetHeight || 0 }
+    }
+    const panelWidth = panelRect.width || panel.offsetWidth || 0
+    const panelHeight = panelRect.height || panel.offsetHeight || 0
+
+    let left = rect.left
+    if (panelWidth) {
+      if (left + panelWidth > viewportWidth - margin) left = viewportWidth - panelWidth - margin
+      if (left < margin) left = margin
+    } else {
+      left = Math.max(margin, Math.min(left, viewportWidth - margin))
+    }
+
+    let top = rect.bottom + margin
+    if (panelHeight) {
+      const spaceBelow = viewportHeight - rect.bottom - margin
+      const spaceAbove = rect.top - margin
+      if (panelHeight > spaceBelow && spaceAbove >= panelHeight) {
+        top = rect.top - margin - panelHeight
+      } else if (panelHeight > spaceBelow) {
+        top = Math.max(margin, viewportHeight - panelHeight - margin)
+      }
+    } else {
+      top = Math.max(margin, Math.min(top, viewportHeight - margin))
+    }
+
+    panel.style.left = `${Math.round(left)}px`
+    panel.style.top = `${Math.round(top)}px`
+  }
+
   handleToggleDragStart(event) {
     if (!this.toggleButton || !this.ownsToggle) return
     if (event.button != null && event.button !== 0) return
@@ -416,6 +474,7 @@ export class HighlightSettingsUI {
     style.right = 'auto'
     style.bottom = 'auto'
     this.togglePosition = { left, top }
+    if (this.isOpen()) this.positionPanelRelativeToToggle({ force: true })
   }
 
   handleToggleDragEnd(event) {
@@ -429,6 +488,7 @@ export class HighlightSettingsUI {
       event.preventDefault()
     }
     this.dragState = null
+    if (this.isOpen()) this.positionPanelRelativeToToggle({ force: true })
   }
 
   teardownDragListeners() {
@@ -505,7 +565,10 @@ export class HighlightSettingsUI {
       surface: this.panelEl,
       allowBackdropClose: true,
       closeOnEscape: true,
-      onOpen: () => this.updateButtonExpanded(true),
+      onOpen: () => {
+        this.updateButtonExpanded(true)
+        this.positionPanelRelativeToToggle({ force: true })
+      },
       onClose: () => this.updateButtonExpanded(false),
     })
 
@@ -536,6 +599,7 @@ export class HighlightSettingsUI {
     this.toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false')
     if (expanded) this.toggleButton.classList.add('is-active')
     else this.toggleButton.classList.remove('is-active')
+    if (expanded) this.positionPanelRelativeToToggle({ force: true })
   }
 
   open() {

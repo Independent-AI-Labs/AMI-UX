@@ -3,6 +3,7 @@ import { humanizeName, normalizeFsPath } from './utils.js'
 import { createFileTreeToolkit, normalizeTreeFromApi } from './file-tree.js'
 import { createDrawerChrome } from './drawer-chrome.js?v=20250306'
 import { icon as iconMarkup, spinnerIcon as spinnerIconMarkup } from './icon-pack.js?v=20250306'
+import { showToast } from './toast-manager.js?v=20250306'
 import { dialogService } from './dialog-service.js?v=20250306'
 export async function ensureReact() {
   if (window.React && window.ReactDOM) return { React: window.React, ReactDOM: window.ReactDOM }
@@ -214,7 +215,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         'aria-label': 'Close dialog',
         type: 'button',
       },
-      React.createElement('span', { 'aria-hidden': 'true' }, '×'),
+      React.createElement('span', {
+        'aria-hidden': 'true',
+        dangerouslySetInnerHTML: { __html: iconMarkup('close-line', { size: 24 }) },
+      }),
     )
 
     const surfaceStyle = {
@@ -1060,7 +1064,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const [servingMap, setServingMap] = useState(new Map())
     const [selectedId, setSelectedId] = useState(null)
     const [busyId, setBusyId] = useState(null)
-    const [toast, setToast] = useState(null)
     const [uploadJobs, setUploadJobs] = useState([])
     const uploadJobsRef = useRef([])
     const uploadControllers = useRef(new Map())
@@ -1347,7 +1350,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         )
         if (match?.id) setSelectedId(match.id)
       }
-      setToast({ kind: 'ok', text: 'Added to Library.' })
+      showToast('Added to Library.', { tone: 'success' })
       return { ok: true }
     }
     function summarizeUpload(files, totalBytes) {
@@ -1746,7 +1749,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
               ...summary,
             }
           })
-          setToast({ kind: 'ok', text: 'Upload complete' })
+          showToast('Upload complete', { tone: 'success' })
           setTimeout(() => {
             removeUploadJob(jobId)
           }, 800)
@@ -2063,12 +2066,11 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         })
         if (id) {
           setUploadRoot(rootKey)
-          setToast({
-            kind: 'ok',
-            text: `Staged ${files.length} item${files.length === 1 ? '' : 's'}.`,
+          showToast(`Staged ${files.length} item${files.length === 1 ? '' : 's'}.`, {
+            tone: 'success',
           })
         } else {
-          setToast({ kind: 'err', text: 'Failed to stage files.' })
+          showToast('Failed to stage files.', { tone: 'danger' })
         }
         setPendingSelection(null)
       }
@@ -2084,13 +2086,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         }
         const pathInput = choice.absolutePath || choice.path
         if (!pathInput) {
-          setToast({ kind: 'err', text: 'No destination path provided.' })
+          showToast('No destination path provided.', { tone: 'danger' })
           setPendingSelection(null)
           return
         }
         const mapping = deriveRootForAbsolutePath(pathInput)
         if (!mapping) {
-          setToast({ kind: 'err', text: 'Unable to resolve destination path.' })
+          showToast('Unable to resolve destination path.', { tone: 'danger' })
           setPendingSelection(null)
           return
         }
@@ -2104,7 +2106,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       if (choice.kind === 'new') {
         const validation = validateFolderNameInput(choice.name)
         if (!validation.ok) {
-          setToast({ kind: 'err', text: validation.error })
+          showToast(validation.error, { tone: 'danger' })
           return
         }
         const folderName = validation.value
@@ -2121,7 +2123,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         if (parentAbs) {
           const mapping = deriveRootForAbsolutePath(parentAbs)
           if (!mapping) {
-            setToast({ kind: 'err', text: 'Unable to resolve destination path.' })
+            showToast('Unable to resolve destination path.', { tone: 'danger' })
             setPendingSelection(null)
             return
           }
@@ -2140,7 +2142,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           activeRoot ||
           rootOptions[0]
         if (!fallback) {
-          setToast({ kind: 'err', text: 'No destination roots configured.' })
+          showToast('No destination roots configured.', { tone: 'danger' })
           setPendingSelection(null)
           return
         }
@@ -2151,7 +2153,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         return
       }
 
-      setToast({ kind: 'err', text: 'Unsupported destination type.' })
+      showToast('Unsupported destination type.', { tone: 'danger' })
       setPendingSelection(null)
     }
 
@@ -2175,13 +2177,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }, [menu])
 
     // Toast auto-dismiss
-    useEffect(() => {
-      let t = null
-      if (toast) t = setTimeout(() => setToast(null), 2000)
-      return () => {
-        if (t) clearTimeout(t)
-      }
-    }, [toast])
 
     // Serving poller
     useEffect(() => {
@@ -2242,10 +2237,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         })
         if (!r.ok) throw new Error('start failed')
         updateServing(entry.id, 'running')
-        setToast({ kind: 'ok', text: 'Serving started' })
+        showToast('Serving started', { tone: 'success' })
       } catch {
         updateServing(entry.id, 'stopped')
-        setToast({ kind: 'err', text: 'Failed to start' })
+        showToast('Failed to start', { tone: 'danger' })
       }
     }
     async function stopServing(entry) {
@@ -2257,10 +2252,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         const inst = (list.instances || []).find((i) => i.entryId === entry.id)
         if (!inst) return
         await fetch(`/api/serve/${inst.id}`, { method: 'DELETE' })
-        setToast({ kind: 'ok', text: 'Serving stopped' })
+        showToast('Serving stopped', { tone: 'success' })
       } catch {
         updateServing(entry.id, 'running')
-        setToast({ kind: 'err', text: 'Failed to stop' })
+        showToast('Failed to stop', { tone: 'danger' })
       }
     }
     async function delLib(entry) {
@@ -2268,9 +2263,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       try {
         await fetch(`/api/library/${entry.id}`, { method: 'DELETE' })
         setEntries((ents) => ents.filter((x) => x.id !== entry.id))
-        setToast({ kind: 'ok', text: 'Removed from Library' })
+        showToast('Removed from Library', { tone: 'success' })
       } catch {
-        setToast({ kind: 'err', text: 'Failed to remove' })
+        showToast('Failed to remove', { tone: 'danger' })
       } finally {
         setBusyId(null)
       }
@@ -2281,9 +2276,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       try {
         await fetch(`/api/library/${entry.id}/delete`, { method: 'POST' })
         setEntries((ents) => ents.filter((x) => x.id !== entry.id))
-        setToast({ kind: 'ok', text: 'Deleted from disk' })
+        showToast('Deleted from disk', { tone: 'success' })
       } catch {
-        setToast({ kind: 'err', text: 'Failed to delete' })
+        showToast('Failed to delete', { tone: 'danger' })
       } finally {
         setBusyId(null)
       }
@@ -2395,7 +2390,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             setDropActive(false)
             const collected = await gatherFromDataTransfer(e.dataTransfer)
             if (!collected.length) {
-              setToast({ kind: 'err', text: 'No files detected from drop.' })
+              showToast('No files detected from drop.', { tone: 'warning' })
               return
             }
             openDestinationPrompt(collected)
@@ -2501,20 +2496,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
                 )
               : null,
       ),
-      toast &&
-        React.createElement(
-          'div',
-          {
-            style: {
-              padding: '8px 10px',
-              borderTop: '1px solid var(--border)',
-              background:
-                toast.kind === 'ok' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-              color: 'var(--text)',
-            },
-          },
-          toast.text,
-        ),
     )
 
     const surfaceNode = React.createElement(

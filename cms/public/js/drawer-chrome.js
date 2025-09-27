@@ -1,4 +1,4 @@
-import { spinnerIcon } from './icon-pack.js?v=20250306'
+import { icon, spinnerIcon } from './icon-pack.js?v=20250306'
 
 export function createDrawerChrome(React) {
   const e = React.createElement
@@ -18,6 +18,7 @@ export function createDrawerChrome(React) {
   }
 
   const SPINNER_ICON = spinnerIcon()
+  const CLOSE_MARKUP = icon('arrow-right-s-line', { size: 24 })
 
   function DrawerIconButton({
     icon,
@@ -325,7 +326,7 @@ export function createDrawerChrome(React) {
             'aria-label': closeLabel,
             title: closeLabel,
           },
-          e('span', { 'aria-hidden': 'true' }, '×'),
+          renderIconMarkup(CLOSE_MARKUP) || e('span', { 'aria-hidden': 'true' }, '>'),
         ),
       ),
       description
