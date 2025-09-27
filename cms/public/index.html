@@ -279,28 +279,20 @@
       border-radius: 50%;
       background: none;
       cursor: pointer;
-      transition: transform 220ms ease;
     }
     .brand-logo-button:focus-visible {
-      outline: 2px solid color-mix(in oklab, var(--accent) 72%, white 28%);
+      outline: 2px solid color-mix(in oklab, var(--accent) 62%, white 38%);
       outline-offset: 3px;
-    }
-    .brand-logo-button:hover {
-      transform: scale(1.03);
     }
     .brand-logo {
       width: 58px;
       height: 58px;
       display: block;
-      border-radius: 50%;
-      overflow: hidden;
-      box-shadow: 0 0 32px rgba(255, 255, 255, 0.22);
-      background: radial-gradient(circle at 50% 60%, rgba(255, 255, 255, 0.1) 0%, transparent 72%);
+      border-radius: 14px;
+      box-shadow: 0 0 26px rgba(255, 255, 255, 0.18);
+      background: none;
       opacity: 0.88;
       transition: opacity 260ms ease;
-    }
-    .brand-logo-button .brand-logo {
-      filter: invert(1);
     }
     .brand-logo.is-ready { opacity: 1; }
     .brand-text { display: flex; flex-direction: column; gap: 2px; }
@@ -461,7 +453,7 @@
   <div class="shell-chrome">
     <header>
       <div class="brand">
-        <button id="brandSingularityTrigger" class="brand-logo-button" type="button" aria-label="Open singularity simulation" title="Open singularity simulation" aria-haspopup="dialog" aria-expanded="false">
+        <button id="brandSingularityTrigger" class="brand-logo-button" type="button" aria-label="AMI logo" aria-expanded="false">
           <canvas id="brandSingularity" class="brand-logo brand-logo--singularity" width="72" height="72" aria-hidden="true"></canvas>
         </button>
         <div class="brand-text">
@@ -524,6 +516,7 @@
   </div>
 
   <script type="module">
+    import { attachLensFlare } from '/sim/lens-flare.js?v=20250306'
     import { attachBlackHoleSimulation } from '/sim/black-hole.js?v=20250306'
     import { dialogService } from '/js/dialog-service.js?v=20250306'
     try {
@@ -534,16 +527,13 @@
       const closeButton = dialogOverlay?.querySelector('.dialog-close')
       const largeCanvas = document.getElementById('brandSingularityLarge')
 
-      let smallTeardown = null
+      let lensTeardown = null
       let largeTeardown = null
       let dialogHandle = null
 
       if (canvas) {
-        smallTeardown = attachBlackHoleSimulation(canvas, {
-          enableAccretionDisk: true,
-          maxIterations: 360,
-          cameraSwing: 0.92,
-          resolutionScale: 2.3,
+        lensTeardown = attachLensFlare(canvas, {
+          count: 24,
         })
         canvas.classList.add('is-ready')
       }
@@ -578,7 +568,7 @@
       }
 
       window.addEventListener('beforeunload', () => {
-        try { smallTeardown?.() } catch {}
+        try { lensTeardown?.() } catch {}
         try { largeTeardown?.() } catch {}
         if (dialogHandle) {
           try { dialogService.unregister('brand-singularity') } catch {}
