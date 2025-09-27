@@ -5,8 +5,8 @@ const viewRegistry = new WeakMap()
 let copyHandlerBound = false
 let highlighterPromise = null
 
-const HLJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0'
-const HLJS_CORE_SRC = `${HLJS_BASE}/highlight.min.js`
+const HLJS_ASSET_BASE = 'vendor/highlightjs'
+const HLJS_CORE_SRC = `${HLJS_ASSET_BASE}/highlight.min.js`
 const HLJS_LANGUAGE_SCRIPTS = [
   'bash',
   'c',
@@ -35,7 +35,7 @@ const HLJS_LANGUAGE_SCRIPTS = [
   'swift',
   'typescript',
   'yaml',
-].map((lang) => `${HLJS_BASE}/languages/${lang}.min.js`)
+].map((lang) => `${HLJS_ASSET_BASE}/hljs-${lang}.min.js`)
 
 const scriptPromises = new Map()
 
@@ -75,10 +75,18 @@ function loadScriptOnce(src) {
       resolve()
       return
     }
+    const existing = document.querySelector(`script[data-vendor-src="${src}"]`)
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true })
+      existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), {
+        once: true,
+      })
+      return
+    }
     const script = document.createElement('script')
     script.src = src
     script.async = true
-    script.crossOrigin = 'anonymous'
+    script.dataset.vendorSrc = src
     script.onload = () => resolve()
     script.onerror = () => reject(new Error(`Failed to load ${src}`))
     document.head.appendChild(script)

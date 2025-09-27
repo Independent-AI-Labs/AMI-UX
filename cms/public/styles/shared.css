@@ -207,6 +207,9 @@ header .btn i[class*=' ri-'] {
   color: var(--accent);
   font-weight: 600;
 }
+#toc .structure-nav details {
+  list-style: none;
+}
 #toc .structure-nav details summary {
   position: relative;
   padding: 6px 8px 6px var(--struct-indent, 36px);
@@ -220,6 +223,10 @@ header .btn i[class*=' ri-'] {
   transition: color var(--duration-medium) var(--easing-standard),
     background var(--duration-medium) var(--easing-standard);
   cursor: pointer;
+}
+#toc .structure-nav details summary::marker,
+#toc .structure-nav details summary::-webkit-details-marker {
+  display: none;
 }
 #toc .structure-nav details summary:hover {
   background: color-mix(in oklab, var(--panel) 65%, transparent);
@@ -249,6 +256,10 @@ header .btn i[class*=' ri-'] {
   align-items: center;
   justify-content: center;
   color: currentColor;
+}
+#toc .structure-nav details summary .struct-toggle::before,
+#toc .structure-nav details summary .struct-toggle::after {
+  content: none;
 }
 #toc .structure-nav details summary .struct-toggle i {
   font-size: 16px;

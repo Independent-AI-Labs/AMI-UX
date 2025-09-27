@@ -1,4 +1,4 @@
-import { renderMarkdown, renderCSV, renderHTMLDocument } from './renderers.js'
+import { renderMarkdown, renderCSV, renderHTMLDocument, renderLaTeXDocument } from './renderers.js'
 import { CodeView, guessLanguageFromFilename } from './code-view.js'
 
 const registry = []
@@ -60,7 +60,9 @@ function extensionFromName(name) {
 export function buildFileMeta(node) {
   const name = String(node?.name || '')
   const path = typeof node?.path === 'string' && node.path ? node.path : name
-  const extension = extensionFromName(name)
+  const nameExtension = extensionFromName(name)
+  const pathExtension = extensionFromName(path)
+  const extension = nameExtension || pathExtension
   const mime = node?.mime || node?.mimeType || ''
   return {
     node,
@@ -152,6 +154,19 @@ registerFileView({
   render: ({ content, meta }) => {
     const raw = typeof content === 'string' ? content : String(content || '')
     const out = renderHTMLDocument(raw, meta.path)
+    return { element: out.htmlEl, headings: out.headings }
+  },
+})
+
+registerFileView({
+  id: 'latex-document',
+  label: 'LaTeX preview',
+  priority: 75,
+  contentFormat: 'text',
+  match: (meta) => ['.tex', '.latex', '.ltx'].includes(meta.extension),
+  render: async ({ content, meta }) => {
+    const raw = typeof content === 'string' ? content : String(content || '')
+    const out = await renderLaTeXDocument(raw, meta.path)
     return { element: out.htmlEl, headings: out.headings }
   },
 })

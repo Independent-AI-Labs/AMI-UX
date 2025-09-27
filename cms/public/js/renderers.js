@@ -1,6 +1,9 @@
 import { slugify, pathAnchor } from './utils.js'
 import { CodeView, guessLanguageFromClassName, normaliseLanguageHint } from './code-view.js'
 
+const DOCUMENT_NODE = 9
+const DOCUMENT_FRAGMENT_NODE = 11
+
 export function renderMarkdown(md, relPath) {
   const raw = marked.parse(md)
   const html = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
@@ -254,6 +257,218 @@ export function renderHTMLDocument(htmlText, relPath) {
     }
     headings.push({ id, text, level })
   })
+
+  return { htmlEl: wrapper, headings }
+}
+
+const LATEX_ASSET_BASE = 'vendor/latexjs'
+const LATEX_SCRIPT_URL = `${LATEX_ASSET_BASE}/latex.min.js`
+const LATEX_STYLESHEET_URL = `${LATEX_ASSET_BASE}/latex.min.css`
+
+let latexSupportPromise = null
+
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    if (typeof document === 'undefined') {
+      reject(new Error('Document is not available'))
+      return
+    }
+    const existing = document.querySelector(`script[data-latex-src="${src}"]`)
+    if (existing) {
+      if (existing.dataset.loaded === 'true') resolve(existing)
+      else {
+        existing.addEventListener('load', () => resolve(existing), { once: true })
+        existing.addEventListener('error', (err) => reject(err), { once: true })
+      }
+      return
+    }
+    const script = document.createElement('script')
+    script.src = src
+    script.async = true
+    script.dataset.latexSrc = src
+    script.addEventListener('load', () => {
+      script.dataset.loaded = 'true'
+      resolve(script)
+    })
+    script.addEventListener('error', (err) => {
+      script.remove()
+      reject(err)
+    })
+    document.head.appendChild(script)
+  })
+}
+
+function loadStylesheetOnce(href) {
+  return new Promise((resolve, reject) => {
+    if (typeof document === 'undefined') {
+      reject(new Error('Document is not available'))
+      return
+    }
+    const existing = document.querySelector(`link[data-latex-href="${href}"]`)
+    if (existing) {
+      resolve(existing)
+      return
+    }
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = href
+    link.dataset.latexHref = href
+    link.crossOrigin = 'anonymous'
+    link.referrerPolicy = 'no-referrer'
+    link.addEventListener('load', () => resolve(link), { once: true })
+    link.addEventListener('error', (err) => {
+      link.remove()
+      reject(err)
+    })
+    document.head.appendChild(link)
+  })
+}
+
+function ensureLatexSupport() {
+  if (latexSupportPromise) return latexSupportPromise
+  latexSupportPromise = new Promise(async (resolve, reject) => {
+    try {
+      if (typeof window === 'undefined' || typeof document === 'undefined') {
+        throw new Error('LaTeX renderer requires browser environment')
+      }
+      if (window.latexjs) {
+        resolve(window.latexjs)
+        return
+      }
+      await Promise.all([loadStylesheetOnce(LATEX_STYLESHEET_URL), loadScriptOnce(LATEX_SCRIPT_URL)])
+      if (window.latexjs) resolve(window.latexjs)
+      else throw new Error('latex.js failed to load')
+    } catch (err) {
+      latexSupportPromise = null
+      reject(err)
+    }
+  })
+  return latexSupportPromise
+}
+
+function adoptInto(target, source) {
+  if (!target || !source) return
+  const doc = target.ownerDocument || document
+  const adoptNode = (node) => doc.importNode ? doc.importNode(node, true) : node.cloneNode(true)
+
+  const appendChildren = (node) => {
+    if (!node) return
+    if (node.nodeType === DOCUMENT_FRAGMENT_NODE || node.nodeType === DOCUMENT_NODE) {
+      const fragmentChildren = node.nodeType === DOCUMENT_NODE && node.body ? node.body.childNodes : node.childNodes
+      fragmentChildren && Array.from(fragmentChildren).forEach((child) => appendChildren(child))
+      return
+    }
+    target.appendChild(adoptNode(node))
+  }
+
+  if (source.nodeType === DOCUMENT_FRAGMENT_NODE) {
+    Array.from(source.childNodes || []).forEach((child) => appendChildren(child))
+    return
+  }
+  if (source.nodeType === DOCUMENT_NODE) {
+    const body = source.body || source.documentElement
+    if (body) Array.from(body.childNodes || []).forEach((child) => appendChildren(child))
+    return
+  }
+  if (source.childNodes && source !== target) {
+    Array.from(source.childNodes).forEach((child) => appendChildren(child))
+    return
+  }
+  if (source.nodeType) {
+    appendChildren(source)
+  }
+}
+
+function extractHeadingsFrom(container, relPath) {
+  const base = pathAnchor(relPath)
+  const seen = new Set()
+  const headings = []
+  container.querySelectorAll('h1, h2, h3, h4').forEach((heading) => {
+    if (!(heading instanceof HTMLElement)) return
+    const level = parseInt(heading.tagName.slice(1), 10)
+    if (!Number.isFinite(level)) return
+    const text = (heading.textContent || '').replace('¶', '').trim()
+    if (!text) return
+    let id = heading.id ? heading.id.trim() : ''
+    if (!id) {
+      const slugBase = slugify(text) || 'section'
+      let suffix = 0
+      let candidate = `${base}-${slugBase}`
+      while (seen.has(candidate)) {
+        suffix += 1
+        candidate = `${base}-${slugBase}-${suffix}`
+      }
+      id = candidate
+    }
+    seen.add(id)
+    heading.id = id
+    if (!heading.querySelector(':scope > a.anchor')) {
+      const anchor = document.createElement('a')
+      anchor.href = '#' + id
+      anchor.className = 'anchor'
+      anchor.textContent = '¶'
+      heading.appendChild(anchor)
+    }
+    headings.push({ id, text, level })
+  })
+  return headings
+}
+
+export async function renderLaTeXDocument(texSource, relPath) {
+  const raw = typeof texSource === 'string' ? texSource : String(texSource || '')
+  if (!raw.trim()) {
+    const empty = document.createElement('div')
+    empty.className = 'latex-document latex-document--empty'
+    empty.textContent = 'Empty LaTeX file'
+    return { htmlEl: empty, headings: [] }
+  }
+
+  const wrapper = document.createElement('div')
+  wrapper.className = 'latex-document'
+
+  const viewport = document.createElement('div')
+  viewport.className = 'latex-document__viewport'
+
+  const page = document.createElement('article')
+  page.className = 'latex-document__page'
+
+  viewport.appendChild(page)
+  wrapper.appendChild(viewport)
+
+  let headings = []
+
+  try {
+    const latexjs = await ensureLatexSupport()
+    const generator = new latexjs.HtmlGenerator({ hyphenate: 'en-us' })
+    latexjs.parse(raw, { generator })
+    const fragment =
+      typeof generator.domFragment === 'function'
+        ? generator.domFragment()
+        : typeof generator.documentFragment === 'function'
+        ? generator.documentFragment()
+        : null
+
+    if (fragment) {
+      adoptInto(page, fragment)
+      headings = extractHeadingsFrom(page, relPath)
+    } else {
+      throw new Error('latex.js did not return a fragment')
+    }
+  } catch (err) {
+    console.warn('LaTeX render failed, showing source', err)
+    const notice = document.createElement('div')
+    notice.className = 'latex-document__fallback'
+    notice.textContent = 'Unable to render this LaTeX document. Showing source.'
+    page.appendChild(notice)
+    const fallback = new CodeView({
+      code: raw,
+      language: 'latex',
+      showCopy: true,
+      showLanguage: true,
+      showHeader: true,
+    })
+    page.appendChild(fallback.element)
+  }
 
   return { htmlEl: wrapper, headings }
 }

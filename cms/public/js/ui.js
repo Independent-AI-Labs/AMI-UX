@@ -530,6 +530,20 @@ function rebuildTOC(state, progress) {
   const toc = document.getElementById('toc')
   if (!toc) return
 
+  if (!state._structureOpen || !(state._structureOpen instanceof Set)) {
+    state._structureOpen = new Set()
+  }
+  const openMemory = state._structureOpen
+  const previousNav = toc.querySelector('.structure-nav')
+  if (previousNav) {
+    previousNav.querySelectorAll('details').forEach((det) => {
+      const key = det.dataset.structureKey || det.dataset.path || ''
+      if (!key) return
+      if (det.hasAttribute('open')) openMemory.add(key)
+      else openMemory.delete(key)
+    })
+  }
+
   toc.innerHTML = ''
 
   const structHdr = document.createElement('h3')
@@ -546,14 +560,27 @@ function rebuildTOC(state, progress) {
 
   const renderStructToggle = (el, open = false) => {
     if (!el) return
-    el.innerHTML = iconMarkup(open ? 'subtract-line' : 'add-line', { size: 16 })
+    const iconName = open ? 'subtract-line' : 'add-line'
+    el.innerHTML = iconMarkup(iconName, { size: 16 })
+  }
+
+  const structKeyFor = (node, indexPath = []) => {
+    const path = node.path || ''
+    if (path) return `p:${path}`
+    if (indexPath.length) return `i:${indexPath.join('.')}`
+    return 'root'
   }
 
   const addStruct = (node, providedIndexPath = []) => {
     if (node.type === 'dir') {
       const det = document.createElement('details')
       const indexPath = structIndexPath(node, providedIndexPath)
-      det.open = indexPath.length <= 1
+      const key = structKeyFor(node, indexPath)
+      det.dataset.structureKey = key
+      det.dataset.indexPath = indexPath.join('.')
+      const remembered = openMemory.has(key)
+      const shouldDefaultOpen = indexPath.length <= 1
+      det.open = remembered || (!remembered && shouldDefaultOpen)
       det.dataset.path = node.path || ''
       const sum = document.createElement('summary')
       const depth = Math.max(indexPath.length - 1, 0)
@@ -577,6 +604,10 @@ function rebuildTOC(state, progress) {
       det.appendChild(sum)
       const setToggleState = () => {
         renderStructToggle(toggle, det.hasAttribute('open'))
+        if (key) {
+          if (det.hasAttribute('open')) openMemory.add(key)
+          else openMemory.delete(key)
+        }
       }
       det.__structToggle = toggle
       det.__structToggleUpdate = setToggleState
