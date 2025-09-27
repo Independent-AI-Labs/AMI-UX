@@ -50,6 +50,8 @@ const HIGHLIGHT_PLUGIN_SRC = '/js/highlight-plugin/bootstrap.js?v=20250310'
 const HIGHLIGHT_BOOTSTRAP_ID = 'amiHighlightBootstrapScript'
 const HIGHLIGHT_MAX_ATTEMPTS = 5
 const HIGHLIGHT_RETRY_BASE = 140
+const HIGHLIGHT_ACTIVE_ATTR = 'data-ami-highlight-active'
+const HIGHLIGHT_PROXY_ATTR = 'data-ami-highlight-proxy'
 
 function logHighlightShell(event, payload = {}) {
   try {
@@ -129,12 +131,19 @@ function ensureHighlightPluginConfig(win) {
   if (!Array.isArray(cfg.overlayFollow) || cfg.overlayFollow.length === 0) {
     cfg.overlayFollow = ['block', 'inline', 'heading']
   }
-  cfg.createFallbackToggle = true
+  const isTopWindow = (() => {
+    try {
+      return win.top === win
+    } catch {
+      return true
+    }
+  })()
+  cfg.createFallbackToggle = !isTopWindow
   cfg.renderImmediately = true
   cfg.scopeSelector = typeof cfg.scopeSelector === 'string' && cfg.scopeSelector.trim()
     ? cfg.scopeSelector
     : 'body'
-  if (cfg.autoStart === undefined) cfg.autoStart = true
+  if (cfg.autoStart === undefined) cfg.autoStart = !isTopWindow
   cfg.debug = true
   logHighlightShell('config', {
     overlayFollow: cfg.overlayFollow,
@@ -145,6 +154,31 @@ function ensureHighlightPluginConfig(win) {
     win.__AMI_HIGHLIGHT_CONFIG__ = cfg
   } catch {}
   return cfg
+}
+
+function isHighlightProxyDocument(doc) {
+  if (!doc) return false
+  try {
+    if (doc.defaultView && doc.defaultView.__AMI_HIGHLIGHT_PROXY__) return true
+  } catch {}
+  try {
+    const root = doc.documentElement
+    if (root && root.getAttribute && root.getAttribute(HIGHLIGHT_PROXY_ATTR) === '1') return true
+  } catch {}
+  try {
+    const body = doc.body
+    if (body && body.getAttribute && body.getAttribute(HIGHLIGHT_PROXY_ATTR) === '1') return true
+  } catch {}
+  return false
+}
+
+function findProxyTargetFrame(doc) {
+  if (!doc) return null
+  try {
+    return doc.getElementById('d') || null
+  } catch {
+    return null
+  }
 }
 
 function getHighlightBootstrapState(frame, win) {
@@ -205,6 +239,25 @@ function ensureHighlightPluginInFrame(frame) {
     }
     ensureHighlightPluginConfig(win)
     ensureHighlightPluginInWindowFrames(win)
+
+    if (isHighlightProxyDocument(doc)) {
+      const proxyFrame = findProxyTargetFrame(doc)
+      if (proxyFrame) {
+        try {
+          ensureHighlightPluginConfig(proxyFrame.contentWindow)
+        } catch {}
+        ensureHighlightPluginInFrame(proxyFrame)
+      }
+      state.ready = true
+      state.attempts = 0
+      state.polls = 0
+      if (state.retryHandle) {
+        clearTimeout(state.retryHandle)
+        state.retryHandle = null
+      }
+      logHighlightShell('ensure-proxy-skip')
+      return true
+    }
     if (doc.readyState === 'loading' || !doc.body) {
       logHighlightShell('ensure-wait-dom', { readyState: doc.readyState })
       doc.addEventListener(
@@ -239,6 +292,14 @@ function ensureHighlightPluginInFrame(frame) {
         return null
       }
     })()
+    const root = doc.documentElement || doc.body
+    const hasDomActiveFlag = (() => {
+      try {
+        return root ? root.getAttribute(HIGHLIGHT_ACTIVE_ATTR) === '1' : false
+      } catch {
+        return false
+      }
+    })()
     if (pluginApi && typeof pluginApi.refresh === 'function') {
       state.ready = true
       state.attempts = 0
@@ -254,6 +315,17 @@ function ensureHighlightPluginInFrame(frame) {
         console.warn('Highlight plugin refresh failed', err)
         logHighlightShell('ensure-refresh-error', { error: err?.message || String(err) })
       }
+      return true
+    }
+    if (!pluginApi && hasDomActiveFlag) {
+      state.ready = true
+      state.attempts = 0
+      state.polls = 0
+      if (state.retryHandle) {
+        clearTimeout(state.retryHandle)
+        state.retryHandle = null
+      }
+      logHighlightShell('ensure-external-active')
       return true
     }
     if (state.attempts >= HIGHLIGHT_MAX_ATTEMPTS) {

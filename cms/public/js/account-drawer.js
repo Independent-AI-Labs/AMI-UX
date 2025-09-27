@@ -861,23 +861,6 @@ function createAccountDrawerComponent(React) {
         e(
           'div',
           {
-            style: {
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              marginBottom: 10,
-              paddingRight: 32,
-            },
-          },
-          e(
-            'span',
-            { className: 'muted', style: { fontSize: 12 } },
-            loadingAccounts ? 'Loading…' : `${totalAccounts} configured`,
-          ),
-        ),
-        e(
-          'div',
-          {
             className: 'drawer-list account-drawer__list-box',
           },
           loadingAccounts

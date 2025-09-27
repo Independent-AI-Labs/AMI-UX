@@ -1,6 +1,46 @@
 import { dialogService } from '../../dialog-service.js'
 import { markPluginNode } from '../core/dom-utils.js'
+import { debugLog, setDebugEnabled } from '../core/debug.js'
 import { ensureUIStyles } from './styles.js'
+
+const DEBUG_GLOBAL_KEY = '__AMI_HIGHLIGHT_DEBUG__'
+
+function ensureToggleDebugChannel() {
+  try {
+    const globalRef = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : null
+    if (globalRef && Object.prototype.hasOwnProperty.call(globalRef, DEBUG_GLOBAL_KEY)) {
+      const state = globalRef[DEBUG_GLOBAL_KEY]
+      if (state && typeof state === 'object' && !state.__disabled) return
+    }
+  } catch {}
+  setDebugEnabled({ toggle: true })
+}
+
+function logToggleEvent(instance, event, extra = {}) {
+  if (!instance || !instance.document) return
+  try {
+    const doc = instance.document
+    let toggleCount = null
+    try {
+      toggleCount = doc.querySelectorAll('.ami-highlight-toggle').length
+    } catch {}
+    const payload = {
+      event,
+      owner: instance.ownerId || null,
+      href: (() => {
+        try {
+          return doc.defaultView?.location?.href || null
+        } catch {
+          return null
+        }
+      })(),
+      toggleCount,
+      ...extra,
+    }
+    ensureToggleDebugChannel()
+    debugLog('toggle', payload)
+  } catch {}
+}
 
 const TARGET_META = {
   blocks: {
@@ -48,6 +88,7 @@ export class HighlightSettingsUI {
     this.detachCapabilities = null
     this.id = options.id || 'amiHighlightSettings'
     this.ownsToggle = false
+    this.ownerId = typeof options.ownerId === 'string' ? options.ownerId : ''
 
     ensureUIStyles(doc)
 
@@ -58,13 +99,76 @@ export class HighlightSettingsUI {
     this.detachCapabilities = this.manager.on('capabilities', (caps) => this.syncCapabilities(caps))
 
     if (options.autoAttach !== false) {
-      const target = options.toggleButton || this.locateToggleButton()
-      if (target) this.attachToggleButton(target)
-      else this.createFloatingToggle()
+      const explicit = this.resolveToggleOption(options.toggleButton)
+      this.cleanupOwnedToggles(explicit ? [explicit] : [])
+      const target = explicit || this.locateToggleButton()
+      if (target) {
+        const ownedFlag = target.dataset?.amiHighlightOwned === '1'
+        this.attachToggleButton(target, { ownsToggle: ownedFlag })
+      } else if (options.createFallbackToggle !== false) {
+        this.createFloatingToggle()
+      }
     }
 
     // Prepare UI immediately if desired
     if (options.renderImmediately) this.ensurePanel()
+  }
+
+  isToggleOwnedByUs(toggle) {
+    if (!toggle || !this.ownerId) return false
+    try {
+      return toggle.dataset?.amiHighlightOwner === this.ownerId
+    } catch {
+      return false
+    }
+  }
+
+  cleanupOwnedToggles(exceptions = []) {
+    const guards = Array.isArray(exceptions) ? new Set(exceptions.filter(Boolean)) : new Set()
+    try {
+      const toggles = Array.from(
+        this.document.querySelectorAll(
+          '.ami-highlight-toggle[data-ami-highlight-owned="1"], [data-ami-highlight-toggle="1"][data-ami-highlight-owned="1"]',
+        ),
+      )
+      let removed = 0
+      for (const toggle of toggles) {
+        if (guards.has(toggle)) continue
+        try {
+          toggle.parentElement?.removeChild(toggle)
+          removed += 1
+        } catch {}
+      }
+      logToggleEvent(this, 'toggle:cleanup', {
+        guarded: guards.size,
+        removed,
+        existing: toggles.length,
+      })
+    } catch {}
+  }
+
+  enforceSingleOwnedToggle(keeper) {
+    if (!keeper) return
+    try {
+      const toggles = Array.from(
+        this.document.querySelectorAll(
+          '.ami-highlight-toggle[data-ami-highlight-owned="1"], [data-ami-highlight-toggle="1"][data-ami-highlight-owned="1"]',
+        ),
+      )
+      let removed = 0
+      for (const toggle of toggles) {
+        if (toggle === keeper) continue
+        try {
+          toggle.parentElement?.removeChild(toggle)
+          removed += 1
+        } catch {}
+      }
+      logToggleEvent(this, 'toggle:enforce-single', {
+        kept: !!keeper,
+        removed,
+        existing: toggles.length,
+      })
+    } catch {}
   }
 
   locateToggleButton() {
@@ -73,6 +177,21 @@ export class HighlightSettingsUI {
     } catch {
       return null
     }
+  }
+
+  resolveToggleOption(option) {
+    if (!option) return null
+    if (option instanceof HTMLElement) return option
+    if (typeof option === 'string') {
+      const selector = option.trim()
+      if (!selector) return null
+      try {
+        return this.document.querySelector(selector)
+      } catch {
+        return null
+      }
+    }
+    return null
   }
 
   createFloatingToggle() {
@@ -90,7 +209,32 @@ export class HighlightSettingsUI {
     markPluginNode(btn)
     btn.dataset.amiHighlightToggle = '1'
     btn.dataset.amiHighlightOwned = '1'
-    this.document.body?.appendChild(btn)
+    if (this.ownerId) btn.dataset.amiHighlightOwner = this.ownerId
+    const appendToggle = () => {
+      if (!this.document.body) return
+      try {
+        this.document.body.appendChild(btn)
+      } catch {}
+    }
+    if (this.document.body) appendToggle()
+    else {
+      const onReady = () => {
+        appendToggle()
+        try {
+          this.document.removeEventListener('DOMContentLoaded', onReady)
+        } catch {}
+      }
+      try {
+        this.document.addEventListener('DOMContentLoaded', onReady, { once: true })
+      } catch {
+        setTimeout(appendToggle, 0)
+      }
+    }
+    logToggleEvent(this, 'toggle:create', {
+      bodyReady: !!this.document.body,
+      readyState: this.document.readyState,
+      pkg: true,
+    })
     this.attachToggleButton(btn, { ownsToggle: true })
     return btn
   }
@@ -103,7 +247,17 @@ export class HighlightSettingsUI {
     try {
       this.toggleButton.dataset.amiHighlightToggle = '1'
     } catch {}
-    this.ownsToggle = options.ownsToggle || this.toggleButton.dataset?.amiHighlightOwned === '1'
+    const claimOwnership = options.claimOwnership === true
+    const ownedByUs = claimOwnership || options.ownsToggle === true || this.isToggleOwnedByUs(this.toggleButton)
+    this.ownsToggle = ownedByUs
+    if (ownedByUs) {
+      this.toggleButton.dataset.amiHighlightOwned = '1'
+      if (this.ownerId) this.toggleButton.dataset.amiHighlightOwner = this.ownerId
+    } else if (options.claimOwnership === false && this.toggleButton.dataset) {
+      if (this.toggleButton.dataset.amiHighlightOwner === this.ownerId) {
+        delete this.toggleButton.dataset.amiHighlightOwner
+      }
+    }
     this.toggleButton.setAttribute('aria-haspopup', 'dialog')
     this.toggleButton.setAttribute('aria-expanded', this.isOpen() ? 'true' : 'false')
     this.buttonHandler = (event) => {
@@ -113,9 +267,24 @@ export class HighlightSettingsUI {
       this.toggleButton?.setAttribute('aria-expanded', opened ? 'true' : 'false')
     }
     this.toggleButton.addEventListener('click', this.buttonHandler)
+    logToggleEvent(this, 'toggle:attach', {
+      ownsToggle: this.ownsToggle,
+      claimOwnership,
+      buttonOwnedFlag: options.ownsToggle === true,
+      datasetOwner: (() => {
+        try {
+          return this.toggleButton?.dataset?.amiHighlightOwner || null
+        } catch {
+          return null
+        }
+      })(),
+    })
+    if (this.ownsToggle) this.enforceSingleOwnedToggle(this.toggleButton)
   }
 
   detachToggleButton() {
+    const previousButton = this.toggleButton
+    const previouslyOwned = this.ownsToggle
     if (this.toggleButton && this.buttonHandler) {
       try {
         this.toggleButton.removeEventListener('click', this.buttonHandler)
@@ -126,6 +295,10 @@ export class HighlightSettingsUI {
         this.toggleButton.parentElement.removeChild(this.toggleButton)
       } catch {}
     }
+    logToggleEvent(this, 'toggle:detach', {
+      hadButton: !!previousButton,
+      previouslyOwned,
+    })
     this.toggleButton = null
     this.buttonHandler = null
     this.ownsToggle = false

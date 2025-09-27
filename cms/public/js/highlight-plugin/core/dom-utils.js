@@ -1,4 +1,6 @@
 export const IGNORE_ATTR = 'data-ami-highlight-ignore'
+export const ALT_IGNORE_ATTR = 'data-highlight-ignore'
+export const IGNORE_CLASS = 'ami-highlight-ignore'
 export const OWNED_ATTR = 'data-ami-highlight-owned'
 
 const ElementRef = typeof Element !== 'undefined' ? Element : null
@@ -21,16 +23,54 @@ function closestAttr(el, attr) {
   }
 }
 
+function hasClass(el, className) {
+  if (!el || !className) return false
+  const cls = typeof el.classList !== 'undefined' ? el.classList : null
+  try {
+    return !!cls && cls.contains(className)
+  } catch {
+    return false
+  }
+}
+
+function closestClass(el, className) {
+  if (!el || !className || typeof el.closest !== 'function') return null
+  try {
+    return el.closest('.' + className)
+  } catch {
+    return null
+  }
+}
+
+export function markIgnoredNode(node, options = {}) {
+  if (!node) return node
+  const setAttr = options.attr !== false
+  const setAltAttr = options.altAttr === true || options.attr !== false
+  const setClass = options.class !== false
+  if (setAttr && typeof node.setAttribute === 'function') {
+    try {
+      node.setAttribute(IGNORE_ATTR, '1')
+    } catch {}
+  }
+  if (setAltAttr && typeof node.setAttribute === 'function') {
+    try {
+      node.setAttribute(ALT_IGNORE_ATTR, '1')
+    } catch {}
+  }
+  if (setClass && node.classList) {
+    try {
+      node.classList.add(IGNORE_CLASS)
+    } catch {}
+  }
+  return node
+}
+
 export function markPluginNode(node, options = {}) {
   if (!node || typeof node.setAttribute !== 'function') return node
   try {
     node.setAttribute(OWNED_ATTR, '1')
   } catch {}
-  if (options.ignore !== false) {
-    try {
-      node.setAttribute(IGNORE_ATTR, '1')
-    } catch {}
-  }
+  if (options.ignore !== false) markIgnoredNode(node, { altAttr: true })
   return node
 }
 
@@ -47,9 +87,16 @@ export function isPluginNode(node) {
 export function shouldIgnoreNode(node) {
   if (!node || !ElementRef) return false
   if (node instanceof ElementRef) {
-    if (hasAttr(node, IGNORE_ATTR)) return true
-    const owner = closestAttr(node, IGNORE_ATTR)
-    return !!owner
+    if (hasAttr(node, IGNORE_ATTR) || hasAttr(node, ALT_IGNORE_ATTR) || hasClass(node, IGNORE_CLASS)) {
+      return true
+    }
+    if (
+      closestAttr(node, IGNORE_ATTR) ||
+      closestAttr(node, ALT_IGNORE_ATTR) ||
+      closestClass(node, IGNORE_CLASS)
+    ) {
+      return true
+    }
   }
   return false
 }

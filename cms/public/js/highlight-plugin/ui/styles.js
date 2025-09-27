@@ -1,3 +1,5 @@
+import { markPluginNode } from '../core/dom-utils.js'
+
 const STYLE_ID = 'ami-highlight-ui-style'
 
 const STYLE_TEXT = `
@@ -14,6 +16,15 @@ const STYLE_TEXT = `
   pointer-events: none;
   opacity: 0;
   transition: opacity 160ms ease;
+}
+.dialog-backdrop,
+.dialog-surface,
+.dialog-header,
+.highlight-settings__section,
+.highlight-settings__item,
+.highlight-settings__item select,
+.ami-highlight-toggle {
+  font-family: 'Montserrat', -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
 }
 .dialog-backdrop[hidden] { display: none !important; }
 .dialog-backdrop[data-state="enter"],
@@ -85,27 +96,6 @@ const STYLE_TEXT = `
   margin: 0;
   font-size: 12px;
   color: rgba(154, 163, 178, 0.95);
-}
-.dialog-close {
-  border: none;
-  background: transparent;
-  color: rgba(154, 163, 178, 0.95);
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  border-radius: 10px;
-  font-size: 22px;
-  font-weight: 600;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease;
-}
-.dialog-close:hover {
-  color: #e6e9ef;
-  background: rgba(122, 162, 247, 0.18);
 }
 .highlight-settings-panel {
   gap: 12px;
@@ -180,13 +170,18 @@ const STYLE_TEXT = `
   background: rgba(11, 12, 15, 0.9);
   color: #e6e9ef;
   cursor: pointer;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  box-shadow: none;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background 0.22s ease,
+    color 0.22s ease;
 }
 .ami-highlight-toggle:hover {
   transform: translateY(-1px);
   border-color: rgba(122, 162, 247, 0.6);
-  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.4);
+  box-shadow: none;
 }
 .ami-highlight-toggle:focus {
   outline: 2px solid rgba(122, 162, 247, 0.9);
@@ -196,6 +191,35 @@ const STYLE_TEXT = `
   width: 20px;
   height: 20px;
 }
+.ami-highlight-toggle__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+.ami-highlight-toggle__icon--close {
+  display: none;
+}
+.ami-highlight-toggle.is-active,
+.ami-highlight-toggle[aria-expanded="true"] {
+  background: #ffffff;
+  color: #000000;
+  border-color: rgba(36, 40, 50, 0.15);
+  box-shadow: none;
+}
+.ami-highlight-toggle.is-active:hover,
+.ami-highlight-toggle[aria-expanded="true"]:hover {
+  border-color: rgba(36, 40, 50, 0.25);
+}
+.ami-highlight-toggle.is-active .ami-highlight-toggle__icon--gear,
+.ami-highlight-toggle[aria-expanded="true"] .ami-highlight-toggle__icon--gear {
+  display: none;
+}
+.ami-highlight-toggle.is-active .ami-highlight-toggle__icon--close,
+.ami-highlight-toggle[aria-expanded="true"] .ami-highlight-toggle__icon--close {
+  display: inline-flex;
+}
 `
 
 export function ensureUIStyles(doc) {
@@ -203,5 +227,6 @@ export function ensureUIStyles(doc) {
   const style = doc.createElement('style')
   style.id = STYLE_ID
   style.textContent = STYLE_TEXT
+  markPluginNode(style)
   doc.head.appendChild(style)
 }

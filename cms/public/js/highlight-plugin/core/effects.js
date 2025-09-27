@@ -263,6 +263,7 @@ ${scopeSelector} .${HIGHLIGHT_CLASSES.tree}.${HIGHLIGHT_CLASSES.ancestor}::after
   const style = doc.createElement('style')
   style.id = STYLE_ID
   style.textContent = css
+  markPluginNode(style)
   doc.head.appendChild(style)
 }
 

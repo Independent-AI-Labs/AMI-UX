@@ -2,7 +2,6 @@ import { displayName, pathAnchor } from './utils.js'
 import { fetchFile } from './api.js'
 import { renderMarkdown, renderCSV } from './renderers.js'
 import { CodeView, guessLanguageFromFilename } from './code-view.js'
-import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 
 function isIntroFile(name) {
   const n = String(name || '').toLowerCase()
@@ -111,67 +110,6 @@ function saveOpenState(state) {
   } catch {}
 }
 
-function handleCommentClick(e) {
-  e.stopPropagation()
-  const btn = e.currentTarget
-  if (!btn) return
-  const path = btn.dataset.path || ''
-  const label = btn.dataset.label || ''
-  try {
-    window.parent?.postMessage?.({ type: 'addComment', path, label }, '*')
-  } catch {}
-}
-
-function handleSearchClick(e) {
-  e.stopPropagation()
-  const btn = e.currentTarget
-  if (!btn) return
-  const label = btn.dataset.label || ''
-  try {
-    const inp = document.getElementById('search')
-    if (inp && 'value' in inp) {
-      inp.value = label
-      inp.dispatchEvent(new Event('input', { bubbles: true }))
-      inp.focus()
-    }
-  } catch {}
-}
-
-function createRowActions(node, label) {
-  const actions = document.createElement('span')
-  actions.className = 'row-actions'
-
-  const btnComment = document.createElement('button')
-  btnComment.className = 'act act-comment'
-  btnComment.title = 'Comment'
-  btnComment.setAttribute('aria-label', 'Add comment')
-  btnComment.dataset.path = node.path || ''
-  btnComment.dataset.label = label
-  btnComment.innerHTML = iconMarkup('chat-1-line', { size: 18 })
-  btnComment.addEventListener('click', handleCommentClick)
-
-  const btnSearch = document.createElement('button')
-  btnSearch.className = 'act act-search'
-  btnSearch.title = 'Search'
-  btnSearch.setAttribute('aria-label', 'Search for this item')
-  btnSearch.dataset.path = node.path || ''
-  btnSearch.dataset.label = label
-  btnSearch.innerHTML = iconMarkup('search-line', { size: 18 })
-  btnSearch.addEventListener('click', handleSearchClick)
-
-  actions.appendChild(btnComment)
-  actions.appendChild(btnSearch)
-  return actions
-}
-
-function updateRowActions(actions, node, label) {
-  if (!actions) return
-  actions.querySelectorAll('button').forEach((btn) => {
-    btn.dataset.path = node.path || ''
-    btn.dataset.label = label
-  })
-}
-
 function ensureDirAnchor(body, node) {
   if (!body) return
   const desiredId = 'dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root')
@@ -273,9 +211,6 @@ function createSummary(node, depth, indexPath) {
     meta.textContent = ` (${node.path})`
     summary.appendChild(meta)
   }
-
-  const actions = createRowActions(node, label)
-  summary.appendChild(actions)
   return summary
 }
 
@@ -299,15 +234,16 @@ function updateSummary(summary, node, depth, indexPath) {
       const newMeta = document.createElement('span')
       newMeta.className = 'meta'
       newMeta.textContent = ` (${node.path})`
-      summary.insertBefore(newMeta, summary.querySelector('.row-actions'))
+      const labelEl = summary.querySelector('.tree-label')
+      if (labelEl && labelEl.nextSibling) {
+        summary.insertBefore(newMeta, labelEl.nextSibling)
+      } else {
+        summary.appendChild(newMeta)
+      }
     }
   } else if (meta) {
     meta.remove()
   }
-
-  const actions = summary.querySelector('.row-actions')
-  if (actions) updateRowActions(actions, node, label)
-  else summary.appendChild(createRowActions(node, label))
   return label
 }
 
@@ -584,24 +520,48 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
     }
   })
 
+  const boundTreeFilters = new Set()
+  const applyTreeFilter = (rawValue = '', origin = null) => {
+    const value = String(rawValue || '')
+    state.treeFilterValue = value
+    boundTreeFilters.forEach((input) => {
+      if (!input || input === origin) return
+      if (input.value !== value) input.value = value
+    })
+    const scope = document.getElementById('treeRoot') || document.getElementById('content')
+    if (!scope) return
+    const query = value.toLowerCase()
+    scope.querySelectorAll('details').forEach((d) => {
+      const title = d.querySelector('summary')?.textContent?.toLowerCase() || ''
+      const match = !query || title.includes(query)
+      d.classList.toggle('hidden', !match)
+    })
+  }
+  const bindTreeFilterInput = (input) => {
+    if (!input || typeof input.addEventListener !== 'function' || boundTreeFilters.has(input)) return
+    const handler = (event) => {
+      const value = event?.target?.value ?? ''
+      applyTreeFilter(value, input)
+    }
+    input.addEventListener('input', handler)
+    input.addEventListener('change', handler)
+    boundTreeFilters.add(input)
+    if (state.treeFilterValue) {
+      if (input.value !== state.treeFilterValue) input.value = state.treeFilterValue
+      requestAnimationFrame(() => applyTreeFilter(state.treeFilterValue, input))
+    }
+  }
+  state.registerTreeFilterInput = (input) => bindTreeFilterInput(input)
+  state.applyTreeFilter = (value) => applyTreeFilter(value, null)
+
   const search = document.getElementById('search')
+  bindTreeFilterInput(search)
   window.addEventListener('keydown', (e) => {
     if (e.key === '/' && document.activeElement !== search) {
       e.preventDefault()
-      search && search.focus && search.focus()
+      if (search && typeof search.focus === 'function') search.focus()
     }
   })
-  if (search && typeof search.addEventListener === 'function')
-    search.addEventListener('input', () => {
-      const q = search.value.toLowerCase()
-      const scope = document.getElementById('treeRoot') || document.getElementById('content')
-      if (!scope) return
-      scope.querySelectorAll('details').forEach((d) => {
-        const title = d.querySelector('summary')?.textContent?.toLowerCase() || ''
-        const match = !q || title.includes(q)
-        d.classList.toggle('hidden', !match)
-      })
-    })
   window.addEventListener('hashchange', restoreHashTarget)
 
   // Expand all for print and restore after
