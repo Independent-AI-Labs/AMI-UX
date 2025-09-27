@@ -879,6 +879,10 @@ details:focus-within > summary .row-actions {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 .drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn span {
   display: inline-flex;
@@ -917,7 +921,7 @@ details:focus-within > summary .row-actions {
 .drawer-icon-button:hover .drawer-icon-button__icon i,
 .drawer-icon-button:focus-visible .drawer-icon-button__icon svg,
 .drawer-icon-button:focus-visible .drawer-icon-button__icon i {
-  transform: scale(1.1);
+  transform: scale(1.1) rotate(5deg);
 }
 
 .icon-spin {
@@ -1530,7 +1534,7 @@ details:focus-within > summary .row-actions {
 .icon-button:hover i,
 .icon-button:focus-visible svg,
 .icon-button:focus-visible i {
-  transform: scale(1.12);
+  transform: scale(1.12) rotate(6deg);
 }
 
 .dialog-close {
@@ -2060,16 +2064,21 @@ details:focus-within > summary .row-actions {
   top: 0;
   left: 0;
   right: 0;
-  height: min(48vh, 420px);
-  transform: translateY(calc(-100% - 16px));
+  bottom: 0;
+  height: 100vh;
+  transform: translateY(-100%);
   transition: transform var(--duration-medium) var(--easing-standard),
-    opacity var(--duration-medium) var(--easing-standard),
-    filter var(--duration-medium) var(--easing-standard);
+    opacity var(--duration-medium) var(--easing-standard);
   z-index: 50;
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .shell-console--open {
@@ -2077,16 +2086,15 @@ details:focus-within > summary .row-actions {
   pointer-events: auto;
   opacity: 1;
   visibility: visible;
-  filter: blur(0);
 }
 
 .shell-console__inner {
-  height: 100%;
+  height: min(48vh, 420px);
   width: min(1080px, 96%);
   margin: 0 auto;
   background: rgba(10, 14, 22, 0.94);
-  border-bottom-left-radius: 18px;
-  border-bottom-right-radius: 18px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
   border: 1px solid rgba(138, 155, 191, 0.18);
   border-top: none;
   padding: 20px 22px 22px;
@@ -2226,6 +2234,8 @@ details:focus-within > summary .row-actions {
 body.shell-console-active > :not(#shellConsole) {
   filter: blur(6px);
   transition: filter var(--duration-medium) var(--easing-standard);
+  pointer-events: none;
+  user-select: none;
 }
 
 @media (max-width: 980px) {

@@ -16,7 +16,8 @@ export function initShellConsole() {
   const container = doc.getElementById('shellConsole')
   const viewport = doc.getElementById('shellConsoleViewport')
   const tabsRoot = doc.getElementById('shellConsoleTabs')
-  if (!container || !viewport || !tabsRoot) return
+  const inner = container ? container.querySelector('.shell-console__inner') : null
+  if (!container || !viewport || !tabsRoot || !inner) return
   if (container.dataset.shellConsoleInit === '1') return
   container.dataset.shellConsoleInit = '1'
 
@@ -257,6 +258,17 @@ export function initShellConsole() {
     return term
   }
 
+  function focusTerminalSoon(delay = 20) {
+    const instance = ensureTerminal()
+    if (!instance) return
+    setTimeout(() => {
+      try {
+        instance.focus()
+        instance.scrollToBottom?.()
+      } catch {}
+    }, delay)
+  }
+
   function setOpen(next) {
     const desired = typeof next === 'boolean' ? next : !open
     if (desired === open) return
@@ -265,20 +277,28 @@ export function initShellConsole() {
     container.setAttribute('aria-hidden', open ? 'false' : 'true')
     doc.body.classList.toggle('shell-console-active', open)
     if (open) {
-      const instance = ensureTerminal()
-      if (instance) {
-        setTimeout(() => {
-          instance.focus()
-          try {
-            instance.scrollToBottom?.()
-          } catch {}
-        }, 20)
-      }
+      focusTerminalSoon()
     } else {
       try {
         if (doc.activeElement instanceof HTMLElement) doc.activeElement.blur()
       } catch {}
     }
+  }
+
+  function handleGlobalPointerDown(event) {
+    if (!open) return
+    const target = event.target
+    if (target instanceof Node && inner.contains(target)) return
+    event.preventDefault()
+    event.stopPropagation()
+    setOpen(false)
+  }
+
+  function handleFocusIn(event) {
+    if (!open) return
+    if (event.target instanceof Node && inner.contains(event.target)) return
+    event.stopPropagation()
+    focusTerminalSoon(0)
   }
 
   function handleKeyDown(event) {
@@ -318,6 +338,8 @@ export function initShellConsole() {
   ensureDefaultSession()
 
   doc.addEventListener('keydown', handleKeyDown, true)
+  doc.addEventListener('pointerdown', handleGlobalPointerDown, true)
+  doc.addEventListener('focusin', handleFocusIn, true)
   window.addEventListener('resize', () => {
     if (!term) return
     try {

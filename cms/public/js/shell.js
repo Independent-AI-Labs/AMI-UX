@@ -38,7 +38,7 @@ const VisualizerC = {
   mount: async (container, opts = {}) => {
     const sel = opts?.pathInfo || opts?.selected || {}
     const path = sel.path || ''
-    loadFrame('/doc.html?embed=1', { intent: 'doc', force: true })
+    loadFrame('/doc.html?embed=1', { intent: 'doc', force: true, frame: getActiveFrame() })
     return { unmount: () => {} }
   },
 }
@@ -54,6 +54,104 @@ const HIGHLIGHT_MAX_ATTEMPTS = 5
 const HIGHLIGHT_RETRY_BASE = 140
 const HIGHLIGHT_ACTIVE_ATTR = 'data-ami-highlight-active'
 const HIGHLIGHT_PROXY_ATTR = 'data-ami-highlight-proxy'
+
+const frameRegistry = new Map()
+let activeFrameId = null
+
+function getFrameHost() {
+  return document.getElementById('vizFrameHost')
+}
+
+function getActiveFrame() {
+  return activeFrameId ? frameRegistry.get(activeFrameId) || null : null
+}
+
+function isShellFrameElement(frame) {
+  if (!frame) return false
+  for (const value of frameRegistry.values()) {
+    if (value === frame) return true
+  }
+  return false
+}
+
+function getShellFrameFor(frame) {
+  if (!frame) return null
+  if (isShellFrameElement(frame)) return frame
+  try {
+    let current = frame
+    const visited = new Set()
+    while (current && !visited.has(current)) {
+      visited.add(current)
+      const ownerDoc = current.ownerDocument || null
+      const parentFrame = ownerDoc?.defaultView?.frameElement || null
+      if (!parentFrame) break
+      if (isShellFrameElement(parentFrame)) return parentFrame
+      current = parentFrame
+    }
+  } catch {}
+  return null
+}
+
+function getVisibleFrames() {
+  const frames = []
+  const active = getActiveFrame()
+  frameRegistry.forEach((frame) => {
+    if (frame?.dataset?.frameVisible === '1') frames.push(frame)
+  })
+  if (active && !frames.includes(active)) frames.push(active)
+  return frames
+}
+
+function ensureFrameForTab(tabId) {
+  if (!tabId) return null
+  let frame = frameRegistry.get(tabId)
+  if (frame && frame.isConnected) return frame
+  const host = getFrameHost()
+  if (!host) return null
+  frame = document.createElement('iframe')
+  frame.className = 'viz-frame'
+  frame.dataset.tabId = tabId
+  frame.dataset.currentSrc = 'about:blank'
+  frame.dataset.frameVisible = ''
+  frame.setAttribute('title', 'Visualizer')
+  frame.setAttribute('loading', 'lazy')
+  frame.addEventListener('load', () => {
+    if (frame.dataset.tabId === activeFrameId) hideFrameLoading()
+    if (frame.dataset.frameVisible === '1' || frame === getActiveFrame()) ensureHighlightPluginInFrame(frame)
+  })
+  host.appendChild(frame)
+  frameRegistry.set(tabId, frame)
+  return frame
+}
+
+function setActiveTabFrame(tabId) {
+  const host = getFrameHost()
+  if (!host) return null
+  const frame = tabId ? ensureFrameForTab(tabId) : null
+  frameRegistry.forEach((entry, id) => {
+    const isActive = !!frame && id === tabId
+    entry.classList.toggle('is-active', isActive)
+    if (isActive) entry.dataset.frameVisible = '1'
+    else {
+      delete entry.dataset.frameVisible
+      teardownHighlightPlugin(entry)
+    }
+  })
+  activeFrameId = frame ? tabId : null
+  host.dataset.activeTab = frame ? String(tabId) : ''
+  return frame
+}
+
+function removeFrameForTab(tabId) {
+  const frame = frameRegistry.get(tabId)
+  if (!frame) return
+  try {
+    teardownHighlightPlugin(frame)
+  } catch {}
+  if (frame.parentNode) frame.parentNode.removeChild(frame)
+  frameRegistry.delete(tabId)
+  if (activeFrameId === tabId) activeFrameId = null
+}
 
 function logHighlightShell(event, payload = {}) {
   try {
@@ -224,6 +322,15 @@ function scheduleHighlightRetry(frame, delay = HIGHLIGHT_RETRY_BASE) {
 function ensureHighlightPluginInFrame(frame) {
   try {
     if (!frame) return false
+    const shellFrame = getShellFrameFor(frame)
+    if (shellFrame) {
+      const active = getActiveFrame()
+      const isVisible = shellFrame.dataset?.frameVisible === '1' || shellFrame === active
+      if (!isVisible) {
+        logHighlightShell('ensure-skip-hidden', { tabId: shellFrame.dataset.tabId || null })
+        return false
+      }
+    }
     const win = frame.contentWindow
     const doc = win?.document
     if (!win || !doc) return false
@@ -372,11 +479,11 @@ function ensureHighlightPluginInFrame(frame) {
       } catch {}
       scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * (state.attempts + 1))
     })
-    const target = doc.head || doc.documentElement || doc.body
-    target.appendChild(script)
-    logHighlightShell('script-appended')
-    ensureHighlightPluginInWindowFrames(win)
-    return true
+      const target = doc.head || doc.documentElement || doc.body
+      target.appendChild(script)
+      logHighlightShell('script-appended')
+      ensureHighlightPluginInWindowFrames(win)
+      return true
   } catch (err) {
     console.warn('Failed to inject highlight plugin', err)
     logHighlightShell('ensure-error', { error: err?.message || String(err) })
@@ -385,7 +492,7 @@ function ensureHighlightPluginInFrame(frame) {
 }
 
 function ensureHighlightPluginForActiveDoc() {
-  const frame = document.getElementById('vizFrame')
+  const frame = getActiveFrame()
   if (!frame) return false
   logHighlightShell('ensure-active-doc')
   const result = ensureHighlightPluginInFrame(frame)
@@ -477,19 +584,21 @@ async function updateStatusPillForTab(tab) {
 }
 
 function updateWelcomeVisibility() {
-  const frame = document.getElementById('vizFrame')
+  const host = getFrameHost()
   const welcome = document.getElementById('welcomeScreen')
   const hasActive = !!(tabsState.active && tabsState.tabs.find((t) => t.id === tabsState.active))
-  if (frame) {
-    frame.classList.toggle('is-hidden', !hasActive)
-    if (!hasActive) {
+  if (host) host.classList.toggle('is-hidden', !hasActive)
+  if (!hasActive) {
+    frameRegistry.forEach((frame) => {
+      frame.classList.remove('is-active')
+      delete frame.dataset.frameVisible
       try {
         teardownHighlightPlugin(frame)
         frame.src = 'about:blank'
         frame.dataset.currentSrc = 'about:blank'
       } catch {}
-      hideFrameLoading({ immediate: true })
-    }
+    })
+    hideFrameLoading({ immediate: true })
   }
   if (welcome) welcome.classList.toggle('is-hidden', !!hasActive)
   if (!hasActive) {
@@ -588,13 +697,13 @@ function hideFrameLoading(options = {}) {
   }
 }
 
-function loadFrame(src, { intent = 'loading', force = false } = {}) {
-  const iframe = document.getElementById('vizFrame')
+function loadFrame(src, { intent = 'loading', force = false, frame: targetFrame = null } = {}) {
+  const iframe = targetFrame || getActiveFrame()
   if (!iframe) return false
   const normalized = String(src || '')
   const prev = iframe.dataset.currentSrc || ''
   if (!force && prev === normalized) return false
-  showFrameLoading(intent)
+  if (iframe.dataset.frameVisible === '1') showFrameLoading(intent)
   iframe.dataset.currentSrc = normalized
   try {
     iframe.src = normalized
@@ -603,14 +712,6 @@ function loadFrame(src, { intent = 'loading', force = false } = {}) {
   }
   return true
 }
-
-try {
-  const frame = document.getElementById('vizFrame')
-  if (frame) {
-    frame.dataset.currentSrc = frame.getAttribute('src') || frame.src || ''
-    frame.addEventListener('load', () => hideFrameLoading())
-  }
-} catch {}
 
 async function saveTabs() {
   try {
@@ -656,7 +757,7 @@ function collectDocContexts() {
     if (innerFrames.length) innerFrames.forEach((inner) => gather(inner))
   }
   try {
-    const frames = Array.from(document.querySelectorAll('iframe'))
+    const frames = getVisibleFrames()
     frames.forEach((frame) => gather(frame))
   } catch {}
   return contexts
@@ -975,10 +1076,13 @@ function closeContextMenus() {
 function closeTab(id) {
   const idx = tabsState.tabs.findIndex((x) => x.id === id)
   if (idx === -1) return
+  const wasActive = tabsState.active === id
   tabsState.tabs.splice(idx, 1)
-  if (tabsState.active === id) tabsState.active = tabsState.tabs[0]?.id || null
+  removeFrameForTab(id)
+  if (wasActive) tabsState.active = tabsState.tabs[0]?.id || null
   renderTabs()
   if (tabsState.active) activateTab(tabsState.active)
+  else updateWelcomeVisibility()
   saveTabs()
 }
 
@@ -987,14 +1091,17 @@ async function activateTab(id) {
   if (!tab) return
   tabsState.active = id
   renderTabs()
-  // apply iframe source
+  const frame = setActiveTabFrame(tab.id)
+  updateWelcomeVisibility()
   const cfg = await loadConfig()
-  const iframe = document.getElementById('vizFrame')
-  const baseIntent = tab.kind === 'dir' ? 'doc' : tab.kind === 'file' ? 'file' : tab.kind === 'app' ? 'app' : 'loading'
+  const baseIntent =
+    tab.kind === 'dir' ? 'doc' : tab.kind === 'file' ? 'file' : tab.kind === 'app' ? 'app' : 'loading'
   showFrameLoading(tab.servedId ? 'served' : baseIntent)
   let triggeredLoad = false
   const requestFrame = (src, intent, options = {}) => {
-    const changed = loadFrame(src, { intent, ...options })
+    const target = options.frame || frame || getActiveFrame()
+    if (!target) return false
+    const changed = loadFrame(src, { intent, frame: target, ...options })
     if (changed) triggeredLoad = true
     return changed
   }
@@ -1005,14 +1112,13 @@ async function activateTab(id) {
       if (r.ok) {
         const inst = await r.json()
         if (inst?.status === 'running') {
-          teardownHighlightPlugin(iframe)
-          requestFrame(`/api/served/${tab.servedId}/`, 'served', { force: true })
+          if (frame) teardownHighlightPlugin(frame)
+          requestFrame(`/api/served/${tab.servedId}/`, 'served', { force: true, frame })
           usedServed = true
         }
       }
     } catch {}
   }
-  // Always set a mode class so background styling applies, even when served
   try {
     document.body.classList.remove('mode-dir', 'mode-file', 'mode-app')
     if (tab.kind === 'dir') document.body.classList.add('mode-dir')
@@ -1029,28 +1135,32 @@ async function activateTab(id) {
       const docMessage = buildDocMessageForDir(tab, cfg)
       lastDocMessage = docMessage
       if (docMessage) queueDocMessage(docMessage)
-      teardownHighlightPlugin(iframe)
-      requestFrame('/doc.html?embed=1', 'doc', { force: true })
-      try {
-        iframe.addEventListener(
+      if (frame) teardownHighlightPlugin(frame)
+      requestFrame('/doc.html?embed=1', 'doc', { force: true, frame })
+      if (frame) {
+        frame.addEventListener(
           'load',
           () => {
             logHighlightShell('iframe-load-event')
-            ensureHighlightPluginInFrame(iframe)
-            const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
-            queueDocMessage({ type: 'applyTheme', theme: curTheme })
+            if (frame.dataset.frameVisible === '1') {
+              ensureHighlightPluginInFrame(frame)
+              const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
+              queueDocMessage({ type: 'applyTheme', theme: curTheme })
+            }
           },
           { once: true },
         )
-      } catch {}
+      }
       setTimeout(() => {
+        const current = getActiveFrame()
+        if (!current || current.dataset.tabId !== tab.id) return
         logHighlightShell('iframe-load-timeout-retry')
-        ensureHighlightPluginInFrame(iframe)
+        ensureHighlightPluginInFrame(current)
         const curTheme = document.documentElement.getAttribute('data-theme') || 'dark'
         queueDocMessage({ type: 'applyTheme', theme: curTheme })
       }, 60)
     } else if (tab.kind === 'file') {
-      teardownHighlightPlugin(iframe)
+      if (frame) teardownHighlightPlugin(frame)
       const mode = tab.mode || 'A'
       let rel = tab.path || ''
       let root = 'docRoot'
@@ -1076,16 +1186,20 @@ async function activateTab(id) {
         }
       }
       const qp = new URLSearchParams({ path: rel, mode, root })
-      requestFrame(`/api/media?${qp.toString()}`, 'file', { force: true })
+      requestFrame(`/api/media?${qp.toString()}`, 'file', { force: true, frame })
     } else if (tab.kind === 'app') {
-      teardownHighlightPlugin(iframe)
-      requestFrame('about:blank', 'app', { force: true })
+      if (frame) teardownHighlightPlugin(frame)
+      requestFrame('about:blank', 'app', { force: true, frame })
     }
   }
   if (tab.kind === 'dir') {
     const themeNow = document.documentElement.getAttribute('data-theme') || 'dark'
-    ensureHighlightPluginInFrame(document.getElementById('vizFrame'))
-    setTimeout(() => queueDocMessage({ type: 'applyTheme', theme: themeNow }), 80)
+    const active = getActiveFrame()
+    if (active && active.dataset.tabId === tab.id) ensureHighlightPluginInFrame(active)
+    setTimeout(() => {
+      const current = getActiveFrame()
+      if (current && current.dataset.tabId === tab.id) queueDocMessage({ type: 'applyTheme', theme: themeNow })
+    }, 80)
   }
   try {
     const vizId = usedServed
@@ -1341,16 +1455,26 @@ async function boot() {
     try {
       const msg = ev && ev.data
       if (!msg || typeof msg !== 'object') return
+      const sourceWin = ev?.source || null
+      const ownerFrame = sourceWin ? findFrameForWindow(sourceWin) : null
+      const activeFrame = getActiveFrame()
+      const shellFrame = ownerFrame ? getShellFrameFor(ownerFrame) : getShellFrameFor(activeFrame)
+      let sourceVisible = true
+      if (shellFrame) {
+        sourceVisible = shellFrame.dataset?.frameVisible === '1' || shellFrame === activeFrame
+      }
+      if (!ownerFrame && sourceWin && activeFrame && activeFrame.contentWindow === sourceWin) {
+        sourceVisible = true
+      }
       if (msg.type === 'highlightPluginReady' || msg.type === 'highlightSettingsState') {
         markHighlightPluginReady(ev?.source || null)
         return
       }
       if (msg.type === 'docReady') {
+        if (!sourceVisible) return
         docIsReady = true
-        const sourceWin = ev?.source || null
-        if (sourceWin) {
-          const ownerFrame = findFrameForWindow(sourceWin)
-          if (ownerFrame) ensureHighlightPluginInFrame(ownerFrame)
+        if (sourceWin && ownerFrame) {
+          ensureHighlightPluginInFrame(ownerFrame)
           ensureHighlightPluginInWindowFrames(sourceWin)
         } else {
           ensureHighlightPluginForActiveDoc()
@@ -1376,6 +1500,7 @@ async function boot() {
         return
       }
       if (msg.type === 'docConfig') {
+        if (!sourceVisible) return
         if (!cachedConfig) cachedConfig = {}
         if (typeof msg.docRoot === 'string') cachedConfig.docRoot = msg.docRoot
         if (typeof msg.docRootLabel === 'string' || msg.docRootLabel === null)

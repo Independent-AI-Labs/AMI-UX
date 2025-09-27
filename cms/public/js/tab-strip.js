@@ -44,7 +44,6 @@ export function createTabStrip(root, options = {}) {
     addButton.addEventListener('click', () => {
       if (typeof opts.onAdd === 'function') opts.onAdd()
     })
-    root.appendChild(addButton)
   }
 
   function normalizeTab(tab) {
@@ -261,6 +260,8 @@ export function createTabStrip(root, options = {}) {
       pendingRender = false
       commitRender()
     })
+
+    if (addButton) track.appendChild(addButton)
   }
 
   function setState(payload = {}) {
