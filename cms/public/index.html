@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AMI DATA PORTAL</title>
   <link rel="stylesheet" href="/styles/shared.css?v=20250306">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
   <style>
     /* Shell-specific layout */
     body.shell-app {
@@ -47,12 +48,55 @@
     }
     #tabsBar {
       display: flex;
-      gap: 2px;
+      gap: 8px;
       padding: 6px 12px 0;
       align-items: flex-end;
       position: relative;
       z-index: 3;
       overflow: hidden;
+    }
+    .tab-strip {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      width: 100%;
+    }
+    .tab-strip__track {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      flex: 1 1 auto;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .tab-strip__track::-webkit-scrollbar { display: none; }
+    .tab-strip__add {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.42);
+      color: rgba(255, 255, 255, 0.86);
+      font-weight: 600;
+      cursor: pointer;
+      height: 32px;
+      min-width: 32px;
+      transition: background var(--duration-medium) var(--easing-standard),
+        border-color var(--duration-medium) var(--easing-standard),
+        color var(--duration-medium) var(--easing-standard);
+    }
+    .tab-strip__add:hover {
+      background: rgba(0, 0, 0, 0.58);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .tab-strip__add:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 35%, transparent);
     }
     body.shell-app > .shell-chrome { flex: 0 0 auto; }
     .tab {
@@ -110,6 +154,15 @@
       height: 18px;
       font-size: 18px;
       color: inherit;
+    }
+    .tab .status-indicator {
+      margin-left: 6px;
+    }
+    .tab__label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.1;
     }
     .tab .icon i {
       font-size: inherit;
@@ -324,6 +377,15 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css">
 </head>
 <body class="shell-app">
+  <div id="shellConsole" class="shell-console" aria-hidden="true">
+    <div class="shell-console__inner">
+      <div class="shell-console__tabs">
+        <div id="shellConsoleTabs" class="console-tab-strip" role="tablist"></div>
+      </div>
+      <div id="shellConsoleViewport" class="shell-console__terminal" role="presentation"></div>
+    </div>
+  </div>
+
   <div class="shell-chrome">
     <header>
       <div class="brand">
@@ -370,6 +432,7 @@
     </div>
   </div>
 
+  <script defer src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script type="module" src="/js/shell.js?v=20250306"></script>
   <style>
     /* Hide mode/path noise in shell header */

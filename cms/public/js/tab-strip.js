@@ -1,0 +1,281 @@
+const DEFAULTS = {
+  showAddButton: false,
+  addButtonLabel: '+',
+  addButtonTitle: 'New tab',
+  draggable: true,
+  animate: true,
+}
+
+function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+export function createTabStrip(root, options = {}) {
+  if (!root) throw new Error('createTabStrip requires a root element')
+
+  const opts = { ...DEFAULTS, ...options }
+  const state = {
+    tabs: [],
+    activeId: null,
+    draggingId: null,
+  }
+  let destroyed = false
+
+  root.innerHTML = ''
+  root.classList.add('tab-strip')
+
+  const track = document.createElement('div')
+  track.className = 'tab-strip__track'
+  root.appendChild(track)
+
+  let addButton = null
+  if (opts.showAddButton) {
+    addButton = document.createElement('button')
+    addButton.type = 'button'
+    addButton.className = 'tab-strip__add'
+    addButton.setAttribute('aria-label', opts.addButtonTitle || 'Add tab')
+    addButton.innerHTML = opts.addButtonLabel
+    addButton.addEventListener('click', () => {
+      if (typeof opts.onAdd === 'function') opts.onAdd()
+    })
+    root.appendChild(addButton)
+  }
+
+  function normalizeTab(tab) {
+    if (!tab || tab.id === undefined || tab.id === null) {
+      throw new Error('Tab definition missing id')
+    }
+    const normalized = {
+      id: String(tab.id),
+      label: tab.label ?? '',
+      leadingHTML: tab.leadingHTML || '',
+      trailingHTML: tab.trailingHTML || '',
+      closable: tab.closable !== false,
+      closeIcon: tab.closeIcon !== undefined ? tab.closeIcon : '×',
+      closeLabel: tab.closeLabel || 'Close',
+      classes: Array.isArray(tab.classes) ? tab.classes.filter(Boolean) : [],
+      draggable: tab.draggable !== false,
+      tooltip: tab.tooltip || '',
+      dataset: { ...(tab.dataset || {}) },
+      ariaLabel: tab.ariaLabel || null,
+    }
+    return normalized
+  }
+
+  function capturePositions() {
+    const map = new Map()
+    track.querySelectorAll('button.tab[data-tab-id]').forEach((node) => {
+      const id = node.dataset.tabId
+      if (!id) return
+      map.set(id, node.getBoundingClientRect())
+    })
+    return map
+  }
+
+  function animatePositions(previous) {
+    if (!previous || previous.size === 0) return
+    track.querySelectorAll('button.tab[data-tab-id]').forEach((node) => {
+      const id = node.dataset.tabId
+      if (!id || !previous.has(id)) return
+      const prev = previous.get(id)
+      const next = node.getBoundingClientRect()
+      const dx = prev.left - next.left
+      const dy = prev.top - next.top
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return
+      node.style.transition = 'none'
+      node.style.transform = `translate(${dx}px, ${dy}px)`
+      requestAnimationFrame(() => {
+        node.style.transition = 'transform 220ms cubic-bezier(0.33, 0, 0.2, 1)'
+        node.style.transform = 'translate(0px, 0px)'
+        const cleanup = (evt) => {
+          if (evt.propertyName !== 'transform') return
+          node.style.transition = ''
+          node.style.transform = ''
+          node.removeEventListener('transitionend', cleanup)
+        }
+        node.addEventListener('transitionend', cleanup)
+      })
+    })
+  }
+
+  function reorderInternal(draggedId, targetId, placeBefore, notify) {
+    if (!draggedId || draggedId === targetId) return false
+    const tabs = state.tabs
+    const fromIndex = tabs.findIndex((t) => t.id === draggedId)
+    if (fromIndex === -1) return false
+    const [dragged] = tabs.splice(fromIndex, 1)
+    let insertIndex
+    if (!targetId) {
+      insertIndex = tabs.length
+    } else {
+      insertIndex = tabs.findIndex((t) => t.id === targetId)
+      if (insertIndex === -1) insertIndex = tabs.length
+      else if (!placeBefore) insertIndex += 1
+    }
+    tabs.splice(insertIndex, 0, dragged)
+    render()
+    if (notify && typeof opts.onReorder === 'function') {
+      opts.onReorder(tabs.map((t) => t.id), { draggedId, targetId, placeBefore })
+    }
+    return true
+  }
+
+  function handleRootDragOver(event) {
+    if (!state.draggingId) return
+    if (event.target !== root && event.target !== track) return
+    event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  }
+
+  function handleRootDrop(event) {
+    if (!state.draggingId) return
+    if (event.target !== root && event.target !== track) return
+    event.preventDefault()
+    reorderInternal(state.draggingId, null, false, true)
+    state.draggingId = null
+  }
+
+  root.addEventListener('dragover', handleRootDragOver)
+  root.addEventListener('drop', handleRootDrop)
+
+  function buildTabHTML(tab) {
+    const parts = []
+    if (tab.leadingHTML) parts.push(tab.leadingHTML)
+    const labelSpan = `<span class="tab__label">${escapeHTML(tab.label)}</span>`
+    parts.push(labelSpan)
+    if (tab.trailingHTML) parts.push(tab.trailingHTML)
+    if (tab.closable) {
+      const closeTitle = escapeHTML(tab.closeLabel)
+      parts.push(`<span class="close" title="${closeTitle}" aria-label="${closeTitle}">${tab.closeIcon}</span>`)
+    }
+    return parts.join('')
+  }
+
+  function render() {
+    if (destroyed) return
+    const previous = opts.animate ? capturePositions() : null
+    track.innerHTML = ''
+
+    state.tabs.forEach((tab) => {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'tab'
+      if (tab.classes && tab.classes.length) btn.classList.add(...tab.classes)
+      if (state.activeId === tab.id) btn.classList.add('active')
+      if (state.draggingId === tab.id) btn.classList.add('dragging')
+      btn.dataset.tabId = tab.id
+      if (tab.tooltip) btn.title = tab.tooltip
+      if (tab.ariaLabel) btn.setAttribute('aria-label', tab.ariaLabel)
+      if (tab.dataset) {
+        for (const [key, value] of Object.entries(tab.dataset)) {
+          if (value === undefined || value === null) continue
+          btn.dataset[key] = value
+        }
+      }
+      btn.innerHTML = buildTabHTML(tab)
+
+      btn.addEventListener('click', (event) => {
+        if (destroyed) return
+        const target = event.target
+        if (tab.closable && target instanceof HTMLElement && target.closest('.close')) {
+          event.preventDefault()
+          if (typeof opts.onClose === 'function') opts.onClose(tab.id)
+          return
+        }
+        if (typeof opts.onSelect === 'function') opts.onSelect(tab.id)
+      })
+
+      if (typeof opts.onContextMenu === 'function') {
+        btn.addEventListener('contextmenu', (event) => {
+          if (destroyed) return
+          opts.onContextMenu(event, tab.id)
+        })
+      }
+
+      if (opts.draggable && tab.draggable) {
+        btn.draggable = true
+        btn.addEventListener('dragstart', (event) => {
+          if (destroyed) return
+          const target = event.target
+          if (target instanceof HTMLElement && target.closest('.close')) {
+            event.preventDefault()
+            return
+          }
+          state.draggingId = tab.id
+          event.dataTransfer?.setData('text/plain', tab.id)
+          if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move'
+            try {
+              event.dataTransfer.setDragImage(new Image(), 0, 0)
+            } catch {}
+          }
+          btn.classList.add('dragging')
+        })
+        btn.addEventListener('dragend', () => {
+          if (destroyed) return
+          state.draggingId = null
+          btn.classList.remove('dragging')
+          render()
+        })
+        btn.addEventListener('dragover', (event) => {
+          if (!state.draggingId || state.draggingId === tab.id) return
+          event.preventDefault()
+          if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+          const rect = btn.getBoundingClientRect()
+          const offset = event.clientX - rect.left
+          const placeBefore = offset < rect.width / 2
+          reorderInternal(state.draggingId, tab.id, placeBefore, false)
+        })
+        btn.addEventListener('drop', (event) => {
+          if (!state.draggingId || state.draggingId === tab.id) return
+          event.preventDefault()
+          const rect = btn.getBoundingClientRect()
+          const offset = event.clientX - rect.left
+          const placeBefore = offset < rect.width / 2
+          reorderInternal(state.draggingId, tab.id, placeBefore, true)
+          state.draggingId = null
+        })
+      }
+
+      track.appendChild(btn)
+    })
+
+    if (opts.animate) {
+      requestAnimationFrame(() => animatePositions(previous))
+    }
+  }
+
+  function setState(payload = {}) {
+    const { tabs = [], activeId = null } = payload
+    state.tabs = tabs.map(normalizeTab)
+    if (activeId && state.tabs.some((tab) => tab.id === activeId)) {
+      state.activeId = activeId
+    } else {
+      state.activeId = state.tabs[0]?.id || null
+    }
+    render()
+  }
+
+  function destroy() {
+    destroyed = true
+    root.classList.remove('tab-strip')
+    root.innerHTML = ''
+    root.removeEventListener('dragover', handleRootDragOver)
+    root.removeEventListener('drop', handleRootDrop)
+  }
+
+  function getState() {
+    return { tabs: state.tabs.map((tab) => ({ ...tab })), activeId: state.activeId }
+  }
+
+  return {
+    setState,
+    getState,
+    destroy,
+  }
+}
