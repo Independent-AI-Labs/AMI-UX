@@ -7,7 +7,15 @@
   <link rel="stylesheet" href="/styles/shared.css?v=20250306">
   <style>
     /* Shell-specific layout */
+    body.shell-app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
     #tabsBar { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); }
+    body.shell-app > header,
+    body.shell-app > #tabsBar { flex: 0 0 auto; }
     .tab { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; cursor: pointer; }
     .tab.active { outline: 2px solid var(--accent); }
     .tab .icon {
@@ -33,7 +41,12 @@
     /* Served indicator: unified green dot */
     .tab .pill { margin-left: 6px; }
     .tab .close { margin-left: 8px; opacity: 0.7; }
-    .frame-wrap { position: relative; height: calc(100vh - 44px - 40px); background: #111; }
+    .frame-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      background: #111;
+    }
     /* Default dark; for file modes (A/B) use a light gray gradient */
     body.mode-file .frame-wrap {
       background: linear-gradient(180deg, #f7f7f8 0%, #ededf0 100%);
@@ -154,7 +167,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css">
 </head>
-<body>
+<body class="shell-app">
   <header>
     <div class="brand">
       <img class="brand-logo" src="/res/LOGO_DCD.png" onerror="this.onerror=null;this.src='/res/ami-logo.svg'" alt="AMI Logo" />
@@ -170,9 +183,6 @@
     </button>
     <button class="btn" id="accountDrawerBtn" title="Account Management" aria-label="Account Management">
       <i class="ri-user-settings-line" aria-hidden="true"></i>
-    </button>
-    <button class="btn" id="highlightSettingsBtnShell" title="Highlight settings" aria-label="Highlight settings">
-      <i class="ri-settings-3-line" aria-hidden="true"></i>
     </button>
     <span class="right">
       <span id="statusPill" class="muted"></span>

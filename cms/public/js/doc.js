@@ -1,5 +1,36 @@
 import { startCms } from './main.js?v=20250306'
 
+function syncDocHeaderHeight() {
+  try {
+    const root = document.documentElement
+    if (!root) return
+    const header = document.querySelector('body.doc-viewer > header')
+    if (!header) {
+      root.style.setProperty('--doc-header-height', '0px')
+      return
+    }
+    const style = window.getComputedStyle(header)
+    const isHidden = style.display === 'none' || style.visibility === 'hidden'
+    const height = isHidden ? 0 : header.getBoundingClientRect().height
+    root.style.setProperty('--doc-header-height', `${Math.round(height)}px`)
+  } catch {}
+}
+
+syncDocHeaderHeight()
+
+let headerResizeObserver = null
+if (typeof ResizeObserver !== 'undefined') {
+  const header = document.querySelector('body.doc-viewer > header')
+  if (header) {
+    headerResizeObserver = new ResizeObserver(() => syncDocHeaderHeight())
+    headerResizeObserver.observe(header)
+  }
+}
+
+window.addEventListener('resize', () => {
+  window.requestAnimationFrame(syncDocHeaderHeight)
+})
+
 startCms()
   .then(() => {
     try {
@@ -11,3 +42,12 @@ startCms()
     if (el) el.textContent = 'Failed to initialize doc viewer.'
     console.error(err)
   })
+  .finally(() => {
+    syncDocHeaderHeight()
+  })
+
+window.addEventListener('beforeunload', () => {
+  try {
+    if (headerResizeObserver) headerResizeObserver.disconnect()
+  } catch {}
+})

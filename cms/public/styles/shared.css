@@ -19,6 +19,13 @@
   --code-meta: #eed49f;
   --code-insert: #3ba671;
   --code-delete: #f7768e;
+  --duration-fast: 120ms;
+  --duration-medium: 200ms;
+  --duration-exit: 260ms;
+  --easing-standard: cubic-bezier(0.33, 0, 0.2, 1);
+  --easing-emphasis: cubic-bezier(0.4, 0, 0, 1);
+  --overlay-blur-strength: 8px;
+  --overlay-blur-strength-strong: 18px;
 }
 [data-theme="light"] {
   --bg: #ffffff;
@@ -186,6 +193,10 @@ header .btn i[class*=' ri-'] {
 
 .tree-root-shell {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   transition: min-height 0.24s ease;
 }
 
@@ -194,8 +205,11 @@ header .btn i[class*=' ri-'] {
 }
 
 .tree-root {
+  flex: 1 1 auto;
   min-height: 140px;
   padding: 8px 0 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .tree-root__overlay {
@@ -305,29 +319,39 @@ details:focus-within > summary .row-actions {
 
 /* Dialog system (shared by modals & highlight settings) */
 .dialog-backdrop {
+  --dialog-backdrop-blur-open: var(--overlay-blur-strength);
+  --dialog-backdrop-blur-closing: calc(var(--overlay-blur-strength) * 0.4);
+  --dialog-backdrop-background-closed: color-mix(in srgb, var(--bg) 20%, transparent);
+  --dialog-backdrop-background-open: color-mix(in srgb, var(--bg) 70%, transparent);
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(6, 10, 18, 0.58);
-  backdrop-filter: none;
+  background: var(--dialog-backdrop-background-closed);
+  backdrop-filter: blur(0px);
   z-index: 1600;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 140ms ease;
-  will-change: opacity;
+  transition:
+    opacity var(--duration-medium) var(--easing-standard),
+    backdrop-filter var(--duration-medium) var(--easing-standard),
+    background var(--duration-medium) var(--easing-standard);
+  will-change: opacity, backdrop-filter;
 }
 .dialog-backdrop[hidden] { display: none !important; }
 .dialog-backdrop[data-state="enter"],
 .dialog-backdrop[data-state="open"] {
   opacity: 1;
   pointer-events: auto;
+  backdrop-filter: blur(var(--dialog-backdrop-blur-open));
+  background: var(--dialog-backdrop-background-open);
 }
 .dialog-backdrop[data-state="closing"] {
   opacity: 0;
   pointer-events: none;
+  backdrop-filter: blur(var(--dialog-backdrop-blur-closing));
 }
 .dialog-backdrop--right {
   justify-content: flex-end;
@@ -352,37 +376,44 @@ details:focus-within > summary .row-actions {
   box-shadow: 0 26px 72px rgba(0, 0, 0, 0.45);
   opacity: 0;
   transform: translateY(18px);
-  transition: opacity 150ms ease, transform 150ms ease;
-  will-change: opacity, transform;
+  filter: blur(var(--overlay-blur-strength-strong));
+  transition:
+    opacity var(--duration-medium) var(--easing-standard),
+    transform var(--duration-medium) var(--easing-standard),
+    filter var(--duration-medium) var(--easing-standard);
+  will-change: opacity, transform, filter;
 }
 .dialog-surface[data-state="enter"],
 .dialog-surface[data-state="open"] {
   opacity: 1;
   transform: translateY(0);
+  filter: blur(0px);
 }
 .dialog-surface[data-state="closing"] {
   opacity: 0;
   transform: translateY(12px);
+  filter: blur(calc(var(--overlay-blur-strength-strong) * 0.4));
 }
 
 .account-drawer-backdrop {
   align-items: stretch;
   justify-content: flex-end;
   padding: 0;
-  background: rgba(6, 10, 18, 0.2);
-  backdrop-filter: blur(0);
-  transition: opacity 200ms cubic-bezier(0.33, 0, 0.2, 1),
-              backdrop-filter 240ms cubic-bezier(0.33, 0, 0.2, 1),
-              background 240ms cubic-bezier(0.33, 0, 0.2, 1);
+  --dialog-backdrop-blur-open: var(--overlay-blur-strength-strong);
+  --dialog-backdrop-blur-closing: calc(var(--overlay-blur-strength-strong) * 0.5);
+  --dialog-backdrop-background-closed: color-mix(in srgb, var(--bg) 16%, transparent);
+  --dialog-backdrop-background-open: color-mix(in srgb, var(--bg) 60%, transparent);
+  transition:
+    opacity var(--duration-medium) var(--easing-standard),
+    backdrop-filter var(--duration-medium) var(--easing-standard),
+    background var(--duration-medium) var(--easing-standard);
 }
 .account-drawer-backdrop[data-state="enter"],
 .account-drawer-backdrop[data-state="open"] {
-  background: rgba(8, 12, 18, 0.48);
-  backdrop-filter: blur(8px);
+  background: var(--dialog-backdrop-background-open);
 }
 .account-drawer-backdrop[data-state="closing"] {
-  background: rgba(8, 12, 18, 0.12);
-  backdrop-filter: blur(2px);
+  background: color-mix(in srgb, var(--bg) 28%, transparent);
 }
 
 .drawer-surface,
@@ -402,18 +433,22 @@ details:focus-within > summary .row-actions {
   padding: 0;
   transform: translateX(36px);
   opacity: 0;
-}
-.account-drawer-surface {
-  transform: translateX(36px);
-  opacity: 0;
-  filter: blur(20px);
-  transition: transform 240ms cubic-bezier(0.33, 0, 0.2, 1),
-              opacity 240ms cubic-bezier(0.33, 0, 0.2, 1),
-              filter 240ms cubic-bezier(0.33, 0, 0.2, 1);
+  filter: blur(var(--overlay-blur-strength-strong));
+  transition:
+    transform var(--duration-medium) var(--easing-standard),
+    opacity var(--duration-medium) var(--easing-standard),
+    filter var(--duration-medium) var(--easing-standard);
   will-change: transform, opacity, filter;
 }
+.account-drawer-surface {
+  --dialog-min-width: min(480px, 96vw);
+  --dialog-max-width: min(560px, 96vw);
+  filter: blur(var(--overlay-blur-strength-strong));
+}
 .account-drawer-surface[data-state="enter"],
-.account-drawer-surface[data-state="open"] {
+.account-drawer-surface[data-state="open"],
+.drawer-surface[data-state="enter"],
+.drawer-surface[data-state="open"] {
   transform: translateX(0);
   opacity: 1;
   filter: blur(0);
@@ -421,12 +456,34 @@ details:focus-within > summary .row-actions {
 .account-drawer-surface[data-state="closed"] {
   transform: translateX(36px);
   opacity: 0;
-  filter: blur(20px);
+  filter: blur(var(--overlay-blur-strength-strong));
 }
 .account-drawer-surface[data-state="closing"] {
   transform: translateX(24px);
   opacity: 0;
-  filter: blur(14px);
+  filter: blur(calc(var(--overlay-blur-strength-strong) * 0.45));
+}
+.content-drawer-backdrop {
+  --dialog-backdrop-background-open: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.content-drawer-surface {
+  width: min(560px, 96vw);
+  max-width: min(560px, 96vw);
+}
+.content-drawer__list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: none;
+  min-height: 0;
+}
+.drawer-surface[data-state="closing"],
+.drawer-surface[data-state="closed"] {
+  transform: translateX(28px);
+  opacity: 0;
+  filter: blur(calc(var(--overlay-blur-strength-strong) * 0.5));
 }
 
 .account-drawer__content {
@@ -592,12 +649,34 @@ details:focus-within > summary .row-actions {
 
 .drawer-list,
 .account-drawer__list-box {
+  --drawer-list-border-color: color-mix(in oklab, var(--border) 60%, transparent);
+  --drawer-list-background: color-mix(in oklab, var(--panel) 82%, var(--bg));
   border-radius: 12px;
-  border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
-  background: color-mix(in oklab, var(--panel) 82%, var(--bg));
+  border: 1px solid var(--drawer-list-border-color);
+  background: var(--drawer-list-background);
   overflow: hidden;
   max-height: 60vh;
   overflow-y: auto;
+  transition:
+    border-color var(--duration-fast) var(--easing-standard),
+    background var(--duration-fast) var(--easing-standard),
+    box-shadow var(--duration-fast) var(--easing-standard);
+}
+
+.drawer-list--droppable {
+  position: relative;
+}
+.drawer-list--droppable[data-drop-state='idle'] {
+  --drawer-list-border-color: color-mix(in oklab, var(--border) 60%, transparent);
+  --drawer-list-background: color-mix(in oklab, var(--panel) 82%, var(--bg));
+  border-style: solid;
+  box-shadow: none;
+}
+.drawer-list--droppable[data-drop-state='active'] {
+  --drawer-list-border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  --drawer-list-background: color-mix(in oklab, var(--accent) 14%, transparent);
+  border-style: dashed;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 32%, transparent) inset;
 }
 
 .drawer-list-item {
@@ -607,15 +686,21 @@ details:focus-within > summary .row-actions {
   padding: 12px 16px;
   border-bottom: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
   background: transparent;
-  transition: background 0.16s ease;
+  transition:
+    background var(--duration-fast) var(--easing-standard),
+    box-shadow var(--duration-fast) var(--easing-standard);
   cursor: default;
 }
-.drawer-list-item:hover {
-  background: color-mix(in oklab, var(--accent) 8%, transparent);
+.drawer-list-item:hover,
+.drawer-list-item:focus-visible {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
 }
-.drawer-list-item.is-selected,
 .drawer-list-item.is-active {
-  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  background: transparent;
+}
+.drawer-list-item.is-selected {
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 32%, transparent) inset;
 }
 .drawer-list-item:last-child {
   border-bottom: none;
@@ -839,7 +924,10 @@ details:focus-within > summary .row-actions {
 
 .account-add-dialog__backdrop {
   z-index: 2200;
-  background: rgba(6, 10, 18, 0.58);
+  --dialog-backdrop-blur-open: var(--overlay-blur-strength-strong);
+  --dialog-backdrop-blur-closing: calc(var(--overlay-blur-strength-strong) * 0.5);
+  --dialog-backdrop-background-closed: color-mix(in srgb, var(--bg) 18%, transparent);
+  --dialog-backdrop-background-open: color-mix(in srgb, var(--bg) 68%, transparent);
 }
 
 .account-add-dialog__surface {
@@ -1036,6 +1124,7 @@ details:focus-within > summary .row-actions {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  background: transparent;
 }
 
 .dialog-header__titles {
@@ -1050,76 +1139,14 @@ details:focus-within > summary .row-actions {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+  background: none;
+  animation: none;
 }
 
 .dialog-subtitle {
   margin: 0;
   font-size: 12px;
   color: var(--muted);
-}
-
-
-.highlight-settings-panel {
-  --dialog-min-width: 320px;
-  --dialog-max-width: 360px;
-  gap: 12px;
-}
-.highlight-settings__section {
-  border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
-  padding-top: 10px;
-  margin-top: 10px;
-}
-.highlight-settings__section:first-of-type {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
-}
-.highlight-settings__section h3 {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-.highlight-settings__item {
-  display: flex;
-  gap: 10px;
-  padding: 8px 6px;
-  border-radius: 10px;
-  line-height: 1.4;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-.highlight-settings__item:hover {
-  background: color-mix(in oklab, var(--accent) 12%, transparent);
-}
-.highlight-settings__item input[type="checkbox"] {
-  margin-top: 2px;
-}
-.highlight-settings__item span {
-  font-size: 13px;
-  font-weight: 600;
-}
-.highlight-settings__item p {
-  margin: 2px 0 0;
-  font-size: 11.5px;
-}
-.highlight-settings__item--select {
-  justify-content: space-between;
-  align-items: center;
-}
-.highlight-settings__item--select select {
-  min-width: 120px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
-  background: var(--bg);
-  color: var(--text);
-}
-.highlight-settings__item--select select:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 45%, transparent);
 }
 
 .icon-button {

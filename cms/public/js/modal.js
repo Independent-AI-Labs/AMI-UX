@@ -3,6 +3,7 @@ import { humanizeName, normalizeFsPath } from './utils.js'
 import { createFileTreeToolkit, normalizeTreeFromApi } from './file-tree.js'
 import { createDrawerChrome } from './drawer-chrome.js?v=20250306'
 import { icon as iconMarkup, spinnerIcon as spinnerIconMarkup } from './icon-pack.js?v=20250306'
+import { dialogService } from './dialog-service.js?v=20250306'
 export async function ensureReact() {
   if (window.React && window.ReactDOM) return { React: window.React, ReactDOM: window.ReactDOM }
   const load = (src) =>
@@ -19,6 +20,9 @@ export async function ensureReact() {
   await load('https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js')
   return { React: window.React, ReactDOM: window.ReactDOM }
 }
+
+const MODAL_CLOSE_DELAY = 260
+const DRAWER_CLOSE_DELAY = 260
 
 // Overhauled: openSelectMediaModal now opens a Library drawer
 export async function openSelectMediaModal({ onSelect } = {}) {
@@ -104,39 +108,53 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     footerAlign = 'flex-end',
     allowBackdropClose = true,
   }) {
-    const [stage, setStage] = useState('enter')
-    const closeTimeoutRef = useRef(null)
+    const overlayRef = useRef(null)
+    const surfaceRef = useRef(null)
+    const dialogHandleRef = useRef(null)
+    const closeCallbackRef = useRef(onClose)
+    const idRef = useRef(null)
+
+    if (!idRef.current) {
+      idRef.current = `react-modal-${Math.random().toString(36).slice(2)}`
+    }
+
     useEffect(() => {
-      const id = requestAnimationFrame(() => setStage('open'))
-      return () => cancelAnimationFrame(id)
+      closeCallbackRef.current = onClose
+    }, [onClose])
+
+    useEffect(() => {
+      // allowBackdropClose is captured on mount; changing it mid-flight would require tearing
+      // down the controller, which also dispatches close events. Treat it as static here.
+      const overlayEl = overlayRef.current
+      const surfaceEl = surfaceRef.current
+      if (!overlayEl || !surfaceEl) return
+
+      const dialogId = idRef.current
+      const handle = dialogService.register(dialogId, {
+        overlay: overlayEl,
+        surface: surfaceEl,
+        allowBackdropClose,
+        closeDelay: MODAL_CLOSE_DELAY,
+        onClose: () => {
+          closeCallbackRef.current?.()
+        },
+      })
+      dialogHandleRef.current = handle
+      handle.open()
+
+      return () => {
+        dialogService.unregister(dialogId)
+        dialogHandleRef.current = null
+      }
     }, [])
 
-    const closeWithAnimation = useCallback(() => {
-      if (stage === 'closing') return
-      setStage('closing')
-      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
-      closeTimeoutRef.current = window.setTimeout(() => {
-        closeTimeoutRef.current = null
-        onClose?.()
-      }, 240)
-    }, [stage, onClose])
-
-    useEffect(() => {
-      const handler = (event) => {
-        if (event.key === 'Escape') {
-          event.preventDefault()
-          closeWithAnimation()
-        }
-      }
-      window.addEventListener('keydown', handler)
-      return () => window.removeEventListener('keydown', handler)
-    }, [closeWithAnimation])
-
-    useEffect(
-      () => () => {
-        if (closeTimeoutRef.current) {
-          clearTimeout(closeTimeoutRef.current)
-          closeTimeoutRef.current = null
+    const requestClose = useCallback(
+      (immediate = false) => {
+        const handle = dialogHandleRef.current
+        if (handle) {
+          handle.close(immediate)
+        } else {
+          closeCallbackRef.current?.()
         }
       },
       [],
@@ -173,7 +191,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           className: classes.join(' '),
           onClick: (e) => {
             e.preventDefault()
-            if (!action.disabled) action.onClick?.(e)
+            if (action.disabled) return
+            const result = action.onClick?.(e)
+            if (action.dismiss === true || result === 'close') requestClose()
           },
           disabled: action.disabled,
           type: action.type,
@@ -189,7 +209,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         className: 'icon-button dialog-close',
         onClick: (e) => {
           e.preventDefault()
-          closeWithAnimation()
+          requestClose()
         },
         'aria-label': 'Close dialog',
         type: 'button',
@@ -207,17 +227,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       'div',
       {
         className: 'dialog-backdrop',
-        'data-state': stage,
-        hidden: stage === 'closed',
-        onMouseDown: (event) => {
-          if (event.target === event.currentTarget && allowBackdropClose) closeWithAnimation()
-        },
+        ref: overlayRef,
       },
       React.createElement(
         'div',
         {
           className: 'dialog-surface',
-          'data-state': stage,
+          ref: surfaceRef,
           style: surfaceStyle,
           onMouseDown: (event) => event.stopPropagation(),
         },
@@ -628,7 +644,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           position: 'fixed',
           left,
           top,
-          zIndex: 1002,
+          zIndex: 1603,
           background: 'var(--panel)',
           color: 'var(--text)',
           border: '1px solid var(--border)',
@@ -1057,8 +1073,15 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const fileSelectRef = useRef(null)
     const dirSelectRef = useRef(null)
     const prevNoResultsRef = useRef(false)
-    const closeTimerRef = useRef(null)
-    const [isVisible, setIsVisible] = useState(false)
+    const overlayRef = useRef(null)
+    const surfaceRef = useRef(null)
+    const drawerHandleRef = useRef(null)
+    const closeCallbackRef = useRef(onClose)
+    const drawerIdRef = useRef(null)
+
+    if (!drawerIdRef.current) {
+      drawerIdRef.current = `content-drawer-${Math.random().toString(36).slice(2)}`
+    }
     const writableRootOptions = useMemo(() => {
       if (!Array.isArray(rootOptions)) return []
       return rootOptions.filter((opt) => opt && opt.writable !== false)
@@ -1074,38 +1097,42 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }, [rootOptions])
     const activeRoot = rootOptionMap.get(uploadRoot) || null
     useEffect(() => {
-      const raf = requestAnimationFrame(() => setIsVisible(true))
-      return () => cancelAnimationFrame(raf)
+      closeCallbackRef.current = onClose
+    }, [onClose])
+    useEffect(() => {
+      const overlayEl = overlayRef.current
+      const surfaceEl = surfaceRef.current
+      if (!overlayEl || !surfaceEl) return
+
+      const dialogId = drawerIdRef.current
+      const handle = dialogService.register(dialogId, {
+        overlay: overlayEl,
+        surface: surfaceEl,
+        allowBackdropClose: true,
+        closeDelay: DRAWER_CLOSE_DELAY,
+        onClose: () => {
+          closeCallbackRef.current?.()
+        },
+      })
+      drawerHandleRef.current = handle
+      handle.open()
+
+      return () => {
+        dialogService.unregister(dialogId)
+        drawerHandleRef.current = null
+      }
     }, [])
-    useEffect(
-      () => () => {
-        if (closeTimerRef.current) {
-          clearTimeout(closeTimerRef.current)
-          closeTimerRef.current = null
+    const requestClose = useCallback(
+      (immediate = false) => {
+        const handle = drawerHandleRef.current
+        if (handle) {
+          handle.close(immediate)
+        } else {
+          closeCallbackRef.current?.()
         }
       },
       [],
     )
-    const requestClose = useCallback(() => {
-      if (closeTimerRef.current) return
-      setIsVisible(false)
-      closeTimerRef.current = setTimeout(() => {
-        closeTimerRef.current = null
-        try {
-          onClose?.()
-        } catch {}
-      }, 220)
-    }, [onClose])
-    useEffect(() => {
-      const handler = (e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault()
-          requestClose()
-        }
-      }
-      window.addEventListener('keydown', handler)
-      return () => window.removeEventListener('keydown', handler)
-    }, [requestClose])
     useEffect(() => {
       let alive = true
       ;(async () => {
@@ -2350,18 +2377,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       React.createElement(
         'div',
         {
-          style: {
-            flex: 1,
-            overflow: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            border: dropActive ? '1px dashed var(--accent)' : '1px solid transparent',
-            borderRadius: 10,
-            transition: 'border 120ms ease, background 120ms ease',
-            background: dropActive
-              ? 'color-mix(in oklab, var(--accent) 12%, transparent)'
-              : 'transparent',
-          },
+          className: `drawer-list drawer-list--droppable content-drawer__list${dropActive ? ' is-drop-active' : ''}`,
+          'data-drop-state': dropActive ? 'active' : 'idle',
           onDragOver: (e) => {
             e.preventDefault()
             setDropActive(true)
@@ -2504,39 +2521,18 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       'div',
       {
         className: 'drawer-surface content-drawer-surface',
-        style: {
-          position: 'absolute',
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: '560px',
-          maxWidth: '95vw',
-          pointerEvents: !closeTimerRef.current && isVisible ? 'auto' : 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          transform: isVisible ? 'translateX(0)' : 'translateX(36px)',
-          opacity: isVisible ? 1 : 0,
-          transition: 'transform 220ms ease, opacity 220ms ease',
-          willChange: 'transform, opacity',
-        },
+        ref: surfaceRef,
       },
       drawerContent,
     )
 
     const overlayNode = React.createElement(
       'div',
-      { style: { position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' } },
-      React.createElement('div', {
-        onClick: requestClose,
-        style: {
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0,0,0,0.5)',
-          pointerEvents: 'auto',
-          opacity: isVisible ? 1 : 0,
-          transition: 'opacity 220ms ease',
-        },
-      }),
+      {
+        className:
+          'dialog-backdrop dialog-backdrop--right account-drawer-backdrop content-drawer-backdrop',
+        ref: overlayRef,
+      },
       surfaceNode,
     )
 
@@ -2544,7 +2540,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       overlayNode,
       menu &&
         React.createElement('div', {
-          style: { position: 'fixed', inset: 0, zIndex: 1001, pointerEvents: 'auto' },
+          style: { position: 'fixed', inset: 0, zIndex: 1602, pointerEvents: 'auto' },
           onClick: () => setMenu(null),
         }),
       menu &&
@@ -2757,7 +2753,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
   const overlay = document.createElement('div')
   overlay.style.position = 'fixed'
   overlay.style.inset = '0'
-  overlay.style.zIndex = '1000'
+  overlay.style.zIndex = '1600'
   document.body.appendChild(overlay)
   const root = ReactDOM.createRoot(overlay)
   const onClose = () => {

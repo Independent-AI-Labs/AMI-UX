@@ -1,3 +1,6 @@
+import { filterIgnored, markPluginNode, shouldIgnoreNode } from './dom-utils.js'
+import { debugLog } from './debug.js'
+
 const STYLE_ID = 'fx-glow-highlight-style'
 
 const INTENSITY_PRESETS = {
@@ -282,10 +285,15 @@ function matchesAny(el, selectors) {
 }
 
 function decorateElement(el, rules) {
+  if (shouldIgnoreNode(el)) return
   for (const rule of rules) {
     if (!rule.selectors.length) continue
     if (matchesAny(el, rule.selectors)) {
       rule.apply(el)
+      debugLog('effects:decorate', {
+        tag: el.tagName,
+        selectors: rule.selectors.slice(0, 3),
+      })
     }
   }
 }
@@ -296,7 +304,7 @@ function decorateTreeAncestors(doc, treeSelectors) {
   const handler = (type) => (event) => {
     const target =
       event.target instanceof Element ? event.target.closest(treeSelectors.join(',')) : null
-    if (!target) return
+    if (!target || shouldIgnoreNode(target)) return
     if (type === 'enter') {
       const ancestors = []
       let details = target.parentElement?.closest('details')
@@ -334,6 +342,7 @@ function createHoverOverlay(doc, selectors, callbacks) {
   const overlay = doc.createElement('div')
   overlay.className = HOVER_OVERLAY_CLASS
   overlay.setAttribute('aria-hidden', 'true')
+  markPluginNode(overlay)
 
   const mkBtn = (cls, title, svg, onClick) => {
     const btn = doc.createElement('button')
@@ -347,6 +356,7 @@ function createHoverOverlay(doc, selectors, callbacks) {
       event.stopPropagation()
       if (anchorEl && typeof onClick === 'function') onClick(anchorEl)
     })
+    markPluginNode(btn)
     return btn
   }
 
@@ -366,6 +376,7 @@ function createHoverOverlay(doc, selectors, callbacks) {
   overlay.appendChild(commentBtn)
   overlay.appendChild(searchBtn)
   doc.body.appendChild(overlay)
+  debugLog('overlay:create', { selectors })
 
   let anchorEl = null
   let anchorHadPosition = ''
@@ -375,6 +386,11 @@ function createHoverOverlay(doc, selectors, callbacks) {
 
   function ensureOverlayParent(el) {
     if (overlay.parentElement === el) return
+    if (!el) return
+    if (overlay.contains(el)) {
+      debugLog('overlay:skip-attach', { reason: 'contains' })
+      return
+    }
     if (anchorEl && anchorHadPosition) anchorEl.style.position = anchorHadPosition
     const view = doc.defaultView || (typeof window !== 'undefined' ? window : null)
     const cs = el && view ? view.getComputedStyle(el) : null
@@ -383,6 +399,11 @@ function createHoverOverlay(doc, selectors, callbacks) {
       el.style.position = 'relative'
     }
     if (el) el.appendChild(overlay)
+    debugLog('overlay:attach', {
+      tag: el.tagName,
+      id: el.id,
+      class: el.className,
+    })
   }
 
   function showOverlay(el, mouseX) {
@@ -419,6 +440,11 @@ function createHoverOverlay(doc, selectors, callbacks) {
     }
     overlay.classList.add('show')
     isShown = true
+    debugLog('overlay:show', {
+      tag: el.tagName,
+      left: overlay.style.left,
+      right: overlay.style.right,
+    })
   }
 
   function cleanupOverlay() {
@@ -442,18 +468,22 @@ function createHoverOverlay(doc, selectors, callbacks) {
       cleanupOverlay()
       hideTimer = null
     }, 470)
+    debugLog('overlay:hide')
   }
 
   doc.addEventListener('mouseover', (event) => {
     if (!(event.target instanceof Element)) return
     const el = event.target.closest(allSelectors)
     if (!el) return
+    if (shouldIgnoreNode(el)) return
+    if (overlay.contains(el)) return
     showOverlay(el, event.clientX)
   })
 
   doc.addEventListener('mouseout', (event) => {
     if (!anchorEl) return
     const related = event.relatedTarget instanceof Element ? event.relatedTarget : null
+    if (related && shouldIgnoreNode(related)) return
     const inAnchor = related && anchorEl.contains(related)
     const inOverlay = related && overlay.contains(related)
     if (!inAnchor && !inOverlay) hideOverlay()
@@ -462,6 +492,7 @@ function createHoverOverlay(doc, selectors, callbacks) {
   return () => {
     cleanupOverlay()
     overlay.remove()
+    debugLog('overlay:destroy')
   }
 }
 
@@ -533,6 +564,16 @@ export function initHighlightEffects(options = {}) {
 
   const trackTreeAncestors = options.trackTreeAncestors !== false
 
+  debugLog('effects:init', {
+    scopeSelector,
+    blockSelectors: blockSelectors.length,
+    inlineSelectors: inlineSelectors.length,
+    underlineSelectors: underlineSelectors.length,
+    treeSelectors: treeSelectors.length,
+    overlaySelectors: overlaySelectors.length,
+    trackTreeAncestors,
+  })
+
   const commentCallback =
     typeof options.onComment === 'function'
       ? options.onComment
@@ -588,26 +629,65 @@ export function initHighlightEffects(options = {}) {
   ]
 
   const decorateAll = () => {
+    let applied = 0
+    const detailsCount = (() => {
+      try {
+        return doc.querySelectorAll('details').length
+      } catch {
+        return -1
+      }
+    })()
+    debugLog('effects:pre-pass', {
+      details: detailsCount,
+      bodyChildren: doc.body?.children?.length || 0,
+      readyState: doc.readyState,
+    })
     for (const rule of rules) {
       if (!rule.selectors.length) continue
       for (const selector of rule.selectors) {
+        let collection
         try {
-          doc.querySelectorAll(selector).forEach((el) => rule.apply(el))
+          collection = doc.querySelectorAll(selector)
         } catch {
           continue
         }
+        debugLog('effects:query', {
+          selector,
+          count: collection.length,
+        })
+        const filtered = filterIgnored(collection)
+        debugLog('effects:filtered', {
+          selector,
+          before: collection.length,
+          after: filtered.length,
+        })
+        for (const el of filtered) {
+          rule.apply(el)
+          applied += 1
+        }
       }
     }
+    debugLog('effects:pass', { applied })
+    return applied
   }
 
   decorateAll()
+  debugLog('effects:initial-pass-complete')
 
   const observer = new MutationObserver((records) => {
     for (const record of records) {
       record.addedNodes.forEach((node) => {
         if (!(node instanceof Element)) return
+        if (shouldIgnoreNode(node)) return
         decorateElement(node, rules)
-        node.querySelectorAll('*').forEach((child) => decorateElement(child, rules))
+        node.querySelectorAll('*').forEach((child) => {
+          if (shouldIgnoreNode(child)) return
+          decorateElement(child, rules)
+        })
+        debugLog('effects:mutation', {
+          tag: node.tagName,
+          childCount: node.childElementCount,
+        })
       })
     }
   })
@@ -624,11 +704,15 @@ export function initHighlightEffects(options = {}) {
     : () => {}
 
   return {
-    refresh: decorateAll,
+    refresh: () => {
+      debugLog('effects:refresh')
+      return decorateAll()
+    },
     setIntensity(nextIntensity) {
       applyIntensityPreset(doc, nextIntensity)
     },
     disconnect() {
+      debugLog('effects:disconnect')
       observer.disconnect()
       detachTreeAncestorWatcher()
       detachOverlay()

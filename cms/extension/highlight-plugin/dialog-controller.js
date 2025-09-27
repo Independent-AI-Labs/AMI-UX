@@ -90,15 +90,19 @@ export function createDialogController(options = {}) {
     clearTimers()
     bindEscape()
     overlay.hidden = false
-    setState(overlay, STATE_ENTER)
-    setState(surfaceEl, STATE_ENTER)
-    state = STATE_ENTER
+    // Ensure the DOM paints the closed state for one frame before we
+    // transition to "enter" so CSS animations can pick up correctly.
     rafId = RAF(() => {
-      rafId = null
-      setState(overlay, STATE_OPEN)
-      setState(surfaceEl, STATE_OPEN)
-      state = STATE_OPEN
-      onOpen?.()
+      setState(overlay, STATE_ENTER)
+      setState(surfaceEl, STATE_ENTER)
+      state = STATE_ENTER
+      rafId = RAF(() => {
+        rafId = null
+        setState(overlay, STATE_OPEN)
+        setState(surfaceEl, STATE_OPEN)
+        state = STATE_OPEN
+        onOpen?.()
+      })
     })
   }
 
