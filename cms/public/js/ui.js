@@ -87,6 +87,12 @@ export async function loadFileNode(state, details, node, body) {
     anchor.id = pathAnchor(node.path)
     body.appendChild(anchor)
     body.appendChild(contentEl)
+    updateTOC(state)
+    if (state._structureWatcher) {
+      try {
+        state._structureWatcher.refresh(true)
+      } catch {}
+    }
   } catch (e) {
     body.textContent = 'Failed to load file.'
   }
@@ -175,10 +181,17 @@ function attachFileLoader(details, state, body) {
         await loadFileNode(state, details, node, body)
       }
       restoreHashTarget()
+      updateTOC(state)
+      if (state._structureWatcher) {
+        try {
+          state._structureWatcher.refresh(true)
+        } catch {}
+      }
       return
     }
     await loadFileNode(state, details, node, body)
     restoreHashTarget()
+    updateTOC(state)
   }
   details.__fileToggleHandler = handler
   details.addEventListener('toggle', handler)
@@ -440,17 +453,31 @@ export function updateTOC(state) {
   toc.appendChild(headHdr)
   const hnav = document.createElement('div')
   hnav.className = 'toc-headings'
-  document.querySelectorAll('.md h1, .md h2, .md h3, .md h4').forEach((h) => {
-    const level = parseInt(h.tagName.slice(1), 10)
-    const id = h.id
-    const text = (h.textContent || '').replace('¶', '').trim()
-    const a = document.createElement('a')
-    a.href = '#' + id
-    a.textContent = text
-    const headingIndent = 16 + Math.max(level - 1, 0) * 16
-    a.style.paddingLeft = headingIndent + 'px'
-    hnav.appendChild(a)
-  })
+  const headingScope = document.getElementById('treeRoot') || document.getElementById('content')
+  const headingNodes = headingScope
+    ? Array.from(headingScope.querySelectorAll('.md h1, .md h2, .md h3, .md h4'))
+    : []
+  headingNodes
+    .filter((node) => {
+      const details = node.closest('details.file')
+      if (!details) return false
+      if (!details.hasAttribute('open')) return false
+      if (details.classList?.contains('hidden')) return false
+      return true
+    })
+    .forEach((h) => {
+      const level = parseInt(h.tagName.slice(1), 10)
+      const id = h.id
+      if (!id) return
+      const text = (h.textContent || '').replace('¶', '').trim()
+      if (!text) return
+      const a = document.createElement('a')
+      a.href = '#' + id
+      a.textContent = text
+      const headingIndent = 16 + Math.max(level - 1, 0) * 16
+      a.style.paddingLeft = headingIndent + 'px'
+      hnav.appendChild(a)
+    })
   toc.appendChild(hnav)
 
   if (state && state._structureWatcher) state._structureWatcher.refresh(true)
@@ -592,6 +619,81 @@ function createStructureWatcher(state) {
   const tocRoot = document.querySelector('nav .toc')
   if (!content || !tocRoot) return null
 
+  const ownerDoc = content.ownerDocument || document
+  const defaultView = ownerDoc.defaultView || window
+
+  const escapeSelector = (value) => {
+    const raw = String(value || '')
+    try {
+      const view = ownerDoc.defaultView || window
+      if (view.CSS && typeof view.CSS.escape === 'function') return view.CSS.escape(raw)
+    } catch {}
+    return raw.replace(/"/g, '\\"')
+  }
+
+  const ensureDetailsChain = (path) => {
+    const parts = String(path || '')
+      .split('/')
+      .map((segment) => segment.trim())
+      .filter(Boolean)
+    if (!parts.length) return null
+    let current = ''
+    let last = null
+    for (let idx = 0; idx < parts.length; idx += 1) {
+      current = current ? `${current}/${parts[idx]}` : parts[idx]
+      const selector = `details[data-path="${escapeSelector(current)}"]`
+      const details = content.querySelector(selector)
+      if (!details) return last
+      const body = details.querySelector(':scope > .body')
+      const isFile = (details.dataset?.type || details.classList?.contains('file')) === 'file'
+      const wasOpen = details.open
+      if (!wasOpen) {
+        try {
+          details.open = true
+        } catch {}
+        details.setAttribute('open', '')
+      }
+      details.classList.remove('hidden')
+      const needsLoad = isFile && (!body || body.childElementCount === 0)
+      if (!wasOpen || needsLoad) {
+        try {
+          details.dispatchEvent(new Event('toggle'))
+        } catch {}
+      }
+      last = details
+    }
+    return last
+  }
+
+  const scrollToAnchorWhenReady = (anchorId, options = {}) => {
+    if (!anchorId) return
+    const maxAttempts = Number.isFinite(options.maxAttempts) ? options.maxAttempts : 8
+    const baseDelay = Number.isFinite(options.baseDelay) ? options.baseDelay : 100
+    const behavior = options.behavior || 'smooth'
+    const block = options.block || 'start'
+    let attempt = 0
+    const seek = () => {
+      const anchor = ownerDoc.getElementById(anchorId)
+      if (anchor) {
+        try {
+          anchor.scrollIntoView({ block, behavior })
+        } catch {}
+        return
+      }
+      attempt += 1
+      if (attempt <= maxAttempts) {
+        setTimeout(seek, baseDelay * Math.max(1, attempt))
+      }
+    }
+    setTimeout(seek, baseDelay)
+  }
+
+  const dirAnchorId = (path) => {
+    const raw = String(path || '')
+    const slug = raw ? raw.replace(/[^a-zA-Z0-9]+/g, '-') : 'root'
+    return `dir-${slug}`
+  }
+
   const watcher = {
     content,
     tocRoot,
@@ -622,7 +724,17 @@ function createStructureWatcher(state) {
           const summaryRect = summary.getBoundingClientRect()
           const intersectsAnchor = sectionRect.top <= anchorY && sectionRect.bottom >= anchorY
           const summaryInView = summaryRect.bottom >= top && summaryRect.top <= bottom
-          isVisible = intersectsAnchor || summaryInView
+          const isFile = (det.dataset?.type || det.classList?.contains('file')) === 'file'
+          if (isFile) {
+            const body = det.querySelector(':scope > .body')
+            const bodyRect = body ? body.getBoundingClientRect() : null
+            const bodyVisible = bodyRect
+              ? bodyRect.top <= anchorY && bodyRect.bottom >= Math.min(bottom, top + 120)
+              : false
+            isVisible = bodyVisible || summaryInView
+          } else {
+            isVisible = intersectsAnchor || summaryInView
+          }
         }
         summary.classList.toggle('is-visible', isVisible && !!path)
         if (isVisible && path) visible.add(path)
@@ -663,7 +775,43 @@ function createStructureWatcher(state) {
   tocRoot.addEventListener('click', (e) => {
     const link =
       e.target && typeof e.target.closest === 'function' ? e.target.closest('a[data-path]') : null
-    if (link) watcher.ignoreHashClearUntil = Date.now() + 800
+    if (!link) return
+    const path = link.dataset?.path || ''
+    const type = link.dataset?.type || ''
+    if (!path) {
+      watcher.ignoreHashClearUntil = Date.now() + 1200
+      return
+    }
+    watcher.ignoreHashClearUntil = Date.now() + 1600
+    if (type === 'dir' || type === 'file') {
+      e.preventDefault()
+      const details = ensureDetailsChain(path)
+      const anchorId = type === 'dir' ? dirAnchorId(path) : pathAnchor(path)
+      if (anchorId) {
+        let hashApplied = false
+        if (defaultView && defaultView.location) {
+          try {
+            const currentHash = (defaultView.location.hash || '').slice(1)
+            if (currentHash !== anchorId) defaultView.location.hash = anchorId
+            hashApplied = true
+          } catch {}
+        }
+        if (!hashApplied && ownerDoc && ownerDoc.location) {
+          try {
+            const currentHash = (ownerDoc.location.hash || '').slice(1)
+            if (currentHash !== anchorId) ownerDoc.location.hash = anchorId
+            hashApplied = true
+          } catch {}
+        }
+        scrollToAnchorWhenReady(anchorId, { baseDelay: 60 })
+        setTimeout(() => watcher.updateActive(true), 220)
+      } else if (details && type === 'file') {
+        scrollToAnchorWhenReady(pathAnchor(path), { baseDelay: 80 })
+        setTimeout(() => watcher.updateActive(true), 220)
+      }
+      return
+    }
+    watcher.ignoreHashClearUntil = Date.now() + 1200
   })
   tocRoot.addEventListener('toggle', () => watcher.updateActive(true), true)
   window.addEventListener('resize', () => watcher.updateActive(true))

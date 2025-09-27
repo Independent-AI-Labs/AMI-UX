@@ -427,7 +427,7 @@ function createHoverOverlay(doc, selectors, callbacks) {
     const width = overlay.offsetWidth || 40
     const maxLeft = Math.max(8, el.clientWidth - width - 8)
     if (typeof mouseX === 'number') {
-      const rel = Math.max(8, Math.min(Math.round(mouseX - rect.left + 16), maxLeft))
+      const rel = Math.max(8, Math.min(Math.round(mouseX - rect.left + 48), maxLeft))
       initialLeft = rel
       overlay.style.left = `${rel}px`
       overlay.style.right = 'auto'

@@ -13,11 +13,95 @@
       flex-direction: column;
       overflow: hidden;
     }
-    #tabsBar { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); }
-    body.shell-app > header,
-    body.shell-app > #tabsBar { flex: 0 0 auto; }
-    .tab { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px; cursor: pointer; }
-    .tab.active { outline: 2px solid var(--accent); }
+    @keyframes chrome-shift {
+      0% {
+        background-position: center, 40% 20%;
+      }
+      38% {
+        background-position: center, 58% 40%;
+      }
+      62% {
+        background-position: center, 32% 70%;
+      }
+      100% {
+        background-position: center, 40% 20%;
+      }
+    }
+
+    .shell-chrome {
+      position: sticky;
+      top: 0;
+      z-index: 9;
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 auto;
+      overflow: hidden;
+      background-color: var(--panel);
+      background-image:
+        linear-gradient(180deg, color-mix(in oklab, var(--panel) 90%, transparent) 0%, color-mix(in oklab, var(--panel) 96%, var(--accent) 6%) 100%),
+        var(--chrome-gradient);
+      background-size: 100% 100%, 200% 100%;
+      background-blend-mode: soft-light, normal;
+      animation: chrome-shift 12s ease-in-out infinite;
+      border-bottom: 1px solid var(--border);
+    }
+    #tabsBar {
+      display: flex;
+      gap: 2px;
+      padding: 6px 12px 0;
+      align-items: flex-end;
+      position: relative;
+      z-index: 3;
+      overflow: hidden;
+    }
+    body.shell-app > .shell-chrome { flex: 0 0 auto; }
+    .tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom-color: rgba(255, 255, 255, 0.06);
+      background: rgba(0, 0, 0, 0.42);
+      color: rgba(255, 255, 255, 1);
+      border-radius: 12px 12px 0 0;
+      cursor: pointer;
+      margin-bottom: -1px;
+      position: relative;
+      transition:
+        color var(--duration-medium) var(--easing-standard),
+        background var(--duration-medium) var(--easing-standard),
+        border-color var(--duration-medium) var(--easing-standard),
+        box-shadow var(--duration-medium) var(--easing-standard),
+        padding var(--duration-medium) var(--easing-standard);
+      will-change: transform;
+    }
+    .tab:not(.active):hover {
+      background: rgba(0, 0, 0, 0.54);
+      color: rgba(255, 255, 255, 1);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    .tab:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 35%, transparent);
+    }
+    .tab.active {
+      padding: 8px 16px;
+      background: var(--bg);
+      color: var(--text);
+      border-color: color-mix(in oklab, var(--border) 45%, transparent);
+      border-bottom-color: var(--bg);
+      box-shadow:
+        -18px 0 28px -20px rgba(0, 0, 0, 0.55),
+        18px 0 28px -20px rgba(0, 0, 0, 0.55);
+      z-index: 4;
+    }
+    .tab.active:focus-visible {
+      box-shadow:
+        -12px 0 24px rgba(0, 0, 0, 0.4),
+        12px 0 24px rgba(0, 0, 0, 0.4),
+        0 0 0 2px color-mix(in oklab, var(--accent) 35%, transparent);
+    }
     .tab .icon {
       display: inline-flex;
       align-items: center;
@@ -34,18 +118,87 @@
     }
     /* Served: bump icon size; keep default color */
     .tab.served .icon {
-      width: 22px;
-      height: 22px;
-      font-size: 22px;
+      width: 18px;
+      height: 18px;
+      font-size: 18px;
     }
     /* Served indicator: unified green dot */
     .tab .pill { margin-left: 6px; }
-    .tab .close { margin-left: 8px; opacity: 0.7; }
+    .tab .close {
+      margin-left: 8px;
+      opacity: 0.8;
+      font-size: 18px;
+      line-height: 1;
+      width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tab.dragging {
+      cursor: grabbing;
+      background: var(--bg);
+      color: var(--text);
+      border-color: color-mix(in oklab, var(--border) 45%, transparent);
+      border-bottom-color: var(--bg);
+      padding: 8px 16px;
+    }
     .frame-wrap {
       position: relative;
       flex: 1 1 auto;
       min-height: 0;
       background: #111;
+      margin-top: -1px;
+      overflow: hidden;
+    }
+    .frame-loading {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top, color-mix(in oklab, var(--bg) 65%, transparent) 0%, transparent 72%),
+        color-mix(in oklab, var(--panel) 82%, transparent);
+      backdrop-filter: blur(var(--overlay-blur-strength));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms var(--easing-standard);
+    }
+    .frame-loading--active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .frame-loading__inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      border-radius: 14px;
+      background: rgba(7, 9, 14, 0.72);
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+      border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+    }
+    .frame-loading__spinner {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      border-top-color: color-mix(in oklab, var(--accent) 78%, white 22%);
+      animation: frame-loading-spin 620ms linear infinite;
+    }
+    .frame-loading__label {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.015em;
+      color: rgba(255, 255, 255, 0.92);
+      text-transform: uppercase;
+    }
+    @keyframes frame-loading-spin {
+      to { transform: rotate(360deg); }
     }
     /* Default dark; for file modes (A/B) use a light gray gradient */
     body.mode-file .frame-wrap {
@@ -59,7 +212,7 @@
     .brand-logo { height: 42px; width: auto; object-fit: contain; display: block; animation: logo-spin 120s linear infinite; will-change: transform; }
     .brand-text { display: flex; flex-direction: column; gap: 2px; }
     .brand-text h1 { margin: 0; font-size: 20px; font-weight: 800; }
-    .brand-text .subtitle { font-size: 12px; line-height: 1; }
+    .brand-text .subtitle { font-size: 13px; line-height: 1.1; letter-spacing: 0.06em; }
     @keyframes logo-spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
     /* Invert logo in dark theme for better contrast */
     [data-theme="dark"] .brand-logo { filter: invert(1) contrast(0.95) brightness(1.1); }
@@ -75,6 +228,7 @@
       background:
         radial-gradient(circle at top, color-mix(in oklab, var(--accent) 18%, transparent) 0%, transparent 62%),
         color-mix(in oklab, var(--panel) 94%, transparent);
+      z-index: 3;
     }
     .welcome-card {
       position: relative;
@@ -86,8 +240,8 @@
       background-color: color-mix(in oklab, var(--panel) 58%, white 42%);
       background-image:
         linear-gradient(155deg, color-mix(in oklab, var(--accent) 16%, transparent) 0%, transparent 68%),
-        var(--chrome-grid);
-      background-size: 100% 100%, 32px 32px;
+        var(--chrome-gradient);
+      background-size: 100% 100%, 200% 100%;
       background-repeat: no-repeat, repeat;
       background-blend-mode: screen, normal;
       box-shadow: 0 32px 90px rgba(0,0,0,0.32);
@@ -101,8 +255,8 @@
       content: '';
       position: absolute;
       inset: 0;
-      background-image: var(--chrome-grid);
-      background-size: 32px 32px;
+      background-image: var(--chrome-gradient);
+      background-size: 260% 260%;
       opacity: 0.5;
       mix-blend-mode: color-dodge;
       filter: hue-rotate(0deg);
@@ -136,20 +290,19 @@
     }
     .welcome-card .welcome-hint { font-size: 12px; }
     :root {
-      --chrome-grid-dark: url('/res/patterns/chrome-grid-dark.svg');
-      --chrome-grid-light: url('/res/patterns/chrome-grid-light.svg');
+      --chrome-gradient-dark: linear-gradient(90deg, rgba(122, 162, 247, 0.7) 0%, rgba(244, 114, 182, 0.7) 100%);
+      --chrome-gradient-light: linear-gradient(90deg, rgba(96, 165, 250, 0.6) 0%, rgba(251, 191, 36, 0.55) 100%);
+      --chrome-gradient: var(--chrome-gradient-dark);
     }
-    [data-theme="dark"] { --chrome-grid: var(--chrome-grid-dark); }
-    [data-theme="light"] { --chrome-grid: var(--chrome-grid-light); }
+    [data-theme="dark"] { --chrome-gradient: var(--chrome-gradient-dark); }
+    [data-theme="light"] { --chrome-gradient: var(--chrome-gradient-light); }
     header {
       position: relative;
-      overflow: hidden;
-      background-color: var(--panel);
-      background-image:
-        linear-gradient(180deg, color-mix(in oklab, var(--panel) 90%, transparent) 0%, color-mix(in oklab, var(--panel) 96%, var(--accent) 6%) 100%),
-        var(--chrome-grid);
-      background-size: 100% 100%, 32px 32px;
-      background-blend-mode: soft-light, normal;
+      top: auto;
+      z-index: auto;
+      background: transparent;
+      border-bottom: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+      box-shadow: none;
     }
     header > *, .welcome-screen > * { position: relative; z-index: 1; }
     .welcome-card { position: relative; z-index: 2; }
@@ -171,30 +324,38 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css">
 </head>
 <body class="shell-app">
-  <header>
-    <div class="brand">
-      <img class="brand-logo" src="/res/LOGO_DCD.png" onerror="this.onerror=null;this.src='/res/ami-logo.svg'" alt="AMI Logo" />
-      <div class="brand-text">
-        <h1>AMI DATA PORTAL</h1>
-        <div class="muted subtitle">DISTRIBUTED CONTENT DIRECTORY</div>
+  <div class="shell-chrome">
+    <header>
+      <div class="brand">
+        <img class="brand-logo" src="/res/LOGO_DCD.png" onerror="this.onerror=null;this.src='/res/ami-logo.svg'" alt="AMI Logo" />
+        <div class="brand-text">
+          <h1>AMI DATA PORTAL</h1>
+          <div class="muted subtitle">LIVE CONTENT DIRECTORY</div>
+        </div>
+      </div>
+      <input id="globalSearch" type="search" placeholder="Search (/)" />
+      <button class="icon-button" id="btnTheme" title="Toggle Theme" aria-label="Toggle Theme"><i id="iconTheme" class="ri-moon-clear-line" aria-hidden="true"></i></button>
+      <button class="icon-button" id="selectMediaBtn" title="Content Directory" aria-label="Content Directory">
+        <i class="ri-folders-line" aria-hidden="true"></i>
+      </button>
+      <button class="icon-button" id="accountDrawerBtn" title="Account Management" aria-label="Account Management">
+        <i class="ri-user-settings-line" aria-hidden="true"></i>
+      </button>
+      <span class="right">
+        <span id="statusPill" class="muted"></span>
+        <span id="pathLabel" class="muted"></span>
+      </span>
+    </header>
+
+    <div id="tabsBar"></div>
+  </div>
+  <div class="frame-wrap">
+    <div id="frameLoadingOverlay" class="frame-loading" aria-hidden="true">
+      <div class="frame-loading__inner">
+        <div class="frame-loading__spinner" aria-hidden="true"></div>
+        <span class="frame-loading__label">Loading…</span>
       </div>
     </div>
-    <input id="globalSearch" type="search" placeholder="Search (/)" />
-    <button class="icon-button" id="btnTheme" title="Toggle Theme" aria-label="Toggle Theme"><i id="iconTheme" class="ri-moon-clear-line" aria-hidden="true"></i></button>
-    <button class="icon-button" id="selectMediaBtn" title="Content Directory" aria-label="Content Directory">
-      <i class="ri-folders-line" aria-hidden="true"></i>
-    </button>
-    <button class="icon-button" id="accountDrawerBtn" title="Account Management" aria-label="Account Management">
-      <i class="ri-user-settings-line" aria-hidden="true"></i>
-    </button>
-    <span class="right">
-      <span id="statusPill" class="muted"></span>
-      <span id="pathLabel" class="muted"></span>
-    </span>
-  </header>
-
-  <div id="tabsBar"></div>
-  <div class="frame-wrap">
     <iframe id="vizFrame" class="is-hidden" title="Visualizer"></iframe>
     <div id="welcomeScreen" class="welcome-screen">
       <div class="welcome-card">

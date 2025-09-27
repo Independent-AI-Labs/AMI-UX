@@ -8,6 +8,7 @@ import {
   VisualizerD,
 } from './visualizers.js'
 import { openSelectMediaModal } from './modal.js'
+import { showToast } from './toast-manager.js?v=20250306'
 import { humanizeName, normalizeFsPath } from './utils.js'
 import { createDocMessenger } from './message-channel.js?v=20250310'
 import { openAccountDrawer } from './account-drawer.js?v=20250316'
@@ -35,8 +36,7 @@ const VisualizerC = {
   mount: async (container, opts = {}) => {
     const sel = opts?.pathInfo || opts?.selected || {}
     const path = sel.path || ''
-    const iframe = document.getElementById('vizFrame')
-    if (iframe) iframe.src = '/doc.html?embed=1'
+    loadFrame('/doc.html?embed=1', { intent: 'doc', force: true })
     return { unmount: () => {} }
   },
 }
@@ -484,7 +484,9 @@ function updateWelcomeVisibility() {
       try {
         teardownHighlightPlugin(frame)
         frame.src = 'about:blank'
+        frame.dataset.currentSrc = 'about:blank'
       } catch {}
+      hideFrameLoading({ immediate: true })
     }
   }
   if (welcome) welcome.classList.toggle('is-hidden', !!hasActive)
@@ -511,9 +513,100 @@ async function loadConfig(force = false) {
   return cachedConfig
 }
 
-const tabsState = { tabs: [], active: null }
+const tabsState = { tabs: [], active: null, draggingId: null, dragDirty: false }
 const servedMap = { instances: [] }
 const appRunning = new Map()
+
+const frameLoadingState = {
+  overlay: null,
+  visibleAt: 0,
+  hideTimer: null,
+  fallbackTimer: null,
+}
+
+const frameLoadingMessages = {
+  doc: 'Preparing document…',
+  file: 'Rendering file…',
+  app: 'Launching application…',
+  served: 'Connecting service…',
+  loading: 'Loading…',
+}
+
+function ensureFrameLoadingOverlay() {
+  if (!frameLoadingState.overlay) {
+    frameLoadingState.overlay = document.getElementById('frameLoadingOverlay') || null
+  }
+  return frameLoadingState.overlay
+}
+
+function showFrameLoading(intent = 'loading') {
+  const overlay = ensureFrameLoadingOverlay()
+  if (!overlay) return
+  if (frameLoadingState.hideTimer) {
+    clearTimeout(frameLoadingState.hideTimer)
+    frameLoadingState.hideTimer = null
+  }
+  if (frameLoadingState.fallbackTimer) {
+    clearTimeout(frameLoadingState.fallbackTimer)
+    frameLoadingState.fallbackTimer = null
+  }
+  const labelNode = overlay.querySelector('.frame-loading__label')
+  if (labelNode) labelNode.textContent = frameLoadingMessages[intent] || frameLoadingMessages.loading
+  overlay.setAttribute('aria-hidden', 'false')
+  overlay.classList.add('frame-loading--active')
+  frameLoadingState.visibleAt = performance.now()
+  frameLoadingState.fallbackTimer = setTimeout(() => hideFrameLoading({ immediate: true }), 1600)
+}
+
+function hideFrameLoading(options = {}) {
+  const overlay = ensureFrameLoadingOverlay()
+  if (!overlay) return
+  const { immediate = false } = options
+  if (frameLoadingState.hideTimer) {
+    clearTimeout(frameLoadingState.hideTimer)
+    frameLoadingState.hideTimer = null
+  }
+  if (frameLoadingState.fallbackTimer) {
+    clearTimeout(frameLoadingState.fallbackTimer)
+    frameLoadingState.fallbackTimer = null
+  }
+  const minVisible = immediate ? 0 : 160
+  const elapsed = performance.now() - (frameLoadingState.visibleAt || 0)
+  const wait = Math.max(0, minVisible - elapsed)
+  const commit = () => {
+    overlay.classList.remove('frame-loading--active')
+    overlay.setAttribute('aria-hidden', 'true')
+  }
+  if (wait > 0) {
+    frameLoadingState.hideTimer = setTimeout(commit, wait)
+  } else {
+    commit()
+  }
+}
+
+function loadFrame(src, { intent = 'loading', force = false } = {}) {
+  const iframe = document.getElementById('vizFrame')
+  if (!iframe) return false
+  const normalized = String(src || '')
+  const prev = iframe.dataset.currentSrc || ''
+  if (!force && prev === normalized) return false
+  showFrameLoading(intent)
+  iframe.dataset.currentSrc = normalized
+  try {
+    iframe.src = normalized
+  } catch {
+    iframe.setAttribute('src', normalized)
+  }
+  return true
+}
+
+try {
+  const frame = document.getElementById('vizFrame')
+  if (frame) {
+    frame.dataset.currentSrc = frame.getAttribute('src') || frame.src || ''
+    frame.addEventListener('load', () => hideFrameLoading())
+  }
+} catch {}
 
 async function saveTabs() {
   try {
@@ -719,17 +812,189 @@ function iconForTab(kind) {
   return iconMarkup('file-3-line')
 }
 
+function handleTabDragStart(event, tabId) {
+  if (event.target?.classList?.contains('close') || event.target?.closest('.close')) {
+    event.preventDefault()
+    return
+  }
+  tabsState.draggingId = tabId
+  tabsState.dragDirty = false
+  event.dataTransfer?.setData('text/plain', tabId)
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    try {
+      event.dataTransfer.setDragImage(new Image(), 0, 0)
+    } catch {}
+  }
+  event.currentTarget?.classList?.add('dragging')
+}
+
+function handleTabDragEnd(event) {
+  const wasDragging = !!tabsState.draggingId
+  tabsState.draggingId = null
+  event.currentTarget?.classList?.remove('dragging')
+  if (wasDragging) {
+    renderTabs()
+    if (tabsState.dragDirty) {
+      try {
+        saveTabs()
+      } catch {}
+      tabsState.dragDirty = false
+    }
+  }
+}
+
+function reorderTabs(draggedId, targetId, placeBefore, options = {}) {
+  if (!draggedId || draggedId === targetId) return false
+  const { save = true } = options
+  const tabs = tabsState.tabs
+  const draggedIndex = tabs.findIndex((x) => x.id === draggedId)
+  if (draggedIndex === -1) return false
+  const [dragged] = tabs.splice(draggedIndex, 1)
+  let insertIndex
+  if (!targetId) {
+    insertIndex = tabs.length
+  } else {
+    insertIndex = tabs.findIndex((x) => x.id === targetId)
+    if (insertIndex === -1) insertIndex = tabs.length
+    else if (!placeBefore) insertIndex += 1
+  }
+  if (insertIndex === draggedIndex) {
+    tabs.splice(draggedIndex, 0, dragged)
+    return false
+  }
+  tabs.splice(insertIndex, 0, dragged)
+  renderTabs()
+  if (save) {
+    saveTabs()
+    tabsState.dragDirty = false
+  } else {
+    tabsState.dragDirty = true
+  }
+  return true
+}
+
+function handleTabDrop(event, targetId) {
+  if (!tabsState.draggingId) return
+  event.preventDefault()
+  event.stopPropagation()
+  event.currentTarget?.classList?.remove('dragging')
+  const rect = event.currentTarget?.getBoundingClientRect()
+  let placeBefore = true
+  if (rect) {
+    const offset = event.clientX - rect.left
+    placeBefore = offset < rect.width / 2
+  }
+  const changed = reorderTabs(tabsState.draggingId, targetId, placeBefore, { save: true })
+  if (!changed && tabsState.dragDirty) {
+    try {
+      saveTabs()
+    } catch {}
+    tabsState.dragDirty = false
+  }
+  tabsState.draggingId = null
+  renderTabs()
+}
+
+function handleTabDragOver(event) {
+  if (!tabsState.draggingId) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  event.dataTransfer?.setData('text/plain', tabsState.draggingId)
+  const targetId = event.currentTarget?.dataset?.tabId
+  if (!targetId || targetId === tabsState.draggingId) return
+  const rect = event.currentTarget.getBoundingClientRect()
+  const offset = event.clientX - rect.left
+  const placeBefore = offset < rect.width / 2
+  const changed = reorderTabs(tabsState.draggingId, targetId, placeBefore, { save: false })
+  if (changed) {
+    const draggedEl = document.querySelector(`button.tab[data-tab-id="${tabsState.draggingId}"]`)
+    if (draggedEl) draggedEl.classList.add('dragging')
+  }
+}
+
+function handleTabBarDrop(event) {
+  if (!tabsState.draggingId) return
+  if (event.target !== event.currentTarget) return
+  event.preventDefault()
+  document.querySelectorAll('.tab.dragging').forEach((node) => node.classList.remove('dragging'))
+  const changed = reorderTabs(tabsState.draggingId, null, false, { save: true })
+  if (!changed && tabsState.dragDirty) {
+    try {
+      saveTabs()
+    } catch {}
+    tabsState.dragDirty = false
+  }
+  tabsState.draggingId = null
+  renderTabs()
+}
+
+function captureTabPositions(bar) {
+  const map = new Map()
+  if (!bar) return map
+  bar.querySelectorAll('button.tab[data-tab-id]').forEach((node) => {
+    const id = node.dataset.tabId
+    if (!id) return
+    map.set(id, node.getBoundingClientRect())
+  })
+  return map
+}
+
+function animateTabPositions(previous, bar) {
+  if (!previous || previous.size === 0 || !bar) return
+  bar.querySelectorAll('button.tab[data-tab-id]').forEach((node) => {
+    const id = node.dataset.tabId
+    if (!id || !previous.has(id)) return
+    const prev = previous.get(id)
+    const next = node.getBoundingClientRect()
+    const dx = prev.left - next.left
+    const dy = prev.top - next.top
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return
+    node.style.transition = 'none'
+    node.style.transform = `translate(${dx}px, ${dy}px)`
+    requestAnimationFrame(() => {
+      node.style.transition = 'transform 220ms var(--easing-standard)'
+      node.style.transform = 'translate(0px, 0px)'
+      const cleanup = (evt) => {
+        if (evt.propertyName !== 'transform') return
+        node.style.transition = ''
+        node.style.transform = ''
+        node.removeEventListener('transitionend', cleanup)
+      }
+      node.addEventListener('transitionend', cleanup)
+    })
+  })
+}
+
+function ensureTabBarDnDBindings(bar) {
+  if (!bar || bar.dataset.dndBound) return
+  bar.addEventListener('dragover', (event) => {
+    if (!tabsState.draggingId) return
+    if (event.target !== bar) return
+    event.preventDefault()
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  })
+  bar.addEventListener('drop', handleTabBarDrop)
+  bar.dataset.dndBound = '1'
+}
+
 function renderTabs() {
   const bar = document.getElementById('tabsBar')
   if (!bar) return
+  const previousPositions = captureTabPositions(bar)
   bar.innerHTML = ''
+  ensureTabBarDnDBindings(bar)
   tabsState.tabs.forEach((t) => {
     const el = document.createElement('button')
     const isRunningApp = t.kind === 'app' && !!appRunning.get(t.path)
     const showPill = !!t.servedId || isRunningApp
     const isServed = showPill
     el.className =
-      'tab' + (tabsState.active === t.id ? ' active' : '') + (isServed ? ' served' : '')
+      'tab' +
+      (tabsState.active === t.id ? ' active' : '') +
+      (isServed ? ' served' : '') +
+      (tabsState.draggingId === t.id ? ' dragging' : '')
+    el.dataset.tabId = t.id
     const pillTitle =
       t.kind === 'app' ? (isRunningApp ? 'App running' : '') : t.servedId ? 'Served' : ''
     const baseName = t.path.split('/').pop() || t.path
@@ -739,6 +1004,7 @@ function renderTabs() {
       : ''
     const leadingIcon = `<span class="icon" aria-hidden="true">${iconForTab(t.kind)}</span>`
     el.innerHTML = `${leadingIcon}${statusNode}<span>${tabLabel}</span><span class="close" title="Close">×</span>`
+    el.draggable = true
     el.addEventListener('click', (e) => {
       if (e.target.classList && e.target.classList.contains('close')) {
         closeTab(t.id)
@@ -746,12 +1012,17 @@ function renderTabs() {
         activateTab(t.id)
       }
     })
+    el.addEventListener('dragstart', (event) => handleTabDragStart(event, t.id))
+    el.addEventListener('dragend', handleTabDragEnd)
+    el.addEventListener('dragover', handleTabDragOver)
+    el.addEventListener('drop', (event) => handleTabDrop(event, t.id))
     el.addEventListener('contextmenu', (e) => {
       e.preventDefault()
       openTabContextMenu(e.clientX, e.clientY, t)
     })
     bar.appendChild(el)
   })
+  requestAnimationFrame(() => animateTabPositions(previousPositions, bar))
   updateWelcomeVisibility()
 }
 
@@ -792,8 +1063,8 @@ function openTabContextMenu(x, y, tab) {
   const canStart = !!tab.entryId
   const canStop = !!tab.servedId
   addItem('Open', () => activateTab(tab.id))
-  addItem('Start Serving', () => startServingTab(tab), !canStart)
-  addItem('Stop Serving', () => stopServingTab(tab), !canStop)
+  addItem('Start Serving', () => startServingTab(tab, 'tab-menu'), !canStart)
+  addItem('Stop Serving', () => stopServingTab(tab, 'tab-menu'), !canStop)
   addItem('Close Tab', () => closeTab(tab.id))
   document.body.appendChild(menu)
   setTimeout(() => {
@@ -823,6 +1094,14 @@ async function activateTab(id) {
   // apply iframe source
   const cfg = await loadConfig()
   const iframe = document.getElementById('vizFrame')
+  const baseIntent = tab.kind === 'dir' ? 'doc' : tab.kind === 'file' ? 'file' : tab.kind === 'app' ? 'app' : 'loading'
+  showFrameLoading(tab.servedId ? 'served' : baseIntent)
+  let triggeredLoad = false
+  const requestFrame = (src, intent, options = {}) => {
+    const changed = loadFrame(src, { intent, ...options })
+    if (changed) triggeredLoad = true
+    return changed
+  }
   let usedServed = false
   if (tab.servedId) {
     try {
@@ -831,7 +1110,7 @@ async function activateTab(id) {
         const inst = await r.json()
         if (inst?.status === 'running') {
           teardownHighlightPlugin(iframe)
-          iframe.src = `/api/served/${tab.servedId}/`
+          requestFrame(`/api/served/${tab.servedId}/`, 'served', { force: true })
           usedServed = true
         }
       }
@@ -855,7 +1134,7 @@ async function activateTab(id) {
       lastDocMessage = docMessage
       if (docMessage) queueDocMessage(docMessage)
       teardownHighlightPlugin(iframe)
-      iframe.src = '/doc.html?embed=1'
+      requestFrame('/doc.html?embed=1', 'doc', { force: true })
       try {
         iframe.addEventListener(
           'load',
@@ -901,10 +1180,10 @@ async function activateTab(id) {
         }
       }
       const qp = new URLSearchParams({ path: rel, mode, root })
-      iframe.src = `/api/media?${qp.toString()}`
+      requestFrame(`/api/media?${qp.toString()}`, 'file', { force: true })
     } else if (tab.kind === 'app') {
       teardownHighlightPlugin(iframe)
-      iframe.src = 'about:blank'
+      requestFrame('about:blank', 'app', { force: true })
     }
   }
   if (tab.kind === 'dir') {
@@ -928,43 +1207,91 @@ async function activateTab(id) {
   } catch {}
   updateStatusPillForTab(tab)
   saveTabs()
+  if (!triggeredLoad) hideFrameLoading({ immediate: true })
 }
 
-async function startServingTab(tab) {
-  if (!tab.entryId) {
-    alert('Add to Library first to serve.')
-    return
+function describeServingTarget(tab) {
+  if (!tab) return 'selection'
+  if (typeof tab.label === 'string' && tab.label.trim()) return tab.label.trim()
+  if (typeof tab.path === 'string' && tab.path.trim()) {
+    const parts = tab.path.split(/[\\/]/).filter(Boolean)
+    const leaf = parts[parts.length - 1] || tab.path
+    return humanizeName(leaf)
   }
-  try {
-    const r = await fetch('/api/serve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entryId: tab.entryId }),
-    })
-    if (!r.ok) {
-      const msg = await r.text().catch(() => '')
-      alert('Failed to start: ' + (msg || r.status))
-      return
+  return 'selection'
+}
+
+async function mutateServingState(tab, intent = 'start', origin = 'shell') {
+  if (!tab) return false
+  const label = describeServingTarget(tab)
+  const activeId = tabsState.active
+
+  if (intent === 'start') {
+    if (!tab.entryId) {
+      showToast('Add to Library first to serve.', { tone: 'warning' })
+      return false
     }
-    const j = await r.json().catch(() => null)
-    if (j && j.id) {
+    try {
+      const r = await fetch('/api/serve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entryId: tab.entryId }),
+      })
+      if (!r.ok) {
+        const msg = await r.text().catch(() => '')
+        showToast(`Failed to start serving "${label}". ${msg || ''}`.trim(), {
+          tone: 'danger',
+        })
+        return false
+      }
+      const j = await r.json().catch(() => null)
+      if (!j || !j.id) {
+        showToast(`Failed to start serving "${label}".`, { tone: 'danger' })
+        return false
+      }
       tab.servedId = j.id
       renderTabs()
-      if (tabsState.active === tab.id) activateTab(tab.id)
+      if (activeId === tab.id) activateTab(tab.id)
       saveTabs()
+      showToast(`Serving started for "${label}".`, { tone: 'success' })
+      return true
+    } catch (err) {
+      showToast(`Failed to start serving "${label}".`, { tone: 'danger' })
+      console.error('serve:start failed', { origin, tab, err })
+      return false
     }
-  } catch {}
-}
+  }
 
-async function stopServingTab(tab) {
-  if (!tab.servedId) return
+  if (!tab.servedId) return false
+  const servedId = tab.servedId
   try {
-    await fetch(`/api/serve/${tab.servedId}`, { method: 'DELETE' })
+    const r = await fetch(`/api/serve/${servedId}`, { method: 'DELETE' })
+    if (!r.ok) {
+      const msg = await r.text().catch(() => '')
+      showToast(`Failed to stop serving "${label}". ${msg || ''}`.trim(), {
+        tone: 'danger',
+      })
+      return false
+    }
     tab.servedId = null
     renderTabs()
-    if (tabsState.active === tab.id) activateTab(tab.id)
+    if (activeId === tab.id) activateTab(tab.id)
     saveTabs()
-  } catch {}
+    showToast(`Serving stopped for "${label}".`, { tone: 'info' })
+    return true
+  } catch (err) {
+    showToast(`Failed to stop serving "${label}".`, { tone: 'danger' })
+    console.error('serve:stop failed', { origin, tab, err })
+    return false
+  }
+}
+
+async function startServingTab(tab, origin = 'shell') {
+  return mutateServingState(tab, 'start', origin)
+}
+
+async function stopServingTab(tab, origin = 'shell') {
+  return mutateServingState(tab, 'stop', origin)
 }
 
 async function ensureModeForFile(p) {

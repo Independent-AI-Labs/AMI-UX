@@ -164,7 +164,7 @@ function ensureTreeContainer() {
   expandBtn.className = 'btn btn--ghost'
   expandBtn.id = 'treeExpandAll'
   expandBtn.type = 'button'
-  expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 18 })}<span>Expand All</span>`
+  expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 14 })}<span>Expand All</span>`
   expandBtn.dataset.amiHighlightIgnore = '1'
   expandBtn.dataset.highlightIgnore = '1'
   expandBtn.classList.add('ami-highlight-ignore')
@@ -174,7 +174,7 @@ function ensureTreeContainer() {
   collapseBtn.className = 'btn btn--ghost'
   collapseBtn.id = 'treeCollapseAll'
   collapseBtn.type = 'button'
-  collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 18 })}<span>Collapse All</span>`
+  collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 14 })}<span>Collapse All</span>`
   collapseBtn.dataset.amiHighlightIgnore = '1'
   collapseBtn.dataset.highlightIgnore = '1'
   collapseBtn.classList.add('ami-highlight-ignore')
@@ -191,6 +191,9 @@ function ensureTreeContainer() {
   subtitle.className = 'drawer-shell-header__subtitle tree-toolbar__subtitle'
   subtitle.id = 'treeToolbarSubtitle'
   subtitle.textContent = 'Explore and inspect structured documentation.'
+  subtitle.dataset.amiHighlightIgnore = '1'
+  subtitle.dataset.highlightIgnore = '1'
+  subtitle.classList.add('ami-highlight-ignore')
   toolbar.appendChild(subtitle)
 
   const shell = document.createElement('div')
