@@ -78,7 +78,7 @@
     }
     nav .toc .structure-nav a {
       display: block;
-      padding: 6px 8px;
+      padding: 6px 8px 6px var(--struct-indent, 36px);
       border-radius: 6px;
       color: var(--muted);
       transition: color 0.2s var(--easing-standard), background 0.2s var(--easing-standard);
@@ -87,11 +87,11 @@
     nav .toc .structure-nav a.is-active { color: var(--accent); font-weight: 600; }
     nav .toc .structure-nav details summary {
       position: relative;
-      padding: 6px 8px 6px 32px;
+      padding: 6px 8px 6px var(--struct-indent, 36px);
       border: 0;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       font-weight: 600;
       color: var(--muted);
       border-radius: 6px;
@@ -111,11 +111,11 @@
     }
     nav .toc .structure-nav details summary .struct-toggle {
       position: absolute;
-      left: 8px;
+      left: var(--struct-toggle-offset, 12px);
       top: 50%;
       transform: translateY(-50%);
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       pointer-events: none;
       display: inline-flex;
       align-items: center;
@@ -128,8 +128,8 @@
       background: currentColor;
       transition: opacity 0.2s ease;
     }
-    nav .toc .structure-nav details summary .struct-toggle::before { width: 100%; height: 1.5px; }
-    nav .toc .structure-nav details summary .struct-toggle::after { height: 100%; width: 1.5px; }
+    nav .toc .structure-nav details summary .struct-toggle::before { width: 100%; height: 2px; border-radius: 1px; }
+    nav .toc .structure-nav details summary .struct-toggle::after { height: 100%; width: 2px; border-radius: 1px; }
     nav .toc .structure-nav details[open] summary .struct-toggle::after { opacity: 0; }
     nav .toc .structure-nav details > div {
       display: flex;
@@ -159,12 +159,20 @@
     section#content summary.is-visible { color: var(--accent); }
     .indent { display: inline-block; width: calc(var(--depth, 0) * 1rem); }
     .body { padding: 12px 16px; background: var(--bg); }
-    .md h1, .md h2, .md h3, .md h4 { scroll-margin-top: 70px; }
-    .md pre { background: var(--code-bg); padding: 12px; border-radius: 6px; overflow: auto; }
-    .md code { background: var(--code-bg); padding: 2px 4px; border-radius: 4px; }
+    .md h1, .md h2, .md h3, .md h4,
+    .html-document h1, .html-document h2, .html-document h3, .html-document h4 { scroll-margin-top: 70px; }
+    .md pre, .html-document pre { background: var(--code-bg); padding: 12px; border-radius: 6px; overflow: auto; }
+    .md code, .html-document code { background: var(--code-bg); padding: 2px 4px; border-radius: 4px; }
+    .html-document { position: relative; width: 100%; overflow-x: auto; }
+    .html-document img,
+    .html-document video,
+    .html-document canvas,
+    .html-document svg,
+    .html-document iframe { max-width: 100%; }
     .muted { color: var(--muted); }
     .anchor { visibility: hidden; margin-left: 6px; font-size: 12px; }
-    .md h1:hover .anchor, .md h2:hover .anchor, .md h3:hover .anchor { visibility: visible; }
+    .md h1:hover .anchor, .md h2:hover .anchor, .md h3:hover .anchor,
+    .html-document h1:hover .anchor, .html-document h2:hover .anchor, .html-document h3:hover .anchor { visibility: visible; }
     .hidden { display: none !important; }
 
     /* Laser Glow styles moved to shared.css and toggled via .fx-glow class */

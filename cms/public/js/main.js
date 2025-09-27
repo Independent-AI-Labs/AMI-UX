@@ -166,7 +166,7 @@ function ensureTreeContainer() {
   expandBtn.className = 'btn btn--ghost'
   expandBtn.id = 'treeExpandAll'
   expandBtn.type = 'button'
-  expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 14 })}<span>Expand All</span>`
+  expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 16 })}<span>Expand All</span>`
   expandBtn.dataset.amiHighlightIgnore = '1'
   expandBtn.dataset.highlightIgnore = '1'
   expandBtn.classList.add('ami-highlight-ignore')
@@ -176,7 +176,7 @@ function ensureTreeContainer() {
   collapseBtn.className = 'btn btn--ghost'
   collapseBtn.id = 'treeCollapseAll'
   collapseBtn.type = 'button'
-  collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 14 })}<span>Collapse All</span>`
+  collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 16 })}<span>Collapse All</span>`
   collapseBtn.dataset.amiHighlightIgnore = '1'
   collapseBtn.dataset.highlightIgnore = '1'
   collapseBtn.classList.add('ami-highlight-ignore')

@@ -1128,6 +1128,9 @@ export function initHighlightEffects(options = {}) {
           '#content .md p',
           '#content .md li',
           '#content .md pre',
+          '#content .html-document p',
+          '#content .html-document li',
+          '#content .html-document pre',
           '#content pre',
           '#content p',
           '#content li',
@@ -1139,7 +1142,16 @@ export function initHighlightEffects(options = {}) {
   const underlineSelectors = normaliseSelectors(
     options.underlineSelectors !== undefined
       ? options.underlineSelectors
-      : ['#content .md h1', '#content .md h2', '#content .md h3', '#content .md h4'],
+      : [
+          '#content .md h1',
+          '#content .md h2',
+          '#content .md h3',
+          '#content .md h4',
+          '#content .html-document h1',
+          '#content .html-document h2',
+          '#content .html-document h3',
+          '#content .html-document h4',
+        ],
   )
   const treeSelectors = normaliseSelectors(
     options.treeSelectors !== undefined ? options.treeSelectors : ['#treeRoot summary'],
@@ -1156,6 +1168,13 @@ export function initHighlightEffects(options = {}) {
           '#content .md h2',
           '#content .md h3',
           '#content .md h4',
+          '#content .html-document p',
+          '#content .html-document li',
+          '#content .html-document pre',
+          '#content .html-document h1',
+          '#content .html-document h2',
+          '#content .html-document h3',
+          '#content .html-document h4',
           'nav .toc a',
         ],
   )

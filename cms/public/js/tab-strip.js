@@ -25,6 +25,7 @@ export function createTabStrip(root, options = {}) {
     draggingId: null,
   }
   let destroyed = false
+  let pendingRender = false
 
   root.innerHTML = ''
   root.classList.add('tab-strip')
@@ -108,7 +109,6 @@ export function createTabStrip(root, options = {}) {
     const tabs = state.tabs
     const fromIndex = tabs.findIndex((t) => t.id === draggedId)
     if (fromIndex === -1) return false
-    const [dragged] = tabs.splice(fromIndex, 1)
     let insertIndex
     if (!targetId) {
       insertIndex = tabs.length
@@ -117,8 +117,11 @@ export function createTabStrip(root, options = {}) {
       if (insertIndex === -1) insertIndex = tabs.length
       else if (!placeBefore) insertIndex += 1
     }
+    if (insertIndex === fromIndex || insertIndex === fromIndex + 1) return false
+    const [dragged] = tabs.splice(fromIndex, 1)
+    if (insertIndex > fromIndex) insertIndex -= 1
     tabs.splice(insertIndex, 0, dragged)
-    render()
+    requestRender()
     if (notify && typeof opts.onReorder === 'function') {
       opts.onReorder(tabs.map((t) => t.id), { draggedId, targetId, placeBefore })
     }
@@ -156,7 +159,7 @@ export function createTabStrip(root, options = {}) {
     return parts.join('')
   }
 
-  function render() {
+  function commitRender() {
     if (destroyed) return
     const previous = opts.animate ? capturePositions() : null
     track.innerHTML = ''
@@ -220,7 +223,7 @@ export function createTabStrip(root, options = {}) {
           if (destroyed) return
           state.draggingId = null
           btn.classList.remove('dragging')
-          render()
+          requestRender()
         })
         btn.addEventListener('dragover', (event) => {
           if (!state.draggingId || state.draggingId === tab.id) return
@@ -245,9 +248,19 @@ export function createTabStrip(root, options = {}) {
       track.appendChild(btn)
     })
 
-    if (opts.animate) {
+    if (opts.animate && previous) {
       requestAnimationFrame(() => animatePositions(previous))
     }
+  }
+
+  function requestRender() {
+    if (destroyed) return
+    if (pendingRender) return
+    pendingRender = true
+    requestAnimationFrame(() => {
+      pendingRender = false
+      commitRender()
+    })
   }
 
   function setState(payload = {}) {
@@ -258,7 +271,7 @@ export function createTabStrip(root, options = {}) {
     } else {
       state.activeId = state.tabs[0]?.id || null
     }
-    render()
+    commitRender()
   }
 
   function destroy() {

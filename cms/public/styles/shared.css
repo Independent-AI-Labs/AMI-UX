@@ -158,6 +158,19 @@ header .btn i[class*=' ri-'] {
   color: var(--text);
   border-color: color-mix(in oklab, var(--border) 65%, transparent);
 }
+
+.html-document {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+}
+.html-document img,
+.html-document video,
+.html-document canvas,
+.html-document svg,
+.html-document iframe {
+  max-width: 100%;
+}
 .btn--ghost:hover {
   background: color-mix(in oklab, var(--panel) 35%, transparent);
 }
@@ -192,6 +205,21 @@ header .btn i[class*=' ri-'] {
   padding: 8px 0 20px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scroll-padding-top: 56px;
+}
+
+.tree-root details.file > summary {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--panel);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--border) 65%, transparent);
+}
+
+.tree-root details.file > .body {
+  padding-top: 14px;
 }
 
 .tree-root__overlay {
@@ -591,6 +619,7 @@ details:focus-within > summary .row-actions {
 .drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 6px 16px;
   font-size: 13px;
@@ -599,9 +628,14 @@ details:focus-within > summary .row-actions {
 .drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn svg,
 .drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn i[class^='ri-'],
 .drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn i[class*=' ri-'] {
-  margin-right: 0;
+  margin: 0;
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
+}
+.drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn span {
+  display: inline-flex;
+  align-items: center;
 }
 .drawer-shell-header.tree-toolbar .tree-toolbar__subtitle {
   color: var(--muted);

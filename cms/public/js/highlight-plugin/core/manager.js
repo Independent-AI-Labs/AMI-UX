@@ -217,6 +217,20 @@ class HighlightContext {
     this.rebuild(this.manager.settings)
   }
 
+  processMutations(records = []) {
+    if (!this.effect) {
+      this.refresh()
+      return
+    }
+    if (typeof this.effect.notify === 'function') {
+      try {
+        this.effect.notify(records)
+        return
+      } catch {}
+    }
+    this.refresh()
+  }
+
   destroy() {
     this.destroyEffect()
   }
@@ -226,6 +240,7 @@ class HighlightContext {
       id: this.id,
       refresh: () => this.refresh(),
       rebuild: () => this.rebuild(this.manager.settings),
+      notifyMutations: (records) => this.processMutations(records),
       update: (partial) => {
         this.updateConfig(partial)
         this.rebuild(this.manager.settings)
@@ -360,6 +375,16 @@ export class HighlightManager {
       if (options.rebuild) context.rebuild(this.settings)
       else context.refresh()
     }
+  }
+
+  notifyContextMutations(id, records = []) {
+    const context = this.contexts.get(id)
+    if (!context) return
+    context.processMutations(records)
+  }
+
+  notifyAllMutations(records = []) {
+    for (const context of this.contexts.values()) context.processMutations(records)
   }
 
   updateCapabilities() {

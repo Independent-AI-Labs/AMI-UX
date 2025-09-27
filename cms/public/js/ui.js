@@ -1,7 +1,8 @@
 import { displayName, pathAnchor } from './utils.js'
 import { fetchFile } from './api.js'
-import { renderMarkdown, renderCSV } from './renderers.js'
-import { CodeView, guessLanguageFromFilename } from './code-view.js'
+import { resolveFileView, getFallbackFileView } from './file-view-registry.js'
+
+const DOM_NODE = typeof Node === 'function' ? Node : null
 
 function isIntroFile(name) {
   const n = String(name || '').toLowerCase()
@@ -54,6 +55,52 @@ function cacheKey(state, relPath) {
   return `${rootKey}@${context}::${relPath}`
 }
 
+function normaliseHeadings(value) {
+  if (!value) return []
+  if (Array.isArray(value)) return value
+  if (value instanceof Set) return Array.from(value)
+  return []
+}
+
+function resolveElementFromResult(result) {
+  if (!result) return null
+  if (DOM_NODE && result.element instanceof DOM_NODE) return result.element
+  if (DOM_NODE && result.htmlEl instanceof DOM_NODE) return result.htmlEl
+  if (DOM_NODE && result.html instanceof DOM_NODE) return result.html
+  if (typeof result.html === 'string') {
+    const wrapper = document.createElement('div')
+    wrapper.innerHTML = result.html
+    return wrapper
+  }
+  if (typeof result.text === 'string') return document.createTextNode(result.text)
+  return null
+}
+
+async function renderWithView(view, providedContent, baseContext) {
+  if (!view || typeof view.render !== 'function') return null
+  try {
+    const result = await view.render({
+      ...baseContext,
+      view,
+      content: providedContent,
+    })
+    const element = resolveElementFromResult(result)
+    if (!element) return null
+    const headings = normaliseHeadings(result?.headings || result?.toc)
+    const cleanup = typeof result?.cleanup === 'function' ? result.cleanup : null
+    return {
+      element,
+      headings,
+      cleanup,
+      viewId: view.id || 'unknown',
+      raw: result,
+    }
+  } catch (err) {
+    console.warn('File view render failed', view?.id, err)
+    return null
+  }
+}
+
 async function ensureFileContent(state, node) {
   if (!node || !node.path) return null
   const key = cacheKey(state, node.path)
@@ -62,29 +109,44 @@ async function ensureFileContent(state, node) {
   }
   try {
     const rootKey = state?.rootKey === 'uploads' ? 'uploads' : 'docRoot'
-    const raw = await fetchFile(node.path, rootKey)
-    let contentEl
-    let headings = []
-    const lname = node.name.toLowerCase()
-    if (lname.endsWith('.md')) {
-      const out = renderMarkdown(raw, node.path)
-      contentEl = out.htmlEl
-      headings = out.headings
-    } else if (lname.endsWith('.csv')) {
-      contentEl = renderCSV(raw)
-    } else {
-      const language = guessLanguageFromFilename(node.name)
-      const view = new CodeView({
-        code: raw,
-        language,
-        filename: node.name,
-        showCopy: true,
-        showLanguage: true,
-        showHeader: true,
-      })
-      contentEl = view.element
+    const { view, meta } = resolveFileView(node)
+    const primaryFormat = view?.contentFormat === 'manual' ? null : view?.contentFormat || 'text'
+    const fetchForFormat = (format) => fetchFile(node.path, rootKey, { format })
+    let primaryContent = null
+    if (primaryFormat) primaryContent = await fetchForFormat(primaryFormat)
+
+    const baseContext = {
+      state,
+      node,
+      meta,
+      rootKey,
+      fetchContent: (format = 'text') => fetchForFormat(format),
     }
-    const entry = { html: contentEl, headings }
+
+    let rendered = await renderWithView(view, primaryContent, baseContext)
+    if (!rendered) {
+      const fallback = getFallbackFileView()
+      if (fallback !== view) {
+        const fallbackFormat = fallback?.contentFormat === 'manual' ? null : fallback?.contentFormat || 'text'
+        let fallbackContent = primaryContent
+        if (fallbackFormat && fallbackFormat !== primaryFormat) {
+          fallbackContent = await fetchForFormat(fallbackFormat)
+        } else if (fallbackFormat && fallbackContent == null) {
+          fallbackContent = await fetchForFormat(fallbackFormat)
+        }
+        rendered = await renderWithView(fallback, fallbackContent, baseContext)
+      }
+    }
+
+    if (!rendered) throw new Error('Failed to render file view for ' + (node.path || node.name || ''))
+
+    const entry = {
+      html: rendered.element,
+      headings: rendered.headings,
+      viewId: rendered.viewId,
+      meta,
+    }
+    if (rendered.cleanup) entry.cleanup = rendered.cleanup
     state.cache.set(key, entry)
     return entry
   } catch (e) {
@@ -430,12 +492,16 @@ export function updateTOC(state) {
       det.dataset.path = node.path || ''
       const sum = document.createElement('summary')
       const depth = Math.max(indexPath.length - 1, 0)
-      const indent = 20 + depth * 16
-      sum.style.paddingLeft = indent + 'px'
+      const indentBase = 36
+      const indentStep = 16
+      const indent = indentBase + depth * indentStep
+      sum.style.setProperty('--struct-indent', `${indent}px`)
       const num = indexPath.length ? indexPath.join('.') + '. ' : ''
       const label = displayName(node)
       const toggle = document.createElement('span')
       toggle.className = 'struct-toggle'
+      const toggleOffset = Math.max(12, indent - 24)
+      toggle.style.setProperty('--struct-toggle-offset', `${toggleOffset}px`)
       toggle.setAttribute('aria-hidden', 'true')
       sum.appendChild(toggle)
       const a = document.createElement('a')
@@ -468,8 +534,10 @@ export function updateTOC(state) {
       a.href = '#' + pathAnchor(node.path)
       a.style.display = 'block'
       const depth = Math.max(indexPath.length - 1, 0)
-      const indent = 20 + depth * 16
-      a.style.paddingLeft = indent + 'px'
+      const indentBase = 36
+      const indentStep = 16
+      const indent = indentBase + depth * indentStep
+      a.style.setProperty('--struct-indent', `${indent}px`)
       a.dataset.path = node.path || ''
       a.dataset.type = 'file'
       return a
@@ -488,7 +556,11 @@ export function updateTOC(state) {
   hnav.className = 'toc-headings'
   const headingScope = document.getElementById('treeRoot') || document.getElementById('content')
   const headingNodes = headingScope
-    ? Array.from(headingScope.querySelectorAll('.md h1, .md h2, .md h3, .md h4'))
+    ? Array.from(
+        headingScope.querySelectorAll(
+          '.md h1, .md h2, .md h3, .md h4, .html-document h1, .html-document h2, .html-document h3, .html-document h4',
+        ),
+      )
     : []
   headingNodes
     .filter((node) => {
@@ -665,12 +737,39 @@ function setsEqual(a, b) {
 }
 
 function createStructureWatcher(state) {
-  const content = document.getElementById('content')
-  const tocRoot = document.querySelector('nav .toc')
-  if (!content || !tocRoot) return null
+  const doc = document
+  const tocRoot = doc.querySelector('nav .toc')
+  const fallbackContent = doc.getElementById('content')
+  if (!tocRoot || !fallbackContent) return null
 
-  const ownerDoc = content.ownerDocument || document
+  void state
+
+  const ownerDoc = fallbackContent.ownerDocument || document
   const defaultView = ownerDoc.defaultView || window
+
+  const resolveTreeRoot = () => ownerDoc.getElementById('treeRoot')
+  const resolveContainer = () => resolveTreeRoot() || ownerDoc.getElementById('content') || fallbackContent
+
+  let watcher = null
+  let viewportEl = null
+
+  const handleScroll = () => {
+    if (!watcher) return
+    watcher.updateActive()
+    if (location.hash && Date.now() > watcher.ignoreHashClearUntil) {
+      try {
+        history.replaceState(null, '', location.pathname + location.search)
+      } catch {}
+    }
+  }
+
+  const swapViewport = (next) => {
+    if (!next || viewportEl === next) return
+    if (viewportEl) viewportEl.removeEventListener('scroll', handleScroll)
+    viewportEl = next
+    viewportEl.addEventListener('scroll', handleScroll, { passive: true })
+    if (watcher) watcher.viewport = viewportEl
+  }
 
   const escapeSelector = (value) => {
     const raw = String(value || '')
@@ -687,12 +786,14 @@ function createStructureWatcher(state) {
       .map((segment) => segment.trim())
       .filter(Boolean)
     if (!parts.length) return null
+    const scope = resolveContainer()
+    if (!scope) return null
     let current = ''
     let last = null
     for (let idx = 0; idx < parts.length; idx += 1) {
       current = current ? `${current}/${parts[idx]}` : parts[idx]
       const selector = `details[data-path="${escapeSelector(current)}"]`
-      const details = content.querySelector(selector)
+      const details = scope.querySelector(selector)
       if (!details) return last
       const body = details.querySelector(':scope > .body')
       const isFile = (details.dataset?.type || details.classList?.contains('file')) === 'file'
@@ -744,25 +845,42 @@ function createStructureWatcher(state) {
     return `dir-${slug}`
   }
 
-  const watcher = {
-    content,
+  watcher = {
+    container: resolveContainer(),
+    viewport: null,
     tocRoot,
     links: [],
     lastActive: new Set(),
     ignoreHashClearUntil: 0,
+    ensureTargets(force = false) {
+      const latestContainer = resolveContainer()
+      if (latestContainer && latestContainer !== this.container) {
+        this.container = latestContainer
+      }
+      const nextViewport = resolveTreeRoot() || this.container
+      if (nextViewport) swapViewport(nextViewport)
+      else if (force && this.container) swapViewport(this.container)
+      if (!this.viewport) this.viewport = viewportEl
+    },
     refresh(force = false) {
+      this.ensureTargets(true)
       this.links = Array.from(this.tocRoot.querySelectorAll('a[data-path]'))
       if (force) this.lastActive = new Set()
       this.updateActive(true)
     },
     updateActive(force = false) {
-      const contentRect = this.content.getBoundingClientRect()
+      this.ensureTargets()
+      const viewport = this.viewport || viewportEl || resolveTreeRoot() || this.container
+      if (!viewport) return
+      const contentRect = viewport.getBoundingClientRect()
       const top = contentRect.top
       const bottom = contentRect.bottom
       const anchorOffset = Math.min(Math.max(contentRect.height * 0.15, 56), 200)
       const anchorY = Math.max(top, Math.min(bottom - 20, top + anchorOffset))
       const visible = new Set()
-      const details = this.content.querySelectorAll('details[data-path]')
+      const scope = this.container || resolveContainer()
+      if (!scope) return
+      const details = scope.querySelectorAll('details[data-path]')
       details.forEach((det) => {
         const path = det.dataset?.path || ''
         const summary = det.querySelector(':scope > summary')
@@ -812,16 +930,8 @@ function createStructureWatcher(state) {
     },
   }
 
-  const handleScroll = () => {
-    watcher.updateActive()
-    if (location.hash && Date.now() > watcher.ignoreHashClearUntil) {
-      try {
-        history.replaceState(null, '', location.pathname + location.search)
-      } catch {}
-    }
-  }
+  watcher.ensureTargets(true)
 
-  content.addEventListener('scroll', handleScroll, { passive: true })
   tocRoot.addEventListener('click', (e) => {
     const link =
       e.target && typeof e.target.closest === 'function' ? e.target.closest('a[data-path]') : null

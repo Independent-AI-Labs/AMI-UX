@@ -1,24 +1,72 @@
 export const IGNORE_ATTR = 'data-ami-highlight-ignore'
+export const ALT_IGNORE_ATTR = 'data-highlight-ignore'
+export const IGNORE_CLASS = 'ami-highlight-ignore'
 export const OWNED_ATTR = 'data-ami-highlight-owned'
 
 const ElementRef = typeof Element !== 'undefined' ? Element : null
 
-function hasAttr(el, attr) {
-  if (!el || typeof el.hasAttribute !== 'function') return false
-  try {
-    return el.hasAttribute(attr)
-  } catch {
-    return false
+const IGNORE_SELECTOR = `[${IGNORE_ATTR}],[${ALT_IGNORE_ATTR}],.${IGNORE_CLASS}`
+
+let ignoreCache = new WeakMap()
+let ignoreCacheToken = 0
+
+function readIgnoreCache(node) {
+  if (!node) return undefined
+  const entry = ignoreCache.get(node)
+  if (!entry) return undefined
+  return entry.token === ignoreCacheToken ? entry.value : undefined
+}
+
+function writeIgnoreCache(node, value) {
+  if (!node) return
+  ignoreCache.set(node, { token: ignoreCacheToken, value })
+}
+
+export function resetIgnoreCache() {
+  ignoreCacheToken += 1
+  if (ignoreCacheToken > Number.MAX_SAFE_INTEGER - 1) {
+    ignoreCacheToken = 0
+    ignoreCache = new WeakMap()
   }
 }
 
-function closestAttr(el, attr) {
-  if (!el || typeof el.closest !== 'function') return null
+export function invalidateIgnoreCacheFor(node) {
+  if (!node) return
   try {
-    return el.closest(`[${attr}]`)
-  } catch {
-    return null
+    ignoreCache.delete(node)
+  } catch {}
+}
+
+export function markIgnoredNode(node, options = {}) {
+  if (!node) return node
+  const setAttr = options.attr !== false
+  const setAltAttr = options.altAttr === true || options.attr !== false
+  const setClass = options.class !== false
+  let mutated = false
+  if (setAttr && typeof node.setAttribute === 'function') {
+    try {
+      node.setAttribute(IGNORE_ATTR, '1')
+      mutated = true
+    } catch {}
   }
+  if (setAltAttr && typeof node.setAttribute === 'function') {
+    try {
+      node.setAttribute(ALT_IGNORE_ATTR, '1')
+      mutated = true
+    } catch {}
+  }
+  if (setClass && node.classList) {
+    try {
+      node.classList.add(IGNORE_CLASS)
+      mutated = true
+    } catch {}
+  }
+  if (mutated) {
+    resetIgnoreCache()
+  } else {
+    invalidateIgnoreCacheFor(node)
+  }
+  return node
 }
 
 export function markPluginNode(node, options = {}) {
@@ -26,20 +74,19 @@ export function markPluginNode(node, options = {}) {
   try {
     node.setAttribute(OWNED_ATTR, '1')
   } catch {}
-  if (options.ignore !== false) {
-    try {
-      node.setAttribute(IGNORE_ATTR, '1')
-    } catch {}
-  }
+  if (options.ignore !== false) markIgnoredNode(node, { altAttr: true })
+  invalidateIgnoreCacheFor(node)
   return node
 }
 
 export function isPluginNode(node) {
   if (!node || !ElementRef) return false
   if (node instanceof ElementRef) {
-    if (hasAttr(node, OWNED_ATTR)) return true
-    const owner = closestAttr(node, OWNED_ATTR)
-    return !!owner
+    try {
+      return !!node.closest(`[${OWNED_ATTR}]`)
+    } catch {
+      return false
+    }
   }
   return false
 }
@@ -47,9 +94,16 @@ export function isPluginNode(node) {
 export function shouldIgnoreNode(node) {
   if (!node || !ElementRef) return false
   if (node instanceof ElementRef) {
-    if (hasAttr(node, IGNORE_ATTR)) return true
-    const owner = closestAttr(node, IGNORE_ATTR)
-    return !!owner
+    const cached = readIgnoreCache(node)
+    if (typeof cached === 'boolean') return cached
+    let ignored = false
+    try {
+      ignored = !!node.closest(IGNORE_SELECTOR)
+    } catch {
+      ignored = false
+    }
+    writeIgnoreCache(node, ignored)
+    return ignored
   }
   return false
 }

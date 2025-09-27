@@ -1,4 +1,5 @@
 const GLOBAL_KEY = '__AMI_HIGHLIGHT_DEBUG__'
+const FORCE_DISABLED = true
 
 function getGlobal() {
   if (typeof globalThis !== 'undefined') return globalThis
@@ -31,6 +32,7 @@ function normalizeDebugState(value) {
 }
 
 export function setDebugEnabled(value) {
+  if (FORCE_DISABLED) return
   const globalRef = getGlobal()
   try {
     const normalized = normalizeDebugState(value)
@@ -40,6 +42,7 @@ export function setDebugEnabled(value) {
 }
 
 export function isDebugEnabled(channel) {
+  if (FORCE_DISABLED) return false
   const globalRef = getGlobal()
   let state
   try {
@@ -62,6 +65,7 @@ export function isDebugEnabled(channel) {
 }
 
 export function debugLog(...args) {
+  if (FORCE_DISABLED) return
   if (!args.length) return
   const maybeLabel = args[0]
   const label = typeof maybeLabel === 'string' ? maybeLabel : null

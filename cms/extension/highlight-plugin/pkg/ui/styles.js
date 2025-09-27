@@ -167,8 +167,10 @@ const STYLE_TEXT = `
 }
 .ami-highlight-toggle {
   position: fixed;
-  top: 18px;
-  right: 18px;
+  bottom: 18px;
+  left: 18px;
+  top: auto;
+  right: auto;
   z-index: 5200;
   display: inline-flex;
   align-items: center;
