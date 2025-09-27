@@ -10,6 +10,7 @@ import {
   restoreState,
   restoreHashTarget,
   attachEvents,
+  preloadFileContent,
 } from './ui.js'
 import { connectSSE } from './sse.js'
 import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
@@ -23,6 +24,7 @@ const state = {
   tree: null,
   cache: new Map(),
   open: new Set(),
+  activePath: '',
   theme:
     localStorage.getItem('theme') ||
     (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
@@ -398,6 +400,25 @@ export async function startCms(fromSelect = false) {
     title.textContent = humanizeName(treeName, 'dir')
   }
   renderTree(state, root, tree)
+  const rootChildren = Array.isArray(tree.children) ? tree.children.slice() : []
+  const findIntroIdx = () =>
+    rootChildren.findIndex(
+      (c) =>
+        c.type === 'file' &&
+        ['readme.md', 'introduction.md', 'intro.md'].includes(String(c.name || '').toLowerCase()),
+    )
+  const introIdx = findIntroIdx()
+  const intro = introIdx >= 0 ? rootChildren[introIdx] : null
+  const fallbackFile = intro || rootChildren.find((child) => child && child.type === 'file') || null
+  if (fallbackFile && fallbackFile.type === 'file') {
+    await preloadFileContent(state, {
+      name: fallbackFile.name,
+      path: fallbackFile.path,
+      type: 'file',
+    })
+  } else {
+    state.activePath = ''
+  }
   if (typeof state.applyTreeFilter === 'function') {
     state.applyTreeFilter(state.treeFilterValue || '')
   }
@@ -405,15 +426,6 @@ export async function startCms(fromSelect = false) {
   updateTOC(state)
   restoreHashTarget()
   try {
-    const children = (tree.children || []).slice()
-    const findIntroIdx = () =>
-      children.findIndex(
-        (c) =>
-          c.type === 'file' &&
-          ['readme.md', 'introduction.md', 'intro.md'].includes(String(c.name || '').toLowerCase()),
-      )
-    const introIdx = findIntroIdx()
-    const intro = introIdx >= 0 ? children[introIdx] : null
     if (intro && intro.type === 'file') {
       const sel = document.querySelector(`details.file[data-path="${CSS.escape(intro.path)}"]`)
       if (sel) {

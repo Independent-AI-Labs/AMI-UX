@@ -54,9 +54,12 @@ function cacheKey(state, relPath) {
   return `${rootKey}@${context}::${relPath}`
 }
 
-export async function loadFileNode(state, details, node, body) {
+async function ensureFileContent(state, node) {
+  if (!node || !node.path) return null
   const key = cacheKey(state, node.path)
-  if (state.cache.has(key)) return
+  if (state.cache.has(key)) {
+    return state.cache.get(key)
+  }
   try {
     const rootKey = state?.rootKey === 'uploads' ? 'uploads' : 'docRoot'
     const raw = await fetchFile(node.path, rootKey)
@@ -81,12 +84,40 @@ export async function loadFileNode(state, details, node, body) {
       })
       contentEl = view.element
     }
-    state.cache.set(key, { html: contentEl, headings })
+    const entry = { html: contentEl, headings }
+    state.cache.set(key, entry)
+    return entry
+  } catch (e) {
+    console.warn('Failed to build file content', e)
+    throw e
+  }
+}
+
+export async function preloadFileContent(state, node) {
+  if (!state || !node) return null
+  try {
+    const entry = await ensureFileContent(state, node)
+    if (entry && node.path) state.activePath = node.path || ''
+    return entry
+  } catch (e) {
+    return null
+  }
+}
+
+export async function loadFileNode(state, details, node, body) {
+  if (!details || !body || !node) return
+  try {
+    const entry = await ensureFileContent(state, node)
+    if (!entry) return
+    const { html } = entry
+    state.activePath = node.path || ''
     body.innerHTML = ''
     const anchor = document.createElement('a')
     anchor.id = pathAnchor(node.path)
     body.appendChild(anchor)
-    body.appendChild(contentEl)
+    const cloned =
+      html && typeof html.cloneNode === 'function' ? html.cloneNode(true) : html || document.createTextNode('')
+    body.appendChild(cloned)
     updateTOC(state)
     if (state._structureWatcher) {
       try {
@@ -180,6 +211,7 @@ function attachFileLoader(details, state, body) {
       } catch {
         await loadFileNode(state, details, node, body)
       }
+      state.activePath = node.path || ''
       restoreHashTarget()
       updateTOC(state)
       if (state._structureWatcher) {
@@ -190,6 +222,7 @@ function attachFileLoader(details, state, body) {
       return
     }
     await loadFileNode(state, details, node, body)
+    state.activePath = node.path || ''
     restoreHashTarget()
     updateTOC(state)
   }
@@ -461,7 +494,9 @@ export function updateTOC(state) {
     .filter((node) => {
       const details = node.closest('details.file')
       if (!details) return false
-      if (!details.hasAttribute('open')) return false
+      const path = details.dataset?.path || ''
+      const isActiveFile = state && state.activePath && state.activePath === path
+      if (!details.hasAttribute('open') && !isActiveFile) return false
       if (details.classList?.contains('hidden')) return false
       return true
     })
@@ -478,6 +513,21 @@ export function updateTOC(state) {
       a.style.paddingLeft = headingIndent + 'px'
       hnav.appendChild(a)
     })
+
+  if (!hnav.childElementCount && state?.activePath) {
+    const key = cacheKey(state, state.activePath)
+    const cached = state.cache.get(key)
+    const headings = cached?.headings || []
+    headings.forEach((item) => {
+      if (!item || !item.id || !item.text) return
+      const a = document.createElement('a')
+      a.href = '#' + item.id
+      a.textContent = item.text
+      const headingIndent = 16 + Math.max((item.level || 1) - 1, 0) * 16
+      a.style.paddingLeft = headingIndent + 'px'
+      hnav.appendChild(a)
+    })
+  }
   toc.appendChild(hnav)
 
   if (state && state._structureWatcher) state._structureWatcher.refresh(true)
