@@ -1,8 +1,8 @@
-import { ALT_IGNORE_ATTR, IGNORE_ATTR, isPluginNode, shouldIgnoreNode } from '../core/dom-utils.js'
+import { IGNORE_ATTR, isPluginNode, shouldIgnoreNode } from '../core/dom-utils.js'
 import { debugLog } from '../core/debug.js'
 
 const NodeRef = typeof Node !== 'undefined' ? Node : null
-const ATTRIBUTE_FILTER = ['class', 'role', IGNORE_ATTR, ALT_IGNORE_ATTR]
+const ATTRIBUTE_FILTER = ['class', 'role', IGNORE_ATTR]
 
 function isRelevantNode(node) {
   if (!node || !NodeRef) return false

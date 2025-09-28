@@ -1,6 +1,6 @@
 import { ensureReact } from '../support/ensure-react.js'
 import { dialogService } from '../../lib/dialog-service.js'
-import { markPluginNode } from '../core/dom-utils.js'
+import { markPluginNode, withIgnoreProps } from '../core/dom-utils.js'
 import { TRIGGER_TYPES, TRIGGER_TYPE_META, createTriggerTemplate } from './trigger-presets.js'
 import { createSyntaxEditorToolkit } from './syntax-editor.js'
 
@@ -395,10 +395,7 @@ export function createTriggerComposerToolkit(React) {
     if (mode === 'dialog' || wrap) {
       return h(
         'div',
-        {
-          className: `trigger-composer trigger-composer--${mode}`,
-          'data-ami-highlight-ignore': '1',
-        },
+        withIgnoreProps({ className: `trigger-composer trigger-composer--${mode}` }),
         ...contentNodes,
       )
     }

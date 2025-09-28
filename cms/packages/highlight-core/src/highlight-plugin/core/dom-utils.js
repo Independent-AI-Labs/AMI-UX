@@ -1,11 +1,11 @@
 export const IGNORE_ATTR = 'data-ami-highlight-ignore'
-export const ALT_IGNORE_ATTR = 'data-highlight-ignore'
-export const IGNORE_CLASS = 'ami-highlight-ignore'
+export const IGNORE_VALUE = '1'
+export const IGNORE_PROPS = Object.freeze({ [IGNORE_ATTR]: IGNORE_VALUE })
 export const OWNED_ATTR = 'data-ami-highlight-owned'
 
 const ElementRef = typeof Element !== 'undefined' ? Element : null
 
-const IGNORE_SELECTOR = `[${IGNORE_ATTR}],[${ALT_IGNORE_ATTR}],.${IGNORE_CLASS}`
+const IGNORE_SELECTOR = `[${IGNORE_ATTR}]`
 
 let ignoreCache = new WeakMap()
 let ignoreCacheToken = 0
@@ -38,32 +38,12 @@ export function invalidateIgnoreCacheFor(node) {
 }
 
 export function markIgnoredNode(node, options = {}) {
-  if (!node) return node
-  const setAttr = options.attr !== false
-  const setAltAttr = options.altAttr === true || options.attr !== false
-  const setClass = options.class !== false
-  let mutated = false
-  if (setAttr && typeof node.setAttribute === 'function') {
-    try {
-      node.setAttribute(IGNORE_ATTR, '1')
-      mutated = true
-    } catch {}
-  }
-  if (setAltAttr && typeof node.setAttribute === 'function') {
-    try {
-      node.setAttribute(ALT_IGNORE_ATTR, '1')
-      mutated = true
-    } catch {}
-  }
-  if (setClass && node.classList) {
-    try {
-      node.classList.add(IGNORE_CLASS)
-      mutated = true
-    } catch {}
-  }
-  if (mutated) {
+  if (!node || typeof node.setAttribute !== 'function') return node
+  if (options.ignore === false) return node
+  try {
+    node.setAttribute(IGNORE_ATTR, IGNORE_VALUE)
     resetIgnoreCache()
-  } else {
+  } catch {
     invalidateIgnoreCacheFor(node)
   }
   return node
@@ -74,7 +54,7 @@ export function markPluginNode(node, options = {}) {
   try {
     node.setAttribute(OWNED_ATTR, '1')
   } catch {}
-  if (options.ignore !== false) markIgnoredNode(node, { altAttr: true })
+  if (options.ignore !== false) markIgnoredNode(node)
   invalidateIgnoreCacheFor(node)
   return node
 }
@@ -117,4 +97,11 @@ export function filterIgnored(collection) {
     out.push(node)
   }
   return out
+}
+export function withIgnoreProps(props = {}) {
+  if (!props || typeof props !== 'object') {
+    return { [IGNORE_ATTR]: IGNORE_VALUE }
+  }
+  if (props[IGNORE_ATTR] === IGNORE_VALUE) return props
+  return { ...props, [IGNORE_ATTR]: IGNORE_VALUE }
 }

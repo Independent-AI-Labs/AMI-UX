@@ -2,6 +2,7 @@ import { displayName, pathAnchor } from './utils.js'
 import { fetchFile } from './api.js'
 import { resolveFileView, getFallbackFileView } from './file-view-registry.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
+import { markIgnoredNode, markPluginNode } from './highlight-plugin/core/dom-utils.js'
 
 const DOM_NODE = typeof Node === 'function' ? Node : null
 
@@ -368,22 +369,26 @@ function createSummary(node, depth, indexPath) {
   summary.dataset.path = node.path || ''
   summary.dataset.depth = String(depth)
 
+  const titleWrap = document.createElement('span')
+  titleWrap.className = 'tree-title'
+  summary.appendChild(titleWrap)
+
   const numbering = document.createElement('span')
   numbering.className = 'tree-numbering'
   numbering.textContent = formatIndex(indexPath)
-  summary.appendChild(numbering)
+  titleWrap.appendChild(numbering)
 
   const labelSpan = document.createElement('span')
   labelSpan.className = 'tree-label'
   const label = displayName(node)
   labelSpan.textContent = label
-  summary.appendChild(labelSpan)
+  titleWrap.appendChild(labelSpan)
 
   if (node.type === 'file' && node.path) {
     const meta = document.createElement('span')
     meta.className = 'meta'
     meta.textContent = ` ${node.path}`
-    summary.appendChild(meta)
+    titleWrap.appendChild(meta)
   }
   return summary
 }
@@ -394,14 +399,29 @@ function updateSummary(summary, node, depth, indexPath) {
   summary.dataset.path = node.path || ''
   summary.dataset.depth = String(depth)
 
-  const existingIndent = summary.querySelector('.indent')
+  let titleWrap = summary.querySelector(':scope > .tree-title')
+  if (!titleWrap) {
+    titleWrap = document.createElement('span')
+    titleWrap.className = 'tree-title'
+    summary.insertBefore(titleWrap, summary.firstChild || null)
+    const legacyNodes = summary.querySelectorAll(
+      ':scope > .tree-numbering, :scope > .tree-label, :scope > .meta',
+    )
+    legacyNodes.forEach((node) => {
+      try {
+        titleWrap.appendChild(node)
+      } catch {}
+    })
+  }
+
+  const existingIndent = titleWrap.querySelector('.indent')
   if (existingIndent) existingIndent.remove()
 
-  const numbering = summary.querySelector('.tree-numbering')
+  const numbering = titleWrap.querySelector('.tree-numbering')
   if (numbering) numbering.textContent = formatIndex(indexPath)
 
   const label = displayName(node)
-  const labelSpan = summary.querySelector('.tree-label')
+  const labelSpan = titleWrap.querySelector('.tree-label')
   if (labelSpan) labelSpan.textContent = label
 
   const meta = summary.querySelector('.meta')
@@ -412,11 +432,11 @@ function updateSummary(summary, node, depth, indexPath) {
       const newMeta = document.createElement('span')
       newMeta.className = 'meta'
       newMeta.textContent = text
-      const labelEl = summary.querySelector('.tree-label')
+      const labelEl = titleWrap.querySelector('.tree-label')
       if (labelEl && labelEl.nextSibling) {
-        summary.insertBefore(newMeta, labelEl.nextSibling)
+        titleWrap.insertBefore(newMeta, labelEl.nextSibling)
       } else {
-        summary.appendChild(newMeta)
+        titleWrap.appendChild(newMeta)
       }
     }
   } else if (meta) {
@@ -440,21 +460,25 @@ function ensureSummaryActions(state, details, node) {
   if (!actions) {
     actions = document.createElement('div')
     actions.className = 'tree-actions'
-    actions.dataset.amiHighlightIgnore = '1'
-    actions.classList.add('ami-highlight-ignore')
+    markPluginNode(actions)
     summary.appendChild(actions)
   } else {
     actions.innerHTML = ''
+    markPluginNode(actions)
   }
 
   const makeButton = (action, iconName, label, handler) => {
     const btn = document.createElement('button')
     btn.type = 'button'
-    btn.className = 'tree-actions__btn icon-button ami-highlight-ignore'
+    btn.className = 'tree-actions__btn icon-button'
     btn.dataset.action = action
-    btn.dataset.amiHighlightIgnore = '1'
     btn.setAttribute('aria-label', label)
+    btn.dataset.hint = label
+    btn.title = label
     btn.innerHTML = iconMarkup(iconName, { size: 16 })
+    markPluginNode(btn)
+    const iconEl = btn.querySelector('i, svg, span')
+    if (iconEl) markPluginNode(iconEl)
     btn.addEventListener('click', (event) => {
       event.preventDefault()
       event.stopPropagation()

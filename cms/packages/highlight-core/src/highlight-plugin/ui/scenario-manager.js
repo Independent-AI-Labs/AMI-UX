@@ -1,7 +1,7 @@
 import { ensureReact } from '../support/ensure-react.js'
 import { createFileTreeToolkit } from '../../lib/file-tree.js'
 import { dialogService } from '../../lib/dialog-service.js'
-import { markPluginNode } from '../core/dom-utils.js'
+import { markPluginNode, withIgnoreProps } from '../core/dom-utils.js'
 import { icon as iconMarkup } from '../../lib/icon-pack.js'
 import { createTriggerComposerToolkit } from './trigger-composer.js'
 
@@ -811,34 +811,39 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
         )
 
     const renderFullscreenButton = () =>
-      h('button', {
-        type: 'button',
-        className: 'icon-button scenario-manager__control-button scenario-manager__control-button--fullscreen',
-        onClick: toggleFullscreen,
-        'aria-label': isFullscreen ? 'Exit full-screen' : 'Enter full-screen',
-        'aria-pressed': isFullscreen ? 'true' : 'false',
-        'data-ami-highlight-ignore': '1',
-        dangerouslySetInnerHTML: {
-          __html: iconMarkup(isFullscreen ? 'fullscreen-exit-line' : 'fullscreen-line', {
-            size: 18,
-          }),
-        },
-      })
+      h(
+        'button',
+        withIgnoreProps({
+          type: 'button',
+          className:
+            'icon-button scenario-manager__control-button scenario-manager__control-button--fullscreen',
+          onClick: toggleFullscreen,
+          'aria-label': isFullscreen ? 'Exit full-screen' : 'Enter full-screen',
+          'aria-pressed': isFullscreen ? 'true' : 'false',
+          dangerouslySetInnerHTML: {
+            __html: iconMarkup(isFullscreen ? 'fullscreen-exit-line' : 'fullscreen-line', {
+              size: 18,
+            }),
+          },
+        }),
+      )
 
     const renderCloseButton = () =>
-      h('button', {
-        type: 'button',
-        className: 'icon-button scenario-manager__control-button scenario-manager__control-button--close',
-        onClick: handleClose,
-        'aria-label': 'Close scenario manager',
-        'data-ami-highlight-ignore': '1',
-        dangerouslySetInnerHTML: { __html: iconMarkup('close-line', { size: 18 }) },
-      })
+      h(
+        'button',
+        withIgnoreProps({
+          type: 'button',
+          className: 'icon-button scenario-manager__control-button scenario-manager__control-button--close',
+          onClick: handleClose,
+          'aria-label': 'Close scenario manager',
+          dangerouslySetInnerHTML: { __html: iconMarkup('close-line', { size: 18 }) },
+        }),
+      )
 
     const renderHeaderControls = () =>
       h(
         'div',
-        { className: 'scenario-manager__header-controls', 'data-ami-highlight-ignore': '1' },
+        withIgnoreProps({ className: 'scenario-manager__header-controls' }),
         renderFullscreenButton(),
         renderCloseButton(),
       )

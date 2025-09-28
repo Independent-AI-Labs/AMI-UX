@@ -1,11 +1,4 @@
-import {
-  ALT_IGNORE_ATTR,
-  IGNORE_ATTR,
-  invalidateIgnoreCacheFor,
-  markPluginNode,
-  resetIgnoreCache,
-  shouldIgnoreNode,
-} from './dom-utils.js'
+import { IGNORE_ATTR, invalidateIgnoreCacheFor, markPluginNode, resetIgnoreCache, shouldIgnoreNode } from './dom-utils.js'
 import { debugLog } from './debug.js'
 
 const STYLE_ID = 'fx-glow-highlight-style'
@@ -469,7 +462,6 @@ function createHoverOverlay(doc, selectors, callbacks) {
   const overlay = doc.createElement('div')
   overlay.className = HOVER_OVERLAY_CLASS
   overlay.setAttribute('aria-hidden', 'true')
-  overlay.setAttribute('data-ami-highlight-ignore', '1')
   markPluginNode(overlay)
 
   const mkBtn = (cls, title, iconName, onClick) => {
@@ -478,7 +470,6 @@ function createHoverOverlay(doc, selectors, callbacks) {
     btn.type = 'button'
     btn.title = title
     btn.setAttribute('aria-label', title)
-    btn.setAttribute('data-ami-highlight-ignore', '1')
     const iconEl = doc.createElement('i')
     iconEl.className = `ri-${iconName}`
     iconEl.setAttribute('aria-hidden', 'true')
@@ -711,6 +702,13 @@ function createHoverOverlay(doc, selectors, callbacks) {
     if (!el) return
     if (shouldIgnoreNode(el)) return
     const related = event.relatedTarget instanceof Element ? event.relatedTarget : null
+    if (related && shouldIgnoreNode(related)) {
+      pendingAnchor = null
+      pendingPointer = null
+      clearShowTimer()
+      hideOverlay()
+      return
+    }
     if (related && (el.contains(related) || overlay.contains(related))) return
     if (pendingAnchor === el) {
       pendingAnchor = null
@@ -1277,7 +1275,9 @@ export function initHighlightEffects(options = {}) {
         ],
   )
   const treeSelectors = normaliseSelectors(
-    options.treeSelectors !== undefined ? options.treeSelectors : ['#treeRoot summary'],
+    options.treeSelectors !== undefined
+      ? options.treeSelectors
+      : ['#treeRoot summary .tree-title'],
   )
 
   const overlaySelectors = normaliseSelectors(
@@ -1418,7 +1418,7 @@ export function initHighlightEffects(options = {}) {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['class', 'role', IGNORE_ATTR, ALT_IGNORE_ATTR],
+      attributeFilter: ['class', 'role', IGNORE_ATTR],
     })
   }
   const detachTreeAncestorWatcher = trackTreeAncestors

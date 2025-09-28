@@ -15,6 +15,7 @@ import {
 import { connectSSE } from './sse.js'
 import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
+import { markIgnoredNode } from './highlight-plugin/core/dom-utils.js'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -223,15 +224,16 @@ function ensureTreeContainer() {
 
   const actions = document.createElement('div')
   actions.className = 'drawer-shell-header__actions tree-toolbar__actions'
+  markIgnoredNode(actions)
 
   const expandBtn = document.createElement('button')
   expandBtn.className = 'btn btn--ghost'
   expandBtn.id = 'treeExpandAll'
   expandBtn.type = 'button'
   expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 16 })}<span>Expand All</span>`
-  expandBtn.dataset.amiHighlightIgnore = '1'
-  expandBtn.dataset.highlightIgnore = '1'
-  expandBtn.classList.add('ami-highlight-ignore')
+  expandBtn.dataset.hint = 'Expand all sections in the tree'
+  expandBtn.title = 'Expand all sections in the tree'
+  markIgnoredNode(expandBtn)
   expandBtn.addEventListener('click', () => expandCollapseAll(true))
 
   const collapseBtn = document.createElement('button')
@@ -239,9 +241,9 @@ function ensureTreeContainer() {
   collapseBtn.id = 'treeCollapseAll'
   collapseBtn.type = 'button'
   collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 16 })}<span>Collapse All</span>`
-  collapseBtn.dataset.amiHighlightIgnore = '1'
-  collapseBtn.dataset.highlightIgnore = '1'
-  collapseBtn.classList.add('ami-highlight-ignore')
+  collapseBtn.dataset.hint = 'Collapse all sections in the tree'
+  collapseBtn.title = 'Collapse all sections in the tree'
+  markIgnoredNode(collapseBtn)
   collapseBtn.addEventListener('click', () => expandCollapseAll(false))
 
   actions.appendChild(expandBtn)
@@ -255,9 +257,7 @@ function ensureTreeContainer() {
   subtitle.className = 'drawer-shell-header__subtitle tree-toolbar__subtitle'
   subtitle.id = 'treeToolbarSubtitle'
   subtitle.textContent = 'Explore and inspect structured documentation.'
-  subtitle.dataset.amiHighlightIgnore = '1'
-  subtitle.dataset.highlightIgnore = '1'
-  subtitle.classList.add('ami-highlight-ignore')
+  markIgnoredNode(subtitle)
   toolbar.appendChild(subtitle)
 
   const shell = document.createElement('div')

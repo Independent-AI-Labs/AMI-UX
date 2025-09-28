@@ -522,6 +522,14 @@ header .btn i[class*=' ri-'] {
   font-weight: 600;
 }
 
+.tree-root details > summary .tree-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .tree-root details > summary.tree-filter-hit {
   color: var(--accent);
 }
@@ -1778,7 +1786,7 @@ details:focus-within > summary .row-actions {
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.16s ease, transform 0.16s ease;
-  z-index: 20;
+  z-index: 5200;
 }
 
 [data-hint]::after {
