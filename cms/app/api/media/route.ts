@@ -40,6 +40,7 @@ const MIME: Record<string, string> = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
   '.txt': 'text/plain; charset=utf-8',
+  '.pdf': 'application/pdf',
 }
 
 const ALLOWED = new Set(Object.keys(MIME))

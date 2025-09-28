@@ -1,0 +1,23 @@
+{
+  "name": "texlive",
+  "version": "1.2.0",
+  "description": "texlive.js [![](https://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=manuelsch&url=https%3A%2F%2Fgithub.com%2Fmanuels%2Ftexlive.js) ==========",
+  "main": "pdftex.js",
+  "scripts": {
+    "build": "make",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robin-rpr/texlive.js.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/robin-rpr/texlive.js/issues"
+  },
+  "homepage": "https://github.com/robin-rpr/texlive.js#readme",
+  "dependencies": {
+    "web-worker": "^1.0.0"
+  }
+}

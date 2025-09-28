@@ -14,6 +14,7 @@ type Node = {
 }
 
 const IGNORED_DIRS = new Set(['.git', '.next', 'node_modules'])
+const INTRO_FILENAMES = ['readme.md', 'readme.mdx', 'introduction.md', 'intro.md']
 
 async function statSafe(p: string) {
   try {
@@ -57,6 +58,7 @@ export const GET = withSession(async ({ request }) => {
       const childRel = path.posix.join(rel, name)
       const childAbs = path.join(dirAbs, name)
       if (ent.isDirectory()) {
+        if (name.endsWith('.meta')) continue
         const children = await readDirTreeWithAllowed(childAbs, childRel, allowlist, includeEmpty)
         if (children.length > 0 || includeEmpty)
           nodes.push({ name, path: childRel, type: 'dir', children })
@@ -68,6 +70,14 @@ export const GET = withSession(async ({ request }) => {
     nodes.sort((a, b) =>
       a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1,
     )
+
+    const introIndex = nodes.findIndex((node) => {
+      return node.type === 'file' && INTRO_FILENAMES.includes(node.name.toLowerCase())
+    })
+    if (introIndex > 0) {
+      const [introNode] = nodes.splice(introIndex, 1)
+      nodes.unshift(introNode)
+    }
     return nodes
   }
   const allowlist = isDocRoot ? formats : null
@@ -78,7 +88,7 @@ export const GET = withSession(async ({ request }) => {
     const idx = tree.findIndex(
       (ch: any) =>
         ch.type === 'file' &&
-        ['readme.md', 'introduction.md', 'intro.md'].includes(String(ch.name || '').toLowerCase()),
+        INTRO_FILENAMES.includes(String(ch.name || '').toLowerCase()),
     )
     if (idx > 0) {
       const intro = tree.splice(idx, 1)[0]

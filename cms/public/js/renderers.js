@@ -1,8 +1,221 @@
 import { slugify, pathAnchor } from './utils.js'
 import { CodeView, guessLanguageFromClassName, normaliseLanguageHint } from './code-view.js'
+import { ensureTexLiveCompiler } from './texlive/compiler.js'
 
-const DOCUMENT_NODE = 9
-const DOCUMENT_FRAGMENT_NODE = 11
+const DEFAULT_LATEX_PAGE_WIDTH = 816
+
+let pdfjsLibPromise = null
+
+function ensurePdfJs() {
+  if (!pdfjsLibPromise) {
+    pdfjsLibPromise = import('/vendor/pdfjs/pdf.min.mjs')
+      .then((mod) => {
+        const lib = mod?.default || mod?.pdfjsLib || mod
+        if (!lib || !lib.getDocument) throw new Error('pdf.js unavailable')
+        if (lib.GlobalWorkerOptions) {
+          lib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs'
+        }
+        return lib
+      })
+  }
+  return pdfjsLibPromise
+}
+
+function createLatexHeadings(tocEntries, relPath) {
+  const headings = []
+  const perPage = new Map()
+  const base = pathAnchor(relPath || '') || 'tex'
+  const used = new Set()
+  let collision = 0
+
+  (tocEntries || []).forEach((entry) => {
+    if (!entry) return
+    const text = (entry.text || '').trim()
+    if (!text) return
+    const level = Math.min(Math.max(Number(entry.level || 1), 1), 4)
+    const number = (entry.number || '').trim()
+    const page = Number.isFinite(entry.page) && entry.page > 0 ? entry.page : 1
+    const slugSource = number ? `${number} ${text}` : text
+    const slug = slugify(slugSource) || slugify(text) || 'section'
+    let id = `${base}-${slug}`
+    while (used.has(id)) {
+      collision += 1
+      id = `${base}-${slug}-${collision}`
+    }
+    used.add(id)
+
+    const label = number ? `${number} ${text}` : text
+    const heading = { id, text: label, level, page }
+    headings.push(heading)
+
+    if (!perPage.has(page)) perPage.set(page, [])
+    perPage.get(page).push(heading)
+  })
+
+  headings.sort((a, b) => a.page - b.page)
+  return { headings, perPage }
+}
+
+async function renderPdfDocument({ pdfjsLib, container, pdfBytes, perPageHeadings }) {
+  const pageMap = perPageHeadings instanceof Map ? perPageHeadings : new Map()
+  container.classList.add('latex-document__page--pdf')
+  container.innerHTML = ''
+  const pagesHost = document.createElement('div')
+  pagesHost.className = 'latex-document__pages'
+  container.appendChild(pagesHost)
+
+  const loadingTask = pdfjsLib.getDocument({ data: pdfBytes })
+  const pdf = await loadingTask.promise
+  const numPages = pdf.numPages || 0
+  let resolvedHeight = null
+  const deviceScale = Math.max(globalThis.devicePixelRatio || 1, 1)
+
+  for (let pageIndex = 1; pageIndex <= numPages; pageIndex += 1) {
+    const page = await pdf.getPage(pageIndex)
+    const baseViewport = page.getViewport({ scale: 1 })
+    const scale = DEFAULT_LATEX_PAGE_WIDTH / (baseViewport.width || DEFAULT_LATEX_PAGE_WIDTH)
+    const viewport = page.getViewport({ scale })
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d', { alpha: false })
+    canvas.width = Math.ceil(viewport.width * deviceScale)
+    canvas.height = Math.ceil(viewport.height * deviceScale)
+    canvas.style.width = '100%'
+    canvas.style.height = `${viewport.height}px`
+    if (context) {
+      context.scale(deviceScale, deviceScale)
+      await page.render({ canvasContext: context, viewport }).promise
+    }
+
+    const pageWrap = document.createElement('div')
+    pageWrap.className = 'latex-document__page-canvas'
+    pageWrap.dataset.pageNumber = String(pageIndex)
+
+    const anchors = pageMap.get(pageIndex) || []
+    anchors.forEach((heading, idx) => {
+      const anchor = document.createElement('div')
+      anchor.id = heading.id
+      anchor.className = 'latex-document__anchor'
+      anchor.style.marginTop = idx === 0 ? '0px' : `${idx * 18}px`
+      pageWrap.appendChild(anchor)
+    })
+
+    pageWrap.appendChild(canvas)
+    pagesHost.appendChild(pageWrap)
+
+    if (!resolvedHeight) resolvedHeight = viewport.height
+    page.cleanup()
+  }
+
+  try {
+    await pdf.cleanup()
+  } catch {}
+  try {
+    await pdf.destroy()
+  } catch {}
+
+  return { pageCount: numPages, pageHeight: resolvedHeight }
+}
+
+const LATEX_API_ROOT = '/api/latex'
+const DEFAULT_ROOT_KEY = 'docRoot'
+
+async function fetchLatexCache(relPath, root = DEFAULT_ROOT_KEY) {
+  try {
+    const params = new URLSearchParams({ path: relPath, root })
+    const res = await fetch(`${LATEX_API_ROOT}?${params.toString()}`, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return { ...data, root }
+  } catch {
+    return null
+  }
+}
+
+async function downloadLatexPdf(pdfRelPath, root = DEFAULT_ROOT_KEY) {
+  const params = new URLSearchParams({ path: pdfRelPath, root })
+  const res = await fetch(`/api/media?${params.toString()}`, {
+    cache: 'no-store',
+    credentials: 'same-origin',
+  })
+  if (!res.ok) throw new Error('Failed to download rendered PDF')
+  const buffer = await res.arrayBuffer()
+  return new Uint8Array(buffer)
+}
+
+async function persistLatexResult(relPath, payload, root = DEFAULT_ROOT_KEY) {
+  try {
+    const form = new FormData()
+    form.set('path', relPath)
+    form.set('root', root)
+    if (payload.headings && payload.headings.length) {
+      form.set('headings', JSON.stringify(payload.headings))
+    }
+    if (payload.log && typeof payload.log === 'string' && payload.log.trim()) {
+      form.set('log', payload.log)
+    }
+    const bytes = payload.pdfBytes instanceof Uint8Array ? payload.pdfBytes : new Uint8Array(payload.pdfBytes || [])
+    const blob = new Blob([bytes], { type: 'application/pdf' })
+    form.append('pdf', blob, 'render.pdf')
+    await fetch(LATEX_API_ROOT, {
+      method: 'POST',
+      body: form,
+      credentials: 'same-origin',
+    })
+  } catch (error) {
+    console.warn('Failed to persist LaTeX render', error)
+  }
+}
+
+function groupHeadingsByPage(headings) {
+  const map = new Map()
+  if (!Array.isArray(headings)) return map
+  headings.forEach((heading) => {
+    if (!heading || typeof heading !== 'object') return
+    const page = Number.isFinite(heading.page) && heading.page > 0 ? heading.page : 1
+    if (!map.has(page)) map.set(page, [])
+    map.get(page).push(heading)
+  })
+  return map
+}
+
+function ensureRootAnchor(container, anchorId) {
+  if (!anchorId) return
+  try {
+    if (container.querySelector(`#${CSS.escape(anchorId)}`)) return
+  } catch {
+    if (container.querySelector(`#${anchorId}`)) return
+  }
+  const anchor = document.createElement('div')
+  anchor.id = anchorId
+  anchor.className = 'latex-document__anchor latex-document__anchor--root'
+  container.insertBefore(anchor, container.firstChild || null)
+}
+
+function createLatexOverlay() {
+  const overlay = document.createElement('div')
+  overlay.className = 'latex-document__overlay'
+  const spinner = document.createElement('div')
+  spinner.className = 'latex-document__spinner'
+  const label = document.createElement('div')
+  label.className = 'latex-document__status'
+  label.textContent = 'Preparing LaTeX…'
+  overlay.append(spinner, label)
+  return {
+    element: overlay,
+    setStatus(text) {
+      label.textContent = text
+    },
+    hide() {
+      overlay.classList.add('latex-document__overlay--hidden')
+      setTimeout(() => {
+        if (overlay.parentElement) overlay.parentElement.removeChild(overlay)
+      }, 320)
+    },
+  }
+}
 
 export function renderMarkdown(md, relPath) {
   const raw = marked.parse(md)
@@ -261,159 +474,6 @@ export function renderHTMLDocument(htmlText, relPath) {
   return { htmlEl: wrapper, headings }
 }
 
-const LATEX_ASSET_BASE = 'vendor/latexjs'
-const LATEX_SCRIPT_URL = `${LATEX_ASSET_BASE}/latex.min.js`
-const LATEX_STYLESHEET_URL = `${LATEX_ASSET_BASE}/latex.min.css`
-
-let latexSupportPromise = null
-
-function loadScriptOnce(src) {
-  return new Promise((resolve, reject) => {
-    if (typeof document === 'undefined') {
-      reject(new Error('Document is not available'))
-      return
-    }
-    const existing = document.querySelector(`script[data-latex-src="${src}"]`)
-    if (existing) {
-      if (existing.dataset.loaded === 'true') resolve(existing)
-      else {
-        existing.addEventListener('load', () => resolve(existing), { once: true })
-        existing.addEventListener('error', (err) => reject(err), { once: true })
-      }
-      return
-    }
-    const script = document.createElement('script')
-    script.src = src
-    script.async = true
-    script.dataset.latexSrc = src
-    script.addEventListener('load', () => {
-      script.dataset.loaded = 'true'
-      resolve(script)
-    })
-    script.addEventListener('error', (err) => {
-      script.remove()
-      reject(err)
-    })
-    document.head.appendChild(script)
-  })
-}
-
-function loadStylesheetOnce(href) {
-  return new Promise((resolve, reject) => {
-    if (typeof document === 'undefined') {
-      reject(new Error('Document is not available'))
-      return
-    }
-    const existing = document.querySelector(`link[data-latex-href="${href}"]`)
-    if (existing) {
-      resolve(existing)
-      return
-    }
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = href
-    link.dataset.latexHref = href
-    link.crossOrigin = 'anonymous'
-    link.referrerPolicy = 'no-referrer'
-    link.addEventListener('load', () => resolve(link), { once: true })
-    link.addEventListener('error', (err) => {
-      link.remove()
-      reject(err)
-    })
-    document.head.appendChild(link)
-  })
-}
-
-function ensureLatexSupport() {
-  if (latexSupportPromise) return latexSupportPromise
-  latexSupportPromise = new Promise(async (resolve, reject) => {
-    try {
-      if (typeof window === 'undefined' || typeof document === 'undefined') {
-        throw new Error('LaTeX renderer requires browser environment')
-      }
-      if (window.latexjs) {
-        resolve(window.latexjs)
-        return
-      }
-      await Promise.all([loadStylesheetOnce(LATEX_STYLESHEET_URL), loadScriptOnce(LATEX_SCRIPT_URL)])
-      if (window.latexjs) resolve(window.latexjs)
-      else throw new Error('latex.js failed to load')
-    } catch (err) {
-      latexSupportPromise = null
-      reject(err)
-    }
-  })
-  return latexSupportPromise
-}
-
-function adoptInto(target, source) {
-  if (!target || !source) return
-  const doc = target.ownerDocument || document
-  const adoptNode = (node) => doc.importNode ? doc.importNode(node, true) : node.cloneNode(true)
-
-  const appendChildren = (node) => {
-    if (!node) return
-    if (node.nodeType === DOCUMENT_FRAGMENT_NODE || node.nodeType === DOCUMENT_NODE) {
-      const fragmentChildren = node.nodeType === DOCUMENT_NODE && node.body ? node.body.childNodes : node.childNodes
-      fragmentChildren && Array.from(fragmentChildren).forEach((child) => appendChildren(child))
-      return
-    }
-    target.appendChild(adoptNode(node))
-  }
-
-  if (source.nodeType === DOCUMENT_FRAGMENT_NODE) {
-    Array.from(source.childNodes || []).forEach((child) => appendChildren(child))
-    return
-  }
-  if (source.nodeType === DOCUMENT_NODE) {
-    const body = source.body || source.documentElement
-    if (body) Array.from(body.childNodes || []).forEach((child) => appendChildren(child))
-    return
-  }
-  if (source.childNodes && source !== target) {
-    Array.from(source.childNodes).forEach((child) => appendChildren(child))
-    return
-  }
-  if (source.nodeType) {
-    appendChildren(source)
-  }
-}
-
-function extractHeadingsFrom(container, relPath) {
-  const base = pathAnchor(relPath)
-  const seen = new Set()
-  const headings = []
-  container.querySelectorAll('h1, h2, h3, h4').forEach((heading) => {
-    if (!(heading instanceof HTMLElement)) return
-    const level = parseInt(heading.tagName.slice(1), 10)
-    if (!Number.isFinite(level)) return
-    const text = (heading.textContent || '').replace('¶', '').trim()
-    if (!text) return
-    let id = heading.id ? heading.id.trim() : ''
-    if (!id) {
-      const slugBase = slugify(text) || 'section'
-      let suffix = 0
-      let candidate = `${base}-${slugBase}`
-      while (seen.has(candidate)) {
-        suffix += 1
-        candidate = `${base}-${slugBase}-${suffix}`
-      }
-      id = candidate
-    }
-    seen.add(id)
-    heading.id = id
-    if (!heading.querySelector(':scope > a.anchor')) {
-      const anchor = document.createElement('a')
-      anchor.href = '#' + id
-      anchor.className = 'anchor'
-      anchor.textContent = '¶'
-      heading.appendChild(anchor)
-    }
-    headings.push({ id, text, level })
-  })
-  return headings
-}
-
 export async function renderLaTeXDocument(texSource, relPath) {
   const raw = typeof texSource === 'string' ? texSource : String(texSource || '')
   if (!raw.trim()) {
@@ -435,31 +495,79 @@ export async function renderLaTeXDocument(texSource, relPath) {
   viewport.appendChild(page)
   wrapper.appendChild(viewport)
 
+  const overlay = createLatexOverlay()
+  viewport.appendChild(overlay.element)
+
+  const rootAnchorId = pathAnchor(relPath || '')
+  const rootKey = DEFAULT_ROOT_KEY
   let headings = []
 
   try {
-    const latexjs = await ensureLatexSupport()
-    const generator = new latexjs.HtmlGenerator({ hyphenate: 'en-us' })
-    latexjs.parse(raw, { generator })
-    const fragment =
-      typeof generator.domFragment === 'function'
-        ? generator.domFragment()
-        : typeof generator.documentFragment === 'function'
-        ? generator.documentFragment()
-        : null
+    overlay.setStatus('Checking cached render…')
+    const cache = await fetchLatexCache(relPath, rootKey)
 
-    if (fragment) {
-      adoptInto(page, fragment)
-      headings = extractHeadingsFrom(page, relPath)
-    } else {
-      throw new Error('latex.js did not return a fragment')
+    let pdfBytes = null
+    let perPageMap = new Map()
+    let compilePayload = null
+
+    if (cache && cache.hasPdf && !cache.stale && cache.pdfPath) {
+      overlay.setStatus('Loading cached PDF…')
+      try {
+        pdfBytes = await downloadLatexPdf(cache.pdfPath, cache.root || rootKey)
+        headings = Array.isArray(cache.headings) ? cache.headings : []
+        perPageMap = groupHeadingsByPage(headings)
+      } catch (err) {
+        console.warn('Failed to load cached LaTeX PDF, recompiling', err)
+      }
     }
+
+    if (!pdfBytes) {
+      overlay.setStatus('Compiling LaTeX…')
+      const compiler = await ensureTexLiveCompiler()
+      const result = await compiler.compile(raw)
+      pdfBytes = result.pdfBytes instanceof Uint8Array ? result.pdfBytes : new Uint8Array(result.pdfBytes || [])
+      const computed = createLatexHeadings(result.toc, relPath)
+      headings = computed.headings
+      perPageMap = computed.perPage
+      compilePayload = { pdfBytes, headings, log: result.log }
+    }
+
+    overlay.setStatus('Rendering PDF…')
+    const pdfjsLib = await ensurePdfJs()
+    const { pageHeight } = await renderPdfDocument({
+      pdfjsLib,
+      container: page,
+      pdfBytes,
+      perPageHeadings: perPageMap,
+    })
+    if (pageHeight && Number.isFinite(pageHeight)) {
+      wrapper.style.setProperty('--latex-page-height', `${Math.round(pageHeight)}px`)
+    }
+    if (rootAnchorId) ensureRootAnchor(page, rootAnchorId)
+    if (!headings.length && rootAnchorId) {
+      headings = [{ id: rootAnchorId, text: 'Document', level: 1, page: 1 }]
+    }
+
+    if (compilePayload) {
+      overlay.setStatus('Saving render…')
+      await persistLatexResult(relPath, compilePayload, rootKey)
+    }
+
+    overlay.hide()
   } catch (err) {
+    overlay.hide()
     console.warn('LaTeX render failed, showing source', err)
+    const hasPageSibling = page.parentElement === viewport
+    if (hasPageSibling) viewport.removeChild(page)
     const notice = document.createElement('div')
     notice.className = 'latex-document__fallback'
     notice.textContent = 'Unable to render this LaTeX document. Showing source.'
-    page.appendChild(notice)
+    if (err && err.message) {
+      const sub = document.createElement('div')
+      sub.className = 'latex-document__fallback-detail'
+      sub.textContent = err.message
+      notice.appendChild(sub)
+    }
     const fallback = new CodeView({
       code: raw,
       language: 'latex',
@@ -467,7 +575,11 @@ export async function renderLaTeXDocument(texSource, relPath) {
       showLanguage: true,
       showHeader: true,
     })
-    page.appendChild(fallback.element)
+    const fragment = document.createDocumentFragment()
+    fragment.appendChild(notice)
+    fragment.appendChild(fallback.element)
+    viewport.appendChild(fragment)
+    headings = rootAnchorId ? [{ id: rootAnchorId, text: 'Document', level: 1 }] : []
   }
 
   return { htmlEl: wrapper, headings }
