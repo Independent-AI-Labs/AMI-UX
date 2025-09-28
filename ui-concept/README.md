@@ -1,5 +1,9 @@
 # UI Concept Workspace
 
+This playground lets the UX team prototype ambitious operator workflows without touching production surfaces. It exists to pressure-test layouts, interactions, and visual systems before they graduate into the shipping CMS.
+
+## What You Get
+
 Exploratory Next.js application for experimenting with AMI operator experiences. The project is intentionally separate from the production CMS and is not shipped to end users.
 
 ## Stack

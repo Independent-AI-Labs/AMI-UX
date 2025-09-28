@@ -9,7 +9,14 @@ const compat = new FlatCompat({ baseDirectory: __dirname })
 
 const config = [
   {
-    ignores: ['.next/**', 'node_modules/**', 'public/vendor/**'],
+    ignores: [
+      '.next/**',
+      'node_modules/**',
+      'public/vendor/**',
+      'public/js/highlight-plugin/**',
+      'public/js/lib/**',
+      'extension/highlight-plugin/pkg/**',
+    ],
   },
   ...compat.config({
     extends: ['next/core-web-vitals'],

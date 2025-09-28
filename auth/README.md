@@ -1,6 +1,10 @@
 # AMI UX Auth Module
 
-This module centralises the NextAuth.js configuration and shared helpers that the UX surfaces (CMS, browser extension, future panels) rely on. It exposes:
+UX Auth is the single source of truth for how AMI experiences authenticate users. By wrapping NextAuth.js conventions in shared helpers, it lets every UI surface ship secure sign-in flows without duplicating logic.
+
+## What You Get
+
+The module centralises the NextAuth.js configuration and shared helpers that the UX surfaces (CMS, browser extension, future panels) rely on. It exposes:
 
 - A credentials-first `AuthConfig` (`src/config.ts`) with JWT sessions and role metadata.
 - A reusable server harness (`src/server.ts`) exporting `auth`, `signIn`, `signOut`, and route handlers.

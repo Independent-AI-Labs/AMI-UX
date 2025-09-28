@@ -1,7 +1,11 @@
-import { dialogService } from '../../dialog-service.js'
+import { dialogService } from '../../lib/dialog-service.js'
 import { markPluginNode } from '../core/dom-utils.js'
 import { debugLog, setDebugEnabled } from '../core/debug.js'
+import { createAutomationController } from '../core/automation.js'
 import { ensureUIStyles } from './styles.js'
+import { createTriggerDialog } from './trigger-dialog.js'
+import { createScenarioManager } from './scenario-manager.js'
+import { createTriggerComposer } from './trigger-composer.js'
 
 const DEBUG_GLOBAL_KEY = '__AMI_HIGHLIGHT_DEBUG__'
 
@@ -97,6 +101,63 @@ export class HighlightSettingsUI {
 
     ensureUIStyles(doc)
 
+    this.activeTab = 'targets'
+    this.automationRootEl = null
+    this.automationToggle = null
+    this.automationState = this.manager.getAutomation
+      ? this.manager.getAutomation()
+      : { enabled: false, triggers: [] }
+    this.scenarioManager = null
+
+    try {
+      this.automationController = createAutomationController({
+        document: this.document,
+        manager: this.manager,
+        ownerId: this.ownerId,
+        onPlacementStateChange: (active) => this.handlePlacementStateChange(active),
+        onTriggerCreated: (trigger) => this.handleTriggerCreated(trigger),
+        onTriggerEditRequest: (id, options = {}) => this.openTriggerEditor(id, options),
+      })
+    } catch (error) {
+      console.warn('Failed to initialise highlight automation controller', error)
+      this.automationController = null
+    }
+
+    try {
+      this.triggerDialog = createTriggerDialog({
+        document: this.document,
+        manager: this.manager,
+        ownerId: this.ownerId,
+        onSave: () => this.renderAutomationPanel(),
+        onDelete: () => this.renderAutomationPanel(),
+        onOpen: () => this.switchTab('automation'),
+      })
+    } catch (error) {
+      console.warn('Failed to initialise highlight trigger dialog', error)
+      this.triggerDialog = null
+    }
+
+    try {
+      this.scenarioManager = createScenarioManager({
+        document: this.document,
+        manager: this.manager,
+      })
+    } catch (error) {
+      console.warn('Failed to initialise scenario manager', error)
+      this.scenarioManager = null
+    }
+
+    try {
+      this.triggerComposer = createTriggerComposer({
+        document: this.document,
+        manager: this.manager,
+        ownerId: this.ownerId,
+      })
+    } catch (error) {
+      console.warn('Failed to initialise trigger composer', error)
+      this.triggerComposer = null
+    }
+
     const explicitToggle = this.resolveToggleOption(options.toggleButton)
     this.cleanupOwnedToggles(explicitToggle ? [explicitToggle] : [])
 
@@ -105,6 +166,7 @@ export class HighlightSettingsUI {
 
     this.detachSettings = this.manager.on('settings', (settings) => this.syncFromSettings(settings))
     this.detachCapabilities = this.manager.on('capabilities', (caps) => this.syncCapabilities(caps))
+    this.detachAutomation = this.manager.on('automation', (state) => this.syncAutomation(state))
 
     if (options.autoAttach !== false) {
       const target = explicitToggle || this.locateToggleButton()
@@ -520,38 +582,79 @@ export class HighlightSettingsUI {
         <div class="dialog-header">
           <div class="dialog-header__titles">
             <h2 class="dialog-title" id="${this.id}Title">Highlight Settings</h2>
-            <p class="dialog-subtitle" id="${this.id}Subtitle">Configure highlight targets and hover tools.</p>
+            <p class="dialog-subtitle" id="${this.id}Subtitle">Configure highlight targets, hover tools, and automation triggers.</p>
           </div>
         </div>
-        <div class="highlight-settings__section" data-section="targets">
-          <h3>Highlight Targets</h3>
-          ${this.buildTargetControl('blocks')}
-          ${this.buildTargetControl('headings')}
-          ${this.buildTargetControl('inline')}
-          ${this.buildTargetControl('tree')}
-          ${this.buildTargetControl('ancestor')}
+        <div class="highlight-settings__tabs" role="tablist">
+          <button type="button" class="highlight-settings__tab" data-settings-tab="targets" aria-selected="true">Targets</button>
+          <button type="button" class="highlight-settings__tab" data-settings-tab="automation" aria-selected="false">Automation</button>
         </div>
-        <div class="highlight-settings__section" data-section="overlay">
-          <h3>Hover Tools</h3>
-          ${this.buildTargetControl('overlay')}
-        </div>
-        <div class="highlight-settings__section" data-section="style">
-          <h3>Style</h3>
-          <label class="highlight-settings__item highlight-settings__item--select">
-            <div>
-              <span>Glow intensity</span>
-              <p class="muted">Adjust highlight strength and spread</p>
+        <div class="highlight-settings__tab-panels">
+          <section class="highlight-settings__tab-panel" data-settings-panel="targets">
+            <div class="highlight-settings__section" data-section="targets">
+              <h3>Highlight Targets</h3>
+              ${this.buildTargetControl('blocks')}
+              ${this.buildTargetControl('headings')}
+              ${this.buildTargetControl('inline')}
+              ${this.buildTargetControl('tree')}
+              ${this.buildTargetControl('ancestor')}
             </div>
-            <select data-setting="intensity">
-              <option value="soft">Soft</option>
-              <option value="medium">Balanced</option>
-              <option value="bold">Vibrant</option>
-            </select>
-          </label>
+            <div class="highlight-settings__section" data-section="style">
+              <h3>Style</h3>
+              <label class="highlight-settings__item highlight-settings__item--select">
+                <div>
+                  <span>Glow intensity</span>
+                  <p class="muted">Adjust highlight strength and spread</p>
+                </div>
+                <select data-setting="intensity">
+                  <option value="soft">Soft</option>
+                  <option value="medium">Balanced</option>
+                  <option value="bold">Vibrant</option>
+                </select>
+              </label>
+            </div>
+          </section>
+          <section class="highlight-settings__tab-panel" data-settings-panel="automation" hidden>
+            <div class="highlight-automation" data-automation-root>
+              <div class="highlight-settings__section highlight-automation__capabilities" data-section="automation-capabilities">
+                <h3>Capabilities</h3>
+                <label class="highlight-settings__item highlight-automation__capability" data-automation-capability="runtime">
+                  <input type="checkbox" data-automation-setting="enabled" />
+                  <div>
+                    <span>Enable automation runtime</span>
+                    <p class="muted">Attach triggers to matching elements and execute actions for this page.</p>
+                  </div>
+                </label>
+                <label class="highlight-settings__item highlight-automation__capability" data-automation-capability="network">
+                  <input type="checkbox" data-automation-setting="capabilities.network" />
+                  <div>
+                    <span>Allow network automation</span>
+                    <p class="muted">Permit triggers to read from network requests and streaming data sources.</p>
+                  </div>
+                </label>
+              </div>
+              <p class="highlight-automation__lead">Create automation triggers that react to DOM events with custom scripts.</p>
+              <div class="highlight-settings__section" data-section="automation-tools">
+                <h3>Automation Tools</h3>
+                ${this.buildTargetControl('overlay')}
+              </div>
+              <div class="highlight-automation__scenario-select">
+                <label>
+                  <span>Active scenario</span>
+                  <select data-automation-setting="activeScenario"></select>
+                </label>
+              </div>
+              <div class="highlight-automation__toolbar">
+                <button type="button" class="highlight-automation__btn highlight-automation__btn--primary" data-automation-action="scenarios">Manage Scenarios</button>
+              </div>
+            </div>
+          </section>
         </div>
       `
       markPluginNode(panel)
       this.panelEl = panel
+      this.automationRootEl = panel.querySelector('[data-automation-root]')
+      this.automationToggle = panel.querySelector('[data-automation-setting="enabled"]')
     }
 
     if (!this.overlayEl.contains(this.panelEl)) this.overlayEl.appendChild(this.panelEl)
@@ -578,6 +681,8 @@ export class HighlightSettingsUI {
 
     this.syncFromSettings(this.manager.getSettings())
     this.syncCapabilities(this.manager.availableTargets)
+    this.syncAutomation(this.automationState)
+    this.switchTab(this.activeTab || 'targets')
   }
 
   buildTargetControl(key) {
@@ -592,6 +697,260 @@ export class HighlightSettingsUI {
         </div>
       </label>
     `
+  }
+
+  switchTab(tabName) {
+    const targetTab = tabName === 'automation' ? 'automation' : 'targets'
+    this.activeTab = targetTab
+    if (!this.panelEl) return
+    const tabs = this.panelEl.querySelectorAll('[data-settings-tab]')
+    tabs.forEach((tab) => {
+      const isActive = tab.dataset.settingsTab === targetTab
+      tab.classList.toggle('is-active', isActive)
+      tab.setAttribute('aria-selected', isActive ? 'true' : 'false')
+    })
+    const panels = this.panelEl.querySelectorAll('[data-settings-panel]')
+    panels.forEach((panel) => {
+      const active = panel.dataset.settingsPanel === targetTab
+      panel.toggleAttribute('hidden', !active)
+    })
+  }
+
+  syncAutomation(state) {
+    this.automationState = state && typeof state === 'object' ? state : { enabled: false, triggers: [] }
+    this.renderAutomationPanel()
+  }
+
+  getAutomationSettingValue(path) {
+    const segments = String(path || '')
+      .split('.')
+      .map((seg) => seg.trim())
+      .filter(Boolean)
+    if (!segments.length) return undefined
+    let current = this.automationState
+    for (const segment of segments) {
+      if (!current || typeof current !== 'object') return undefined
+      current = current[segment]
+    }
+    return current
+  }
+
+  updateAutomationSetting(path, value) {
+    if (!this.manager || typeof this.manager.updateAutomation !== 'function') return
+    if (path === 'activeScenario' && typeof this.manager.setActiveScenario === 'function') {
+      this.manager.setActiveScenario(typeof value === 'string' ? value : '')
+      return
+    }
+    const segments = String(path || '')
+      .split('.')
+      .map((seg) => seg.trim())
+      .filter(Boolean)
+    if (!segments.length) return
+    if (segments.length === 1) {
+      this.manager.updateAutomation({ [segments[0]]: value })
+      return
+    }
+    const [head, ...tail] = segments
+    const sourceRoot =
+      this.automationState && typeof this.automationState[head] === 'object' && this.automationState[head] !== null
+        ? this.automationState[head]
+        : {}
+    const rootClone = Array.isArray(sourceRoot) ? [...sourceRoot] : { ...sourceRoot }
+    let cursor = rootClone
+    for (let i = 0; i < tail.length - 1; i += 1) {
+      const key = tail[i]
+      const existing = cursor && typeof cursor === 'object' && cursor[key] && typeof cursor[key] === 'object' ? cursor[key] : {}
+      cursor[key] = Array.isArray(existing) ? [...existing] : { ...existing }
+      cursor = cursor[key]
+    }
+    cursor[tail[tail.length - 1]] = value
+    this.manager.updateAutomation({ [head]: rootClone })
+  }
+
+  renderAutomationPanel() {
+    if (!this.panelEl || !this.automationState) return
+    if (this.automationToggle instanceof HTMLInputElement) {
+      this.automationToggle.checked = !!this.automationState.enabled
+    }
+    if (this.automationRootEl) {
+      this.automationRootEl.classList.toggle('is-enabled', !!this.automationState.enabled)
+    }
+    const automationInputs = this.panelEl.querySelectorAll('[data-automation-setting]')
+    automationInputs.forEach((input) => {
+      if (input === this.automationToggle) return
+      const settingKey = input.dataset.automationSetting
+      if (!settingKey || settingKey === 'enabled') return
+      const value = this.getAutomationSettingValue(settingKey)
+      if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+        input.checked = !!value
+      } else if (input instanceof HTMLSelectElement) {
+        input.value = value == null ? '' : String(value)
+      }
+    })
+    const scenarioSelect = this.panelEl.querySelector('[data-automation-setting="activeScenario"]')
+    if (scenarioSelect instanceof HTMLSelectElement) {
+      const meta = this.manager?.automationMeta || { scenarios: [] }
+      const scenarios = Array.isArray(meta.scenarios) ? meta.scenarios : []
+      const currentSlug =
+        this.automationState?.activeScenario && this.automationState.activeScenario.trim()
+          ? this.automationState.activeScenario.trim()
+          : scenarios[0]?.slug || 'default'
+      scenarioSelect.innerHTML = ''
+      scenarios.forEach((scenario) => {
+        const option = this.document.createElement('option')
+        option.value = scenario.slug
+        option.textContent = scenario.name || scenario.slug
+        scenarioSelect.appendChild(option)
+      })
+      if (!scenarioSelect.options.length) {
+        const option = this.document.createElement('option')
+        option.value = currentSlug
+        option.textContent = currentSlug
+        scenarioSelect.appendChild(option)
+      }
+      scenarioSelect.value = currentSlug
+    }
+  }
+
+  handlePlacementStateChange(active) {
+    if (this.automationRootEl) {
+      this.automationRootEl.classList.toggle('is-placing', !!active)
+    }
+    if (active) {
+      this.switchTab('automation')
+    } else {
+      this.renderAutomationPanel()
+    }
+  }
+
+  handleTriggerCreated(trigger) {
+    if (trigger && trigger.id) {
+      this.renderAutomationPanel()
+      this.switchTab('automation')
+    }
+  }
+
+  openScenarioManager() {
+    this.ensurePanel()
+    this.switchTab('automation')
+    if (this.scenarioManager && typeof this.scenarioManager.open === 'function') {
+      this.scenarioManager
+        .open()
+        .catch((error) => console.warn('Failed to open scenario manager dialog', error))
+      return
+    }
+    try {
+      this.document.dispatchEvent(
+        new CustomEvent('ami:highlight-manage-scenarios', {
+          detail: { ownerId: this.ownerId },
+        }),
+      )
+    } catch (error) {
+      console.warn('Scenario manager dispatch failed', error)
+    }
+  }
+
+  openTriggerEditor(triggerId, options = {}) {
+    if (!triggerId || !this.triggerDialog) return
+    this.ensurePanel()
+    this.switchTab(options.tab || 'automation')
+    try {
+      this.triggerDialog.openById(triggerId, options)
+    } catch (error) {
+      console.warn('Failed to open trigger editor', error)
+    }
+  }
+
+  createAutomationTriggerForElement(element, options = {}) {
+    if (!this.automationController) return null
+    this.switchTab('automation')
+
+    const buildDraft = () => {
+      if (typeof this.automationController.buildDraftForElement !== 'function') return null
+      return this.automationController.buildDraftForElement(element, options) || null
+    }
+
+    const initialDraft = buildDraft()
+    const activeScenario = this.manager?.automation?.activeScenario
+    const scenarioSlug =
+      typeof options.scenario === 'string' && options.scenario.trim()
+        ? options.scenario.trim()
+        : typeof activeScenario === 'string' && activeScenario.trim()
+          ? activeScenario.trim()
+          : 'default'
+
+    const composerDraft =
+      initialDraft && typeof initialDraft === 'object'
+        ? { ...initialDraft, scenario: initialDraft.scenario || scenarioSlug }
+        : null
+
+    const fallbackToComposer = () => {
+      if (
+        this.triggerComposer &&
+        typeof this.triggerComposer.open === 'function' &&
+        typeof this.automationController.buildDraftForElement === 'function'
+      ) {
+        return this.triggerComposer
+          .open({
+            scenarioSlug,
+            initialType: 'dom',
+            initialDraft: composerDraft || undefined,
+            submitLabel: 'Create Trigger',
+          })
+          .then((payload) => {
+            if (!payload) return null
+            const triggerPayload = {
+              ...payload,
+              scenario: payload.scenario || scenarioSlug,
+            }
+            const trigger = this.manager?.createTrigger?.(triggerPayload) || null
+            if (trigger) {
+              if (typeof this.handleTriggerCreated === 'function') this.handleTriggerCreated(trigger)
+              this.openTriggerEditor(trigger.id, { tab: 'target' })
+            }
+            return trigger
+          })
+          .catch((error) => {
+            if (error) console.warn('Failed to create trigger via composer', error)
+            return null
+          })
+      }
+      if (typeof this.automationController.createTriggerForElement === 'function') {
+        return this.automationController.createTriggerForElement(element, options)
+      }
+      return null
+    }
+
+    if (
+      this.scenarioManager &&
+      typeof this.scenarioManager.openAddTriggerForElement === 'function'
+    ) {
+      return this.scenarioManager
+        .openAddTriggerForElement({
+          scenarioSlug,
+          initialType: 'dom',
+          initialDraft: composerDraft || undefined,
+        })
+        .then((payload) => {
+          if (!payload) return null
+          if (typeof this.handleTriggerCreated === 'function') this.handleTriggerCreated(payload)
+          if (payload.id) this.openTriggerEditor(payload.id, { tab: 'target' })
+          return payload
+        })
+        .catch((error) => {
+          if (error) console.warn('Failed to create trigger via scenario manager', error)
+          return fallbackToComposer()
+        })
+    }
+
+    return fallbackToComposer()
+  }
+
+  editAutomationTriggerForElement(element) {
+    if (!this.automationController || typeof this.automationController.findTriggerByElement !== 'function') return
+    const trigger = this.automationController.findTriggerByElement(element) || null
+    if (trigger) this.openTriggerEditor(trigger.id, { tab: 'target' })
+    else this.createAutomationTriggerForElement(element)
   }
 
   updateButtonExpanded(expanded) {
@@ -658,6 +1017,22 @@ export class HighlightSettingsUI {
   handleInput(event) {
     const target = event?.target
     if (!(target instanceof HTMLElement)) return
+    const automationKey = target.dataset.automationSetting
+    if (automationKey) {
+      if (automationKey === 'enabled' && target instanceof HTMLInputElement && target.type === 'checkbox') {
+        if (typeof this.manager.setAutomationEnabled === 'function') this.manager.setAutomationEnabled(target.checked)
+        else if (typeof this.manager.updateAutomation === 'function') this.manager.updateAutomation({ enabled: target.checked })
+        return
+      }
+      let value = null
+      if (target instanceof HTMLInputElement) {
+        value = target.type === 'checkbox' ? target.checked : target.value
+      } else if (target instanceof HTMLSelectElement) {
+        value = target.value
+      }
+      if (value !== null && value !== undefined) this.updateAutomationSetting(automationKey, value)
+      return
+    }
     const key = target.dataset.setting
     if (!key) return
     if (target instanceof HTMLInputElement && target.type === 'checkbox') {
@@ -670,6 +1045,24 @@ export class HighlightSettingsUI {
   handleClick(event) {
     const target = event?.target
     if (!(target instanceof HTMLElement)) return
+    const tabBtn = target.closest('[data-settings-tab]')
+    if (tabBtn) {
+      event.preventDefault()
+      this.switchTab(tabBtn.dataset.settingsTab || 'targets')
+      return
+    }
+    const automationBtn = target.closest('[data-automation-action]')
+    if (automationBtn) {
+      event.preventDefault()
+      const action = automationBtn.dataset.automationAction
+      if (action === 'edit') {
+        const triggerId = automationBtn.dataset.triggerId
+        if (triggerId) this.openTriggerEditor(triggerId, { tab: 'target' })
+      } else if (action === 'scenarios') {
+        this.openScenarioManager()
+      }
+      return
+    }
     const closeBtn = target.closest('.dialog-close')
     if (closeBtn) {
       event.preventDefault()
@@ -688,13 +1081,41 @@ export class HighlightSettingsUI {
     if (this.dialogHandle && typeof this.dialogHandle.destroy === 'function') {
       this.dialogHandle.destroy()
     }
+    if (this.triggerDialog && typeof this.triggerDialog.destroy === 'function') {
+      try {
+        this.triggerDialog.destroy()
+      } catch {}
+    }
+    if (this.triggerComposer && typeof this.triggerComposer.destroy === 'function') {
+      try {
+        this.triggerComposer.destroy()
+      } catch {}
+    }
+    if (this.automationController && typeof this.automationController.destroy === 'function') {
+      try {
+        this.automationController.destroy()
+      } catch {}
+    }
+    if (this.scenarioManager && typeof this.scenarioManager.destroy === 'function') {
+      try {
+        this.scenarioManager.destroy()
+      } catch {}
+    }
+    this.scenarioManager = null
     this.overlayEl = null
     this.panelEl = null
     this.dialogHandle = null
     if (this.detachSettings) this.detachSettings()
     if (this.detachCapabilities) this.detachCapabilities()
+    if (this.detachAutomation) this.detachAutomation()
     this.detachSettings = null
     this.detachCapabilities = null
+    this.detachAutomation = null
+    this.triggerDialog = null
+    this.triggerComposer = null
+    this.automationController = null
+    this.automationToggle = null
+    this.automationRootEl = null
   }
 }
 

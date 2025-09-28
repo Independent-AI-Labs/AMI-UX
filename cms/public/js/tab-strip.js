@@ -4,6 +4,7 @@ const DEFAULTS = {
   addButtonTitle: 'New tab',
   draggable: true,
   animate: true,
+  allowRename: true,
 }
 
 function escapeHTML(value) {
@@ -23,9 +24,11 @@ export function createTabStrip(root, options = {}) {
     tabs: [],
     activeId: null,
     draggingId: null,
+    renamingId: null,
   }
   let destroyed = false
   let pendingRender = false
+  let activeRenameCleanup = null
 
   root.innerHTML = ''
   root.classList.add('tab-strip')
@@ -65,6 +68,88 @@ export function createTabStrip(root, options = {}) {
       ariaLabel: tab.ariaLabel || null,
     }
     return normalized
+  }
+
+  function beginRename(tab, button) {
+    if (!opts.allowRename || destroyed) return
+    if (!tab || !button) return
+    if (button.classList.contains('is-renaming')) return
+
+    if (typeof activeRenameCleanup === 'function') {
+      activeRenameCleanup()
+    }
+
+    state.renamingId = tab.id
+    button.classList.add('is-renaming')
+    const previousDraggable = button.draggable
+    button.draggable = false
+    const closeEl = button.querySelector('.close')
+    if (closeEl) closeEl.style.pointerEvents = 'none'
+
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.className = 'tab-strip__rename'
+    input.value = String(tab.label || '')
+    input.setAttribute('aria-label', 'Rename tab')
+    button.appendChild(input)
+
+    let finished = false
+    let handleKeyFn = null
+    let handleBlurFn = null
+
+    const finish = (nextValue, cancelled) => {
+      if (finished) return
+      finished = true
+      if (handleKeyFn) input.removeEventListener('keydown', handleKeyFn)
+      if (handleBlurFn) input.removeEventListener('blur', handleBlurFn)
+      state.renamingId = null
+      activeRenameCleanup = null
+      if (button.contains(input)) button.removeChild(input)
+      button.classList.remove('is-renaming')
+      button.draggable = previousDraggable
+      if (closeEl) closeEl.style.pointerEvents = ''
+
+      const trimmed = String(nextValue ?? '').trim()
+      const fallback = String(tab.label || '').trim()
+      const finalLabel = cancelled ? fallback : trimmed || fallback || 'Untitled'
+      if (finalLabel !== tab.label) {
+        tab.label = finalLabel
+        if (typeof opts.onRename === 'function') {
+          try {
+            opts.onRename(tab.id, finalLabel)
+          } catch (error) {
+            console.error('tab-strip onRename handler failed', error)
+          }
+        }
+        requestRender()
+      }
+    }
+
+    handleKeyFn = (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        finish(input.value, false)
+      } else if (event.key === 'Escape') {
+        event.preventDefault()
+        finish(tab.label, true)
+      }
+    }
+
+    handleBlurFn = () => finish(input.value, false)
+
+    input.addEventListener('keydown', handleKeyFn)
+    input.addEventListener('blur', handleBlurFn)
+
+    activeRenameCleanup = () => {
+      if (handleKeyFn) input.removeEventListener('keydown', handleKeyFn)
+      if (handleBlurFn) input.removeEventListener('blur', handleBlurFn)
+      finish(tab.label, true)
+    }
+
+    requestAnimationFrame(() => {
+      input.focus()
+      input.select()
+    })
   }
 
   function capturePositions() {
@@ -171,7 +256,12 @@ export function createTabStrip(root, options = {}) {
       if (state.activeId === tab.id) btn.classList.add('active')
       if (state.draggingId === tab.id) btn.classList.add('dragging')
       btn.dataset.tabId = tab.id
-      if (tab.tooltip) btn.title = tab.tooltip
+      const tooltipText =
+        tab.tooltip != null && tab.tooltip !== undefined && tab.tooltip !== ''
+          ? String(tab.tooltip)
+          : String(tab.label ?? '')
+      if (tooltipText) btn.title = tooltipText
+      else btn.removeAttribute('title')
       if (tab.ariaLabel) btn.setAttribute('aria-label', tab.ariaLabel)
       if (tab.dataset) {
         for (const [key, value] of Object.entries(tab.dataset)) {
@@ -196,6 +286,17 @@ export function createTabStrip(root, options = {}) {
         btn.addEventListener('contextmenu', (event) => {
           if (destroyed) return
           opts.onContextMenu(event, tab.id)
+        })
+      }
+
+      if (opts.allowRename) {
+        btn.addEventListener('dblclick', (event) => {
+          if (destroyed) return
+          const target = event.target
+          if (target instanceof HTMLElement && target.closest('.close')) return
+          event.preventDefault()
+          event.stopPropagation()
+          beginRename(tab, btn)
         })
       }
 

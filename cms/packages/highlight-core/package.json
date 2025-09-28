@@ -1,0 +1,21 @@
+{
+  "name": "@ami/highlight-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./highlight-plugin/*": "./src/highlight-plugin/*.js",
+    "./lib/*": "./src/lib/*.js",
+    "./support/*": "./src/highlight-plugin/support/*.js"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-highlight-core.mjs build",
+    "clean": "node ../../scripts/build-highlight-core.mjs clean",
+    "watch": "node ../../scripts/build-highlight-core.mjs watch",
+    "dev": "node ../../scripts/build-highlight-core.mjs watch",
+    "prepare": "node ../../scripts/build-highlight-core.mjs build"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3"
+  }
+}

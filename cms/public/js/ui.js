@@ -77,6 +77,22 @@ function resolveElementFromResult(result) {
   return null
 }
 
+let fullscreenButtonRef = null
+let fullscreenListenerAttached = false
+
+function updateFullscreenButtonState() {
+  if (!fullscreenButtonRef) return
+  const active = typeof document !== 'undefined' && !!document.fullscreenElement
+  fullscreenButtonRef.classList.toggle('is-active', active)
+  fullscreenButtonRef.setAttribute('aria-pressed', active ? 'true' : 'false')
+}
+
+function ensureFullscreenListener() {
+  if (fullscreenListenerAttached || typeof document === 'undefined') return
+  document.addEventListener('fullscreenchange', () => updateFullscreenButtonState())
+  fullscreenListenerAttached = true
+}
+
 async function renderWithView(view, providedContent, baseContext) {
   if (!view || typeof view.render !== 'function') return null
   try {
@@ -179,13 +195,37 @@ export async function loadFileNode(state, details, node, body) {
     if (!entry) return
     const { html } = entry
     state.activePath = node.path || ''
+    ensureSummaryActions(state, details, node)
+    ensureFullscreenListener()
     body.innerHTML = ''
-    const anchor = document.createElement('a')
-    anchor.id = pathAnchor(node.path)
-    body.appendChild(anchor)
+
+    if (node.path) {
+      const anchor = document.createElement('a')
+      anchor.id = pathAnchor(node.path)
+      body.appendChild(anchor)
+    }
     const cloned =
       html && typeof html.cloneNode === 'function' ? html.cloneNode(true) : html || document.createTextNode('')
     body.appendChild(cloned)
+    try {
+      const docRootKey = state?.rootKey || 'docRoot'
+      if (document && document.documentElement) {
+        document.documentElement.setAttribute('data-ami-doc-root', docRootKey)
+        if (node.path) document.documentElement.setAttribute('data-ami-doc-path', node.path)
+        else document.documentElement.removeAttribute('data-ami-doc-path')
+      }
+      document.dispatchEvent(
+        new CustomEvent('ami:doc-context', {
+          detail: {
+            path: node.path || '',
+            name: node.name || '',
+            root: docRootKey,
+          },
+        }),
+      )
+    } catch (error) {
+      console.warn('Failed to broadcast doc context', error)
+    }
     updateTOC(state)
     if (state._structureWatcher) {
       try {
@@ -278,6 +318,9 @@ function attachFileLoader(details, state, body) {
           releaseLoading = state.beginDocumentLoading(`Loading ${displayName(node)}…`)
         }
         try {
+          state.activePath = node.path || ''
+          ensureSummaryActions(state, details, node)
+          ensureFullscreenListener()
           body.innerHTML = ''
           const anchor = document.createElement('a')
           anchor.id = pathAnchor(node.path)
@@ -292,7 +335,12 @@ function attachFileLoader(details, state, body) {
           await loadFileNode(state, details, node, body)
           return
         }
-        state.activePath = node.path || ''
+        const summary = details.querySelector(':scope > summary')
+        if (summary) {
+          const fullscreenBtn = summary.querySelector('.tree-actions__btn[data-action="fullscreen"]')
+          if (fullscreenBtn instanceof HTMLElement) fullscreenButtonRef = fullscreenBtn
+          updateFullscreenButtonState()
+        }
         restoreHashTarget()
         updateTOC(state)
         if (state._structureWatcher) {
@@ -331,10 +379,10 @@ function createSummary(node, depth, indexPath) {
   labelSpan.textContent = label
   summary.appendChild(labelSpan)
 
-  if (node.type === 'file') {
+  if (node.type === 'file' && node.path) {
     const meta = document.createElement('span')
     meta.className = 'meta'
-    meta.textContent = ` (${node.path})`
+    meta.textContent = ` ${node.path}`
     summary.appendChild(meta)
   }
   return summary
@@ -357,12 +405,13 @@ function updateSummary(summary, node, depth, indexPath) {
   if (labelSpan) labelSpan.textContent = label
 
   const meta = summary.querySelector('.meta')
-  if (node.type === 'file') {
-    if (meta) meta.textContent = ` (${node.path})`
+  if (node.type === 'file' && node.path) {
+    const text = ` ${node.path}`
+    if (meta) meta.textContent = text
     else {
       const newMeta = document.createElement('span')
       newMeta.className = 'meta'
-      newMeta.textContent = ` (${node.path})`
+      newMeta.textContent = text
       const labelEl = summary.querySelector('.tree-label')
       if (labelEl && labelEl.nextSibling) {
         summary.insertBefore(newMeta, labelEl.nextSibling)
@@ -376,6 +425,108 @@ function updateSummary(summary, node, depth, indexPath) {
   return label
 }
 
+function ensureSummaryActions(state, details, node) {
+  if (!state || !details || !node || node.type !== 'file') {
+    const summary = details?.querySelector?.(':scope > summary') || null
+    const existing = summary ? summary.querySelector(':scope > .tree-actions') : null
+    if (existing) existing.remove()
+    return null
+  }
+
+  const summary = details.querySelector(':scope > summary')
+  if (!summary) return null
+
+  let actions = summary.querySelector(':scope > .tree-actions')
+  if (!actions) {
+    actions = document.createElement('div')
+    actions.className = 'tree-actions'
+    actions.dataset.amiHighlightIgnore = '1'
+    actions.classList.add('ami-highlight-ignore')
+    summary.appendChild(actions)
+  } else {
+    actions.innerHTML = ''
+  }
+
+  const makeButton = (action, iconName, label, handler) => {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'tree-actions__btn icon-button ami-highlight-ignore'
+    btn.dataset.action = action
+    btn.dataset.amiHighlightIgnore = '1'
+    btn.setAttribute('aria-label', label)
+    btn.innerHTML = iconMarkup(iconName, { size: 16 })
+    btn.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      handler(btn)
+    })
+    actions.appendChild(btn)
+    return btn
+  }
+
+  const fullscreenBtn = makeButton('fullscreen', 'fullscreen-line', 'Toggle full-screen view', async (btn) => {
+    try {
+      if (typeof document !== 'undefined' && !document.fullscreenElement) {
+        await document.documentElement?.requestFullscreen?.()
+      } else if (typeof document !== 'undefined' && document.exitFullscreen) {
+        await document.exitFullscreen()
+      }
+    } catch (error) {
+      console.warn('Failed to toggle fullscreen', error)
+    } finally {
+      fullscreenButtonRef = btn
+      updateFullscreenButtonState()
+    }
+  })
+
+  const path = node.path || ''
+
+  const embedBtn = makeButton('embed', 'share-forward-line', 'Open embed view', () => {
+    if (!path) return
+    try {
+      const base = new URL('/doc.html', window.location.origin)
+      base.searchParams.set('embed', '1')
+      base.hash = pathAnchor(path)
+      window.open(base.toString(), '_blank', 'noopener')
+    } catch (error) {
+      console.warn('Failed to open embed view', error)
+    }
+  })
+  if (!path) embedBtn.disabled = true
+
+  const exportBtn = makeButton('export', 'download-2-line', 'Export this document', async (btn) => {
+    if (!path) return
+    try {
+      btn.classList.add('is-busy')
+      const rootKey = state?.rootKey || 'docRoot'
+      const blob = await fetchFile(path, rootKey, { format: 'blob' })
+      const url = URL.createObjectURL(blob)
+      const anchorEl = document.createElement('a')
+      anchorEl.href = url
+      anchorEl.download = node.name || 'document'
+      document.body.appendChild(anchorEl)
+      anchorEl.click()
+      setTimeout(() => {
+        document.body.removeChild(anchorEl)
+        URL.revokeObjectURL(url)
+      }, 120)
+    } catch (error) {
+      console.warn('Failed to export document', error)
+    } finally {
+      btn.classList.remove('is-busy')
+    }
+  })
+  if (!path) exportBtn.disabled = true
+
+  const activePath = state.activePath || ''
+  if (path && path === activePath) {
+    fullscreenButtonRef = fullscreenBtn
+    updateFullscreenButtonState()
+  }
+
+  return actions
+}
+
 function createDetailsNode(state, node, depth, indexPath, key) {
   const details = document.createElement('details')
   details.__nodeData = { path: node.path || '', name: node.name || '', type: node.type }
@@ -387,6 +538,7 @@ function createDetailsNode(state, node, depth, indexPath, key) {
 
   const summary = createSummary(node, depth, indexPath)
   details.appendChild(summary)
+  ensureSummaryActions(state, details, node)
 
   const body = document.createElement('div')
   body.className = 'body'
@@ -419,6 +571,7 @@ function updateDetailsNode(state, details, node, depth, indexPath, key) {
 
   const summary = details.querySelector(':scope > summary')
   updateSummary(summary, node, depth, indexPath)
+  ensureSummaryActions(state, details, node)
 
   const body = details.querySelector(':scope > .body')
   if (node.type === 'dir') {
@@ -820,12 +973,60 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
     })
     const scope = document.getElementById('treeRoot') || document.getElementById('content')
     if (!scope) return
-    const query = value.toLowerCase()
-    scope.querySelectorAll('details').forEach((d) => {
-      const title = d.querySelector('summary')?.textContent?.toLowerCase() || ''
-      const match = !query || title.includes(query)
-      d.classList.toggle('hidden', !match)
-    })
+    const query = value.trim().toLowerCase()
+
+    const allDetails = Array.from(scope.querySelectorAll('details'))
+    if (!query) {
+      allDetails.forEach((details) => {
+        details.classList.remove('hidden')
+        if (details.dataset.filterPrevOpen) {
+          const restoreOpen = details.dataset.filterPrevOpen === '1'
+          if (!restoreOpen) details.removeAttribute('open')
+          delete details.dataset.filterPrevOpen
+        }
+        const summary = details.querySelector(':scope > summary')
+        if (summary) summary.classList.remove('tree-filter-hit')
+      })
+      return
+    }
+
+    const evaluate = (details) => {
+      if (!details) return false
+      const summary = details.querySelector(':scope > summary')
+      const text = summary ? (summary.textContent || '').toLowerCase() : ''
+      const directMatch = text.includes(query)
+      if (summary) summary.classList.toggle('tree-filter-hit', directMatch)
+
+      let childMatch = false
+      const body = details.querySelector(':scope > .body')
+      if (body) {
+        const children = Array.from(body.querySelectorAll(':scope > details'))
+        for (const child of children) {
+          if (evaluate(child)) childMatch = true
+        }
+      }
+
+      const match = directMatch || childMatch
+      details.classList.toggle('hidden', !match)
+
+      if (match) {
+        const type = details.dataset.type || (details.classList.contains('file') ? 'file' : 'dir')
+        const wasOpen = details.hasAttribute('open')
+        const shouldForceOpen = type === 'file' || childMatch
+        if (shouldForceOpen && !wasOpen) {
+          if (!details.dataset.filterPrevOpen) details.dataset.filterPrevOpen = wasOpen ? '1' : '0'
+          details.setAttribute('open', '')
+        }
+        if (type === 'dir' && childMatch && wasOpen === false && !details.dataset.filterPrevOpen) {
+          details.dataset.filterPrevOpen = '0'
+        }
+      }
+
+      return match
+    }
+
+    const roots = Array.from(scope.querySelectorAll(':scope > details'))
+    roots.forEach((details) => evaluate(details))
   }
   const bindTreeFilterInput = (input) => {
     if (!input || typeof input.addEventListener !== 'function' || boundTreeFilters.has(input)) return

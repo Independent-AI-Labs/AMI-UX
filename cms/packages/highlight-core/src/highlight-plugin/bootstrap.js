@@ -268,6 +268,8 @@ export function bootstrapHighlightPlugin(config = {}) {
     config.selectors && typeof config.selectors === 'object' ? config.selectors : null,
   )
 
+  const providedHandlers = config.handlers && typeof config.handlers === 'object' ? config.handlers : {}
+
   let manager
   try {
     manager = new HighlightManager({
@@ -275,6 +277,7 @@ export function bootstrapHighlightPlugin(config = {}) {
       storageKey: config.storageKey || 'amiHighlightPluginSettings',
       settings: config.settings,
       debug: debugEnabled,
+      automation: config.automation,
     })
   } catch (err) {
     if (markedActive) clearDocumentActive(doc, instanceId)
@@ -285,6 +288,7 @@ export function bootstrapHighlightPlugin(config = {}) {
   let contextHandle
   let ui
   let completed = false
+  let contextListener = null
   try {
     debugLog('manager:created', { contextCount: manager.contexts?.size || 0 })
 
@@ -294,7 +298,7 @@ export function bootstrapHighlightPlugin(config = {}) {
       scopeSelector: config.scopeSelector || 'body',
       selectors,
       overlayFollow: config.overlayFollow || ['block', 'inline', 'heading'],
-      handlers: config.handlers || {},
+      handlers: providedHandlers,
     })
     debugLog('context:registered', {
       id: contextHandle.id,
@@ -329,6 +333,55 @@ export function bootstrapHighlightPlugin(config = {}) {
       renderImmediately: config.renderImmediately === true,
       ownerId: instanceId,
     })
+
+    if (manager && typeof manager.setDocumentContext === 'function') {
+      contextListener = (event) => {
+        try {
+          manager.setDocumentContext(event?.detail || null)
+        } catch (error) {
+          debugLog('context:apply-error', { error: error?.message || String(error) })
+        }
+      }
+      try {
+        doc.addEventListener('ami:doc-context', contextListener)
+      } catch (error) {
+        debugLog('context:listener-error', { error: error?.message || String(error) })
+      }
+      const initialPath = doc.documentElement?.getAttribute('data-ami-doc-path') || ''
+      const initialRoot = doc.documentElement?.getAttribute('data-ami-doc-root') || 'docRoot'
+      if (initialPath) {
+        manager
+          .setDocumentContext({ path: initialPath, root: initialRoot })
+          .catch((error) => debugLog('context:initial-error', { error: error?.message || String(error) }))
+      }
+    }
+
+    if (ui && contextHandle && typeof contextHandle.update === 'function') {
+      const patchHandlers = {}
+      if (typeof providedHandlers.onTrigger !== 'function') {
+        patchHandlers.onTrigger = (element) => {
+          if (element && typeof ui.editAutomationTriggerForElement === 'function') {
+            ui.editAutomationTriggerForElement(element)
+          } else if (element && typeof ui.createAutomationTriggerForElement === 'function') {
+            ui.createAutomationTriggerForElement(element)
+          }
+        }
+      }
+      if (typeof providedHandlers.onAsk !== 'function') {
+        patchHandlers.onAsk = (element) => {
+          try {
+            window.dispatchEvent(
+              new CustomEvent('ami:highlight-ask', {
+                detail: { element },
+              }),
+            )
+          } catch {}
+        }
+      }
+      if (Object.keys(patchHandlers).length) {
+        contextHandle.update({ handlers: patchHandlers })
+      }
+    }
 
     const disconnectMutations = observeMutations(manager, contextHandle.id, {
       document: doc,
@@ -412,6 +465,11 @@ export function bootstrapHighlightPlugin(config = {}) {
       try {
         stopInitialMonitor?.()
       } catch {}
+      if (contextListener) {
+        try {
+          doc.removeEventListener('ami:doc-context', contextListener)
+        } catch {}
+      }
       if (markedActive) clearDocumentActive(doc, instanceId)
     }
   }

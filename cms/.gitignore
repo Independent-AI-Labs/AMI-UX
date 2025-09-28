@@ -1,6 +1,9 @@
 .next/
 node_modules/
 dist/
+public/js/highlight-plugin/
+public/js/lib/
+extension/highlight-plugin/pkg/
 data/*.json
 files/uploads/
 *.log

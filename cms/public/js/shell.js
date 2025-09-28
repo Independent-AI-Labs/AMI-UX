@@ -228,6 +228,31 @@ function ensureHighlightPluginConfig(win) {
   const existing = win.__AMI_HIGHLIGHT_CONFIG__
   const cfg = existing && typeof existing === 'object' ? existing : {}
 
+  if (!cfg.storageKey) {
+    let storageSuffix = ''
+    try {
+      const frame = findFrameForWindow(win)
+      if (frame && frame.dataset && frame.dataset.tabId) storageSuffix = frame.dataset.tabId
+    } catch {}
+    if (!storageSuffix) {
+      try {
+        const doc = win.document
+        const docPath = doc?.documentElement?.getAttribute('data-ami-doc-path') || ''
+        const docRoot = doc?.documentElement?.getAttribute('data-ami-doc-root') || ''
+        if (docRoot || docPath) storageSuffix = `${docRoot}::${docPath}`
+      } catch {}
+    }
+    if (!storageSuffix) {
+      try {
+        const url = win.location ? `${win.location.pathname || ''}${win.location.search || ''}` : ''
+        if (url) storageSuffix = url
+      } catch {}
+    }
+    if (!storageSuffix) storageSuffix = 'global'
+    storageSuffix = storageSuffix.replace(/[^a-z0-9:_-]+/gi, '_')
+    cfg.storageKey = `amiHighlightPluginSettings::${storageSuffix}`
+  }
+
   if (!Array.isArray(cfg.overlayFollow) || cfg.overlayFollow.length === 0) {
     cfg.overlayFollow = ['block', 'inline', 'heading']
   }
@@ -645,6 +670,124 @@ const frameLoadingMessages = {
   loading: 'Loading…',
 }
 
+const TAB_STORAGE_KEY = 'ami.shell.tabs.v1'
+
+function normalizePersistedTab(entry) {
+  if (!entry || typeof entry !== 'object') return null
+  const id = typeof entry.id === 'string' && entry.id.trim() ? entry.id.trim() : null
+  if (!id) return null
+  const kind = entry.kind === 'dir' || entry.kind === 'file' || entry.kind === 'app' ? entry.kind : 'file'
+  const normalized = {
+    id,
+    entryId: typeof entry.entryId === 'string' && entry.entryId ? entry.entryId : null,
+    kind,
+    path: typeof entry.path === 'string' ? entry.path : '',
+    label: typeof entry.label === 'string' && entry.label ? entry.label : null,
+    servedId: typeof entry.servedId === 'string' && entry.servedId ? entry.servedId : null,
+  }
+  if (typeof entry.mode === 'string' && entry.mode) normalized.mode = entry.mode
+  return normalized
+}
+
+function normalizePersistedTabList(list) {
+  if (!Array.isArray(list)) return []
+  return list.map((item) => normalizePersistedTab(item)).filter(Boolean)
+}
+
+function deriveActiveTabId(tabs, candidate) {
+  if (!Array.isArray(tabs) || !tabs.length) return null
+  if (candidate && typeof candidate === 'string' && tabs.some((tab) => tab.id === candidate)) {
+    return candidate
+  }
+  return tabs[0]?.id || null
+}
+
+function readStoredTabState() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return { tabs: [], activeId: null }
+  } catch {
+    return { tabs: [], activeId: null }
+  }
+  try {
+    const raw = window.localStorage.getItem(TAB_STORAGE_KEY)
+    if (!raw) return { tabs: [], activeId: null }
+    const parsed = JSON.parse(raw)
+    const tabs = normalizePersistedTabList(
+      Array.isArray(parsed?.tabs) ? parsed.tabs : Array.isArray(parsed?.openTabs) ? parsed.openTabs : [],
+    )
+    const activeIdCandidate =
+      typeof parsed?.activeId === 'string'
+        ? parsed.activeId
+        : typeof parsed?.activeTabId === 'string'
+          ? parsed.activeTabId
+          : null
+    const activeId = deriveActiveTabId(tabs, activeIdCandidate)
+    return { tabs, activeId }
+  } catch {
+    return { tabs: [], activeId: null }
+  }
+}
+
+function writeStoredTabState(state) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return
+  } catch {
+    return
+  }
+  try {
+    const tabs = normalizePersistedTabList(state?.tabs)
+    const activeId = deriveActiveTabId(tabs, state?.activeId)
+    const payload = { version: 1, tabs, activeId }
+    if (!tabs.length && activeId === null) {
+      window.localStorage.removeItem(TAB_STORAGE_KEY)
+    } else {
+      window.localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(payload))
+    }
+  } catch {}
+}
+
+function serializeTabForPersistence(tab) {
+  const serialized = normalizePersistedTab(tab)
+  if (!serialized) return null
+  return serialized
+}
+
+const tabPersistence = {
+  mode: 'unknown',
+  checking: null,
+  remoteAllowed: false,
+}
+
+async function ensureTabPersistenceMode() {
+  if (tabPersistence.mode !== 'unknown') return tabPersistence.mode
+  if (tabPersistence.checking) return tabPersistence.checking
+  const probe = (async () => {
+    let mode = 'local-only'
+    try {
+      const res = await fetch('/api/auth/session', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = await res.json().catch(() => null)
+        const user = data && typeof data === 'object' ? data.user || null : null
+        const roles = Array.isArray(user?.roles) ? user.roles : []
+        const isGuest = roles.includes('guest')
+        if (user && !isGuest) mode = 'remote-enabled'
+      }
+    } catch {}
+    tabPersistence.mode = mode
+    return mode
+  })()
+  tabPersistence.checking = probe
+  try {
+    const result = await probe
+    return result
+  } finally {
+    tabPersistence.checking = null
+  }
+}
+
 function ensureFrameLoadingOverlay() {
   if (!frameLoadingState.overlay) {
     frameLoadingState.overlay = document.getElementById('frameLoadingOverlay') || null
@@ -714,24 +857,30 @@ function loadFrame(src, { intent = 'loading', force = false, frame: targetFrame 
 }
 
 async function saveTabs() {
+  const openTabs = tabsState.tabs
+    .map((tab) => serializeTabForPersistence(tab))
+    .filter((tab) => tab && typeof tab.id === 'string')
+  const activeTabId = deriveActiveTabId(openTabs, tabsState.active)
+
   try {
-    const payload = {
-      openTabs: tabsState.tabs.map(({ id, entryId, kind, path, label, servedId, mode }) => ({
-        id,
-        entryId: entryId || null,
-        kind,
-        path,
-        label: label || null,
-        servedId: servedId || null,
-        mode: mode || undefined,
-      })),
-      activeTabId: tabsState.active,
-    }
-    await fetch('/api/config', {
+    writeStoredTabState({ tabs: openTabs, activeId: activeTabId })
+  } catch {}
+
+  if (!tabPersistence.remoteAllowed || tabPersistence.mode === 'local-only') return
+
+  try {
+    const payload = { openTabs, activeTabId }
+    const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
+    if (res && res.status >= 400) {
+      if (res.status === 401 || res.status === 403) {
+        tabPersistence.remoteAllowed = false
+        tabPersistence.mode = 'local-only'
+      }
+    }
   } catch {}
 }
 
@@ -950,6 +1099,14 @@ function getShellTabStrip() {
     onReorder: (order) => {
       applyTabOrder(Array.isArray(order) ? order : [])
     },
+    onRename: (id, label) => {
+      const tab = tabsState.tabs.find((t) => t.id === id)
+      if (!tab) return
+      tab.label = label
+      renderTabs()
+      saveTabs().catch(() => {})
+    },
+    allowRename: true,
   })
   return shellTabStrip
 }
@@ -1525,26 +1682,33 @@ async function boot() {
 
   // Glow effect is always on; no UI toggle.
 
-  // Restore tabs if present, else seed from config/docRoot
-  const cfgTabs = await loadConfig()
-  if (cfgTabs?.openTabs && Array.isArray(cfgTabs.openTabs) && cfgTabs.openTabs.length) {
-    tabsState.tabs = cfgTabs.openTabs.map((t) => ({
-      id: t.id,
-      entryId: t.entryId || null,
-      kind: t.kind,
-      path: t.path,
-      label: t.label || null,
-      servedId: t.servedId || null,
-      mode: t.mode,
-    }))
-    tabsState.active = cfgTabs.activeTabId || tabsState.tabs[0]?.id || null
-    renderTabs()
-    if (tabsState.active) activateTab(tabsState.active)
-  } else {
-    tabsState.tabs = []
-    tabsState.active = null
-    renderTabs()
+  const [cfgTabs, persistenceMode] = await Promise.all([loadConfig(), ensureTabPersistenceMode()])
+
+  const remoteAllowed = persistenceMode === 'remote-enabled' && !!cfgTabs
+  tabPersistence.remoteAllowed = remoteAllowed
+
+  const localState = readStoredTabState()
+  const remoteTabs = remoteAllowed && Array.isArray(cfgTabs?.openTabs) ? normalizePersistedTabList(cfgTabs.openTabs) : []
+  const remoteActive = remoteAllowed ? deriveActiveTabId(remoteTabs, typeof cfgTabs?.activeTabId === 'string' ? cfgTabs.activeTabId : null) : null
+
+  let initialTabs = Array.isArray(localState.tabs) ? localState.tabs : []
+  let initialActive = localState.activeId || null
+
+  if (!initialTabs.length && remoteTabs.length) {
+    initialTabs = remoteTabs
+    initialActive = remoteActive
   }
+
+  tabsState.tabs = Array.isArray(initialTabs) ? initialTabs : []
+  tabsState.active = deriveActiveTabId(tabsState.tabs, initialActive)
+
+  try {
+    writeStoredTabState({ tabs: tabsState.tabs, activeId: tabsState.active })
+  } catch {}
+
+  renderTabs()
+  if (tabsState.active) activateTab(tabsState.active)
+  else updateWelcomeVisibility()
 
   // Background refresh of served instances and app statuses
   setInterval(refreshServed, 5000)

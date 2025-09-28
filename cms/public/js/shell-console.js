@@ -58,6 +58,13 @@ export function initShellConsole() {
       onReorder: (order) => {
         reorderSessions(order)
       },
+      onRename: (id, label) => {
+        const session = consoleState.sessions.find((s) => s.id === id)
+        if (!session) return
+        session.label = label
+        syncTabs()
+      },
+      allowRename: true,
     })
     return tabStrip
   }

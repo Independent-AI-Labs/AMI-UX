@@ -1,4 +1,4 @@
-import { acknowledgeParentMessage, messageChannel } from '../../message-channel.js'
+import { acknowledgeParentMessage, messageChannel } from '../../lib/message-channel.js'
 import { debugLog } from '../core/debug.js'
 
 export function setupMessageBridge(options) {

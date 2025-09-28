@@ -1,5 +1,9 @@
 # Docs Shell (Next.js + Vanilla JS)
 
+The docs shell turns raw documentation repositories into an interactive, searchable workspace for AMI teams. It combines a Next.js edge service with lightweight browser modules so writers, engineers, and compliance reviewers can browse, annotate, and serve content without leaving the orchestrator.
+
+## What You Get
+
 A Next.js 15.5 service that hosts the docs shell UI and JSON-backed APIs. Rendering (Markdown, Mermaid, KaTeX) runs client-side via vanilla modules under `public/js/`; the Next runtime provides file/tree/media APIs, config persistence, and upload endpoints.
 
 ## Tech Stack

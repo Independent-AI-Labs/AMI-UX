@@ -249,45 +249,62 @@ ${scopeSelector} .${HIGHLIGHT_CLASSES.tree}.${HIGHLIGHT_CLASSES.ancestor}::after
 }
 
 .${HOVER_OVERLAY_CLASS} {
-  position: absolute;
-  z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2600;
   display: inline-flex;
-  gap: 6px;
   align-items: center;
-  padding: 0;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  box-shadow: 0 18px 36px rgba(17, 24, 39, 0.18);
+  color: inherit;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--hover-fade, 0.45s) ease;
+  transform: translateY(8px);
+  transition:
+    opacity var(--hover-fade, 0.22s) ease,
+    transform 0.22s ease;
 }
 .${HOVER_OVERLAY_CLASS}.show {
   opacity: 1;
   pointer-events: auto;
-  transition-delay: 0.12s;
+  transform: translateY(0);
 }
 .${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS} {
-  width: 28px;
-  height: 28px;
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border, #242832);
-  background: var(--bg, #0b0c0f);
-  color: var(--muted, #9aa3b2);
-  border-radius: 14px;
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
   cursor: pointer;
-  transition: color 160ms ease, filter 160ms ease, border-color 160ms ease;
 }
 .${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS}:hover {
-  color: var(--text, #e6e9ef);
-  filter: brightness(1.05);
+  color: var(--accent, #1d4ed8);
+  background: rgba(29, 78, 216, 0.12);
+  transform: translateY(-2px);
 }
-.${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS}:focus {
-  outline: 2px solid ${accent};
-  outline-offset: 1px;
+.${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS}:focus-visible {
+  outline: 2px solid var(--accent, #1d4ed8);
+  outline-offset: 2px;
 }
-.${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS} svg {
-  width: 18px;
-  height: 18px;
+.${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS}:disabled,
+.${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS}[aria-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS} i {
+  font-size: 19px;
+  line-height: 1;
 }
 `
   const style = doc.createElement('style')
@@ -452,134 +469,213 @@ function createHoverOverlay(doc, selectors, callbacks) {
   const overlay = doc.createElement('div')
   overlay.className = HOVER_OVERLAY_CLASS
   overlay.setAttribute('aria-hidden', 'true')
+  overlay.setAttribute('data-ami-highlight-ignore', '1')
   markPluginNode(overlay)
 
-  const mkBtn = (cls, title, svg, onClick) => {
+  const mkBtn = (cls, title, iconName, onClick) => {
     const btn = doc.createElement('button')
     btn.className = `${HOVER_BTN_CLASS} ${cls}`
     btn.type = 'button'
     btn.title = title
     btn.setAttribute('aria-label', title)
-    btn.innerHTML = svg
-    btn.addEventListener('mousedown', (e) => e.preventDefault())
+    btn.setAttribute('data-ami-highlight-ignore', '1')
+    const iconEl = doc.createElement('i')
+    iconEl.className = `ri-${iconName}`
+    iconEl.setAttribute('aria-hidden', 'true')
+    btn.appendChild(iconEl)
+    btn.addEventListener('mousedown', (event) => event.preventDefault())
     btn.addEventListener('click', (event) => {
       event.stopPropagation()
       if (anchorEl && typeof onClick === 'function') onClick(anchorEl)
     })
+    if (typeof onClick !== 'function') {
+      btn.disabled = true
+      btn.classList.add(`${HOVER_BTN_CLASS}--disabled`, 'act-disabled')
+    }
     markPluginNode(btn)
+    markPluginNode(iconEl)
     return btn
   }
 
+  const triggerBtn = mkBtn(
+    'act-trigger',
+    'Add Automation Trigger',
+    'flashlight-line',
+    callbacks.onTrigger,
+  )
+
+  const askBtn = mkBtn(
+    'act-ask',
+    'Ask About or Share',
+    'share-forward-2-line',
+    callbacks.onAsk,
+  )
+
   const commentBtn = mkBtn(
     'act-comment',
-    'Comment',
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
+    'Add Comment',
+    'chat-3-line',
     callbacks.onComment,
   )
+
   const searchBtn = mkBtn(
     'act-search',
-    'Search',
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    'Automatic Search',
+    'search-2-line',
     callbacks.onSearch,
   )
 
+  overlay.appendChild(triggerBtn)
+  overlay.appendChild(askBtn)
   overlay.appendChild(commentBtn)
   overlay.appendChild(searchBtn)
   doc.body.appendChild(overlay)
   debugLog('overlay:create', { selectors })
 
+  const SHOW_DELAY = 420
+  const HIDE_DELAY = 640
+  const OFFSET_X = 18
+  const OFFSET_Y = 18
+  const MIN_GAP = 12
+  const REPOSITION_THRESHOLD = 14
+
   let anchorEl = null
-  let anchorHadPosition = ''
+  let anchorPointer = null
+  let pendingAnchor = null
+  let pendingPointer = null
+  let showTimer = null
   let hideTimer = null
   let isShown = false
-  let initialLeft = null
 
-  function ensureOverlayParent(el) {
-    if (overlay.parentElement === el) return
-    if (!el) return
-    if (overlay.contains(el)) {
-      debugLog('overlay:skip-attach', { reason: 'contains' })
-      return
+  const view = doc.defaultView || (typeof window !== 'undefined' ? window : null)
+
+  function clearShowTimer() {
+    if (showTimer) {
+      clearTimeout(showTimer)
+      showTimer = null
     }
-    if (anchorEl && anchorHadPosition) anchorEl.style.position = anchorHadPosition
-    const view = doc.defaultView || (typeof window !== 'undefined' ? window : null)
-    const cs = el && view ? view.getComputedStyle(el) : null
-    anchorHadPosition = el && el.style ? el.style.position : ''
-    if (el && cs && cs.position === 'static') {
-      el.style.position = 'relative'
-    }
-    if (el) el.appendChild(overlay)
-    debugLog('overlay:attach', {
-      tag: el.tagName,
-      id: el.id,
-      class: el.className,
-    })
   }
 
-  function showOverlay(el, mouseX) {
-    if (isShown && anchorEl === el) return
-    if (anchorEl && anchorEl !== el) {
-      cleanupOverlay()
-    }
-    anchorEl = el
-    ensureOverlayParent(el)
-    overlay.classList.remove('show')
-    overlay.style.setProperty('--hover-fade', '120ms')
+  function clearHideTimer() {
     if (hideTimer) {
       clearTimeout(hideTimer)
       hideTimer = null
     }
-    anchorEl.classList.add(HIGHLIGHT_CLASSES.active)
-    overlay.style.top = '50%'
-    overlay.style.transform = 'translateY(-50%)'
-    const rect = el.getBoundingClientRect()
-    const width = overlay.offsetWidth || 40
-    const maxLeft = Math.max(8, el.clientWidth - width - 8)
-    if (typeof mouseX === 'number') {
-      const rel = Math.max(8, Math.min(Math.round(mouseX - rect.left + 48), maxLeft))
-      initialLeft = rel
-      overlay.style.left = `${rel}px`
-      overlay.style.right = 'auto'
-    } else if (initialLeft != null) {
-      const rel = Math.max(8, Math.min(initialLeft, maxLeft))
-      overlay.style.left = `${rel}px`
-      overlay.style.right = 'auto'
-    } else {
-      overlay.style.left = 'auto'
-      overlay.style.right = '8px'
-    }
-    overlay.classList.add('show')
-    isShown = true
-    debugLog('overlay:show', {
-      tag: el.tagName,
-      left: overlay.style.left,
-      right: overlay.style.right,
-    })
   }
 
-  function cleanupOverlay() {
-    if (anchorEl) {
-      anchorEl.classList.remove(HIGHLIGHT_CLASSES.active)
-      if (anchorHadPosition) anchorEl.style.position = anchorHadPosition
+  function shouldUpdatePointer(previous, next) {
+    if (!next) return false
+    if (!previous) return true
+    const dx = previous.x - next.x
+    const dy = previous.y - next.y
+    return Math.hypot(dx, dy) > REPOSITION_THRESHOLD
+  }
+
+  function extractPointer(event, fallbackEl) {
+    if (event instanceof MouseEvent || (typeof PointerEvent !== 'undefined' && event instanceof PointerEvent)) {
+      if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+        return { x: event.clientX, y: event.clientY }
+      }
     }
-    anchorEl = null
-    anchorHadPosition = ''
-    initialLeft = null
-    isShown = false
+    if (fallbackEl && typeof fallbackEl.getBoundingClientRect === 'function') {
+      const rect = fallbackEl.getBoundingClientRect()
+      return {
+        x: rect.right,
+        y: rect.top + rect.height / 2,
+      }
+    }
+    return null
+  }
+
+  function positionOverlay(pointer = anchorPointer) {
+    if (!pointer) {
+      if (anchorEl) pointer = extractPointer(null, anchorEl)
+      if (!pointer) return
+    }
+    const overlayRect = overlay.getBoundingClientRect()
+    const viewportWidth = view?.innerWidth || doc.documentElement.clientWidth || 0
+    const viewportHeight = view?.innerHeight || doc.documentElement.clientHeight || 0
+
+    let left = pointer.x + OFFSET_X
+    let top = pointer.y - overlayRect.height - OFFSET_Y
+
+    if (top < MIN_GAP) {
+      top = pointer.y + OFFSET_Y
+      if (top + overlayRect.height > viewportHeight - MIN_GAP) {
+        top = Math.max(MIN_GAP, viewportHeight - overlayRect.height - MIN_GAP)
+      }
+    }
+
+    if (left + overlayRect.width > viewportWidth - MIN_GAP) {
+      left = viewportWidth - overlayRect.width - MIN_GAP
+    }
+    left = Math.max(MIN_GAP, left)
+    top = Math.max(MIN_GAP, Math.min(top, viewportHeight - overlayRect.height - MIN_GAP))
+
+    overlay.style.left = `${Math.round(left)}px`
+    overlay.style.top = `${Math.round(top)}px`
   }
 
   function hideOverlay() {
-    if (!isShown) return
-    overlay.style.setProperty('--hover-fade', '450ms')
+    if (!anchorEl && !isShown) return
+    overlay.style.setProperty('--hover-fade', '0.38s')
     overlay.classList.remove('show')
+    overlay.setAttribute('aria-hidden', 'true')
+    if (anchorEl) {
+      anchorEl.classList.remove(HIGHLIGHT_CLASSES.active)
+    }
+    anchorEl = null
+    anchorPointer = null
     isShown = false
-    if (hideTimer) clearTimeout(hideTimer)
-    hideTimer = setTimeout(() => {
-      cleanupOverlay()
-      hideTimer = null
-    }, 470)
-    debugLog('overlay:hide')
   }
+
+  function scheduleHide() {
+    clearHideTimer()
+    hideTimer = setTimeout(() => {
+      const overlayHovered = overlay.matches(':hover')
+      const anchorHovered = anchorEl ? anchorEl.matches(':hover') : false
+      if (!overlayHovered && !anchorHovered) {
+        hideOverlay()
+      } else {
+        scheduleHide()
+      }
+    }, HIDE_DELAY)
+  }
+
+  function showOverlay(el, pointer) {
+    if (!el) return
+    clearHideTimer()
+    clearShowTimer()
+    pendingAnchor = null
+    if (anchorEl && anchorEl !== el) {
+      anchorEl.classList.remove(HIGHLIGHT_CLASSES.active)
+    }
+    anchorEl = el
+    const candidate = pointer || extractPointer(null, el)
+    if (!anchorPointer || !isShown) {
+      if (candidate) anchorPointer = candidate
+    } else if (candidate && shouldUpdatePointer(anchorPointer, candidate)) {
+      anchorPointer = candidate
+    }
+    anchorEl.classList.add(HIGHLIGHT_CLASSES.active)
+    overlay.style.setProperty('--hover-fade', '0.22s')
+    overlay.classList.add('show')
+    overlay.removeAttribute('aria-hidden')
+    isShown = true
+    positionOverlay(anchorPointer)
+    debugLog('overlay:show', {
+      tag: el.tagName,
+    })
+  }
+
+  overlay.addEventListener('pointerenter', () => {
+    clearHideTimer()
+    if (anchorEl) anchorEl.classList.add(HIGHLIGHT_CLASSES.active)
+  })
+
+  overlay.addEventListener('pointerleave', () => {
+    scheduleHide()
+  })
 
   doc.addEventListener('mouseover', (event) => {
     if (!(event.target instanceof Element)) return
@@ -587,20 +683,47 @@ function createHoverOverlay(doc, selectors, callbacks) {
     if (!el) return
     if (shouldIgnoreNode(el)) return
     if (overlay.contains(el)) return
-    showOverlay(el, event.clientX)
+    clearHideTimer()
+    pendingAnchor = el
+    pendingPointer = extractPointer(event, el)
+    clearShowTimer()
+    showTimer = setTimeout(() => {
+      if (pendingAnchor === el) {
+        showOverlay(el, pendingPointer)
+        pendingPointer = null
+      }
+    }, SHOW_DELAY)
+  })
+
+  doc.addEventListener('mousemove', (event) => {
+    if (!pendingAnchor) return
+    if (!(event.target instanceof Element)) return
+    if (!pendingAnchor.contains(event.target)) return
+    const nextPointer = extractPointer(event, pendingAnchor)
+    if (!pendingPointer || shouldUpdatePointer(pendingPointer, nextPointer)) {
+      pendingPointer = nextPointer
+    }
   })
 
   doc.addEventListener('mouseout', (event) => {
-    if (!anchorEl) return
+    if (!(event.target instanceof Element)) return
+    const el = event.target.closest(allSelectors)
+    if (!el) return
+    if (shouldIgnoreNode(el)) return
     const related = event.relatedTarget instanceof Element ? event.relatedTarget : null
-    if (related && shouldIgnoreNode(related)) return
-    const inAnchor = related && anchorEl.contains(related)
-    const inOverlay = related && overlay.contains(related)
-    if (!inAnchor && !inOverlay) hideOverlay()
+    if (related && (el.contains(related) || overlay.contains(related))) return
+    if (pendingAnchor === el) {
+      pendingAnchor = null
+      pendingPointer = null
+      clearShowTimer()
+    }
+    scheduleHide()
   })
 
   return () => {
-    cleanupOverlay()
+    clearShowTimer()
+    clearHideTimer()
+    hideOverlay()
     overlay.remove()
     debugLog('overlay:destroy')
   }
@@ -1191,6 +1314,32 @@ export function initHighlightEffects(options = {}) {
     trackTreeAncestors,
   })
 
+  const triggerCallback =
+    typeof options.onTrigger === 'function'
+      ? options.onTrigger
+      : (el) => {
+          try {
+            doc.dispatchEvent(
+              new CustomEvent('ami:highlight-add-trigger', {
+                detail: { element: el },
+              }),
+            )
+          } catch {}
+        }
+
+  const askCallback =
+    typeof options.onAsk === 'function'
+      ? options.onAsk
+      : (el) => {
+          try {
+            doc.dispatchEvent(
+              new CustomEvent('ami:highlight-ask', {
+                detail: { element: el },
+              }),
+            )
+          } catch {}
+        }
+
   const commentCallback =
     typeof options.onComment === 'function'
       ? options.onComment
@@ -1277,6 +1426,8 @@ export function initHighlightEffects(options = {}) {
     : () => {}
   const detachOverlay = overlaySelectors.length
     ? createHoverOverlay(doc, overlaySelectors, {
+        onTrigger: triggerCallback,
+        onAsk: askCallback,
         onComment: commentCallback,
         onSearch: searchCallback,
       })

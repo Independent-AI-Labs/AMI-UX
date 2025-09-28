@@ -11,11 +11,14 @@ from pathlib import Path
 MODULE_ROOT = Path(__file__).resolve().parent.parent
 CMS_DIR = MODULE_ROOT / "cms"
 
-# Ensure Python can import ux and base packages
-sys.path.insert(0, str(MODULE_ROOT))
-sys.path.insert(0, str(MODULE_ROOT.parent))
 
-from base.scripts.run_tests import main as base_main  # noqa: E402
+def _ensure_repo_on_path() -> None:
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / ".git").exists() and (current / "base").exists():
+            sys.path.insert(0, str(current))
+            return
+        current = current.parent
 
 
 def _run_command(command: list[str], *, cwd: Path) -> int:
@@ -51,6 +54,13 @@ def _run_cms_suite() -> int:
 
 
 def main() -> int:
+    _ensure_repo_on_path()
+
+    from base.backend.utils.runner_bootstrap import ensure_module_venv  # noqa: PLC0415
+    from base.scripts.run_tests import TestRunner  # noqa: PLC0415
+
+    ensure_module_venv(Path(__file__))
+
     args = sys.argv[1:]
     skip_npm = False
     if "--skip-npm" in args:
@@ -61,7 +71,12 @@ def main() -> int:
         sys.argv = [sys.argv[0], *args]
 
     # Run Python test suite via base runner first
-    python_exit = base_main(project_root=MODULE_ROOT, project_name="UX")
+    python_args = list(args)
+    if "--timeout" not in " ".join(python_args):
+        python_args = [*python_args, "--timeout", "600"]
+
+    runner = TestRunner(project_root=MODULE_ROOT, project_name="UX")
+    python_exit = runner.run(python_args)
     if python_exit != 0:
         return python_exit
 
