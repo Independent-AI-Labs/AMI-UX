@@ -28,7 +28,7 @@ The Live Data Directory CMS gives AMI teams a single pane for observing live dat
 - **API Drawer (MCP, REST)**: Centralises API clients for MCP endpoints and REST integrations, pairing credentials with automation triggers and giving users copy/pasteable snippets.
 - **Infra Drawer**: Lists deploy targets, live services, and provisioning scripts so on-call staff can correlate content with runtime state.
 - **Chat / Message Thread UI**: Adds collaborative threads scoped to directories/files, backed by meta comment files and orchestrator messaging.
-- **Meta-File Comment System**: The highlight overlay’s comment action will write structured discussions into `.meta/comments/*.json`, enabling portable review history across repos.
+- **Meta-File Comment System**: The highlight overlay’s comment action will drop one JSON file per discussion inside the asset’s own meta directory (for example `original_file.png.meta/comments/<id>.json`), keeping the audit trail git-friendly and portable across repos.
 - **Video Streams**: Planned surface for live observability feeds—embedding stream URLs per directory and integrating with agent-driven playback controls.
 
 ## Architecture Snapshot

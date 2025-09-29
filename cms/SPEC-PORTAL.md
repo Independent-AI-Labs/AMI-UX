@@ -91,11 +91,11 @@ This spec captures how the Live Data Directory CMS inside `ux/cms` delivers the 
 - Hooks into Node setup automation (`nodes/config/setup-service.yaml`) and Docker stacks described in repository-level docs.
 
 ### 5.10 Chat / Message Thread UI
-- Inline side panel for discussions tied to tabs/files; persists to `.meta/comments/*.json` and optionally notifies orchestrator messaging services.
+- Inline side panel for discussions tied to tabs/files; persists to one JSON document per comment within each asset’s meta directory (for example `directory_x.meta/comments/<id>.json`) and optionally notifies orchestrator messaging services.
 - Aligns with highlight overlay “Add Comment” action.
 
 ### 5.11 Meta-File Comment System
-- Formalises comment schema (author, timestamp, selection, text, status) stored in meta directories.
+- Formalises comment schema (author, timestamp, selection, text, status) stored as individual files inside each asset’s meta directory.
 - Viewers show comment badges; automation triggers can react to comment status (e.g., escalate unresolved items).
 
 ### 5.12 Video Streams
@@ -123,14 +123,14 @@ This spec captures how the Live Data Directory CMS inside `ux/cms` delivers the 
    - `data/config.json`, `data/library.json`, `data/served.json` – workspace state.
    - `files/uploads/<timestamp>/` – uploaded assets preserved by timestamp bucket.
    - `<asset>.meta/automation/` – scenarios (`scenario.json`) and triggers (`*.json`).
-   - Planned: `<asset>.meta/comments/*.json`, `<asset>.meta/translations/*.json`, `<asset>.meta/logs/*.txt`.
+   - Planned: `<asset>.meta/comments/<id>.json`, `<asset>.meta/translations/<locale>.json`, `<asset>.meta/logs/*.txt`.
 
 ## 7. Data & Schemas
 - **Automation Config (`automation.json`)**: `{ enabled: boolean, activeScenario: string, capabilities: { network, plugins, ... } }`.
 - **Scenario (`scenario.json`)**: `{ slug, name, createdAt }`.
 - **Trigger (`*.json`)**: `{ id, name, selector, eventType, dataPath, targetCode, conditionCode, actionCode, updatedAt, enabled }` + custom fields.
 - **Library Entry**: persisted via `/api/library` with deterministic IDs based on absolute path.
-- **Comment (planned)**: `{ id, author, role, createdAt, updatedAt, selection, body, status }` stored under `.meta/comments/`.
+- **Comment (planned)**: `{ id, author, role, createdAt, updatedAt, selection, body, status }` stored as standalone files under `<asset>.meta/comments/`.
 
 ## 8. API Surface Reference
 | Route | Purpose | Notes |
