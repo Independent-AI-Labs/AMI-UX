@@ -249,7 +249,7 @@ ${scopeSelector} .${HIGHLIGHT_CLASSES.tree}.${HIGHLIGHT_CLASSES.ancestor}::after
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 4px 10px;
   border-radius: 12px;
   border: none;
   background: transparent;
@@ -257,15 +257,19 @@ ${scopeSelector} .${HIGHLIGHT_CLASSES.tree}.${HIGHLIGHT_CLASSES.ancestor}::after
   color: inherit;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(8px);
-  transition:
-    opacity var(--hover-fade, 0.22s) ease,
-    transform 0.22s ease;
+  transform: translateY(8px) scale(0.98);
+  filter: blur(12px);
 }
 .${HOVER_OVERLAY_CLASS}.show {
-  opacity: 1;
   pointer-events: auto;
-  transform: translateY(0);
+  animation: hover-pop-in var(--hover-fade, 0.16s) ease forwards;
+}
+.${HOVER_OVERLAY_CLASS}.show.relocating {
+  animation: hover-pop-in var(--hover-fade, 0.16s) ease forwards;
+}
+.${HOVER_OVERLAY_CLASS}.leaving {
+  pointer-events: none;
+  animation: hover-pop-out var(--hover-fade, 0.18s) ease forwards;
 }
 .${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS} {
   pointer-events: auto;
@@ -298,6 +302,32 @@ ${scopeSelector} .${HIGHLIGHT_CLASSES.tree}.${HIGHLIGHT_CLASSES.ancestor}::after
 .${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS} i {
   font-size: 19px;
   line-height: 1;
+}
+
+@keyframes hover-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+    filter: blur(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes hover-pop-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+    filter: blur(14px);
+  }
 }
 `
   const style = doc.createElement('style')
@@ -498,7 +528,7 @@ function createHoverOverlay(doc, selectors, callbacks) {
   const askBtn = mkBtn(
     'act-ask',
     'Ask About or Share',
-    'share-forward-2-line',
+    'global-line',
     callbacks.onAsk,
   )
 
@@ -523,12 +553,13 @@ function createHoverOverlay(doc, selectors, callbacks) {
   doc.body.appendChild(overlay)
   debugLog('overlay:create', { selectors })
 
-  const SHOW_DELAY = 420
-  const HIDE_DELAY = 640
+  const SHOW_DELAY = 360
+  const HIDE_DELAY = 420
   const OFFSET_X = 18
   const OFFSET_Y = 18
   const MIN_GAP = 12
   const REPOSITION_THRESHOLD = 14
+  const PROXIMITY_THRESHOLD = 48
 
   let anchorEl = null
   let anchorPointer = null
@@ -537,6 +568,9 @@ function createHoverOverlay(doc, selectors, callbacks) {
   let showTimer = null
   let hideTimer = null
   let isShown = false
+  let lastPointer = null
+  let relocateTimer = null
+  let leaveTimer = null
 
   const view = doc.defaultView || (typeof window !== 'undefined' ? window : null)
 
@@ -551,6 +585,20 @@ function createHoverOverlay(doc, selectors, callbacks) {
     if (hideTimer) {
       clearTimeout(hideTimer)
       hideTimer = null
+    }
+  }
+
+  function clearRelocateTimer() {
+    if (relocateTimer) {
+      clearTimeout(relocateTimer)
+      relocateTimer = null
+    }
+  }
+
+  function clearLeaveTimer() {
+    if (leaveTimer) {
+      clearTimeout(leaveTimer)
+      leaveTimer = null
     }
   }
 
@@ -605,13 +653,35 @@ function createHoverOverlay(doc, selectors, callbacks) {
 
     overlay.style.left = `${Math.round(left)}px`
     overlay.style.top = `${Math.round(top)}px`
+
+    if (isShown) triggerRelocateAnimation()
+  }
+
+  function triggerRelocateAnimation() {
+    clearRelocateTimer()
+    overlay.classList.remove('relocating')
+    // Force reflow to restart animation
+    void overlay.offsetWidth
+    overlay.classList.add('relocating')
+    relocateTimer = setTimeout(() => {
+      overlay.classList.remove('relocating')
+      relocateTimer = null
+    }, 220)
   }
 
   function hideOverlay() {
     if (!anchorEl && !isShown) return
-    overlay.style.setProperty('--hover-fade', '0.38s')
+    overlay.style.setProperty('--hover-fade', '0.18s')
     overlay.classList.remove('show')
+    overlay.classList.remove('relocating')
+    overlay.classList.add('leaving')
     overlay.setAttribute('aria-hidden', 'true')
+    clearRelocateTimer()
+    clearLeaveTimer()
+    leaveTimer = setTimeout(() => {
+      overlay.classList.remove('leaving')
+      leaveTimer = null
+    }, 200)
     if (anchorEl) {
       anchorEl.classList.remove(HIGHLIGHT_CLASSES.active)
     }
@@ -620,15 +690,56 @@ function createHoverOverlay(doc, selectors, callbacks) {
     isShown = false
   }
 
-  function scheduleHide() {
+  function isPointerNearRect(pointer, rect, threshold = 0) {
+    if (!pointer || !rect) return false
+    const expanded = {
+      left: rect.left - threshold,
+      right: rect.right + threshold,
+      top: rect.top - threshold,
+      bottom: rect.bottom + threshold,
+    }
+    return (
+      pointer.x >= expanded.left &&
+      pointer.x <= expanded.right &&
+      pointer.y >= expanded.top &&
+      pointer.y <= expanded.bottom
+    )
+  }
+
+  function pointerNearOverlay(pointer) {
+    if (!pointer) return false
+    const rect = overlay.getBoundingClientRect()
+    return isPointerNearRect(pointer, rect, PROXIMITY_THRESHOLD)
+  }
+
+  function pointerNearAnchor(pointer) {
+    if (!pointer || !anchorEl || !(anchorEl instanceof Element)) return false
+    const rect = anchorEl.getBoundingClientRect()
+    return isPointerNearRect(pointer, rect, PROXIMITY_THRESHOLD)
+  }
+
+  function scheduleHide(pointer) {
+    if (pointer && typeof pointer.x === 'number' && typeof pointer.y === 'number') {
+      lastPointer = pointer
+    }
     clearHideTimer()
     hideTimer = setTimeout(() => {
       const overlayHovered = overlay.matches(':hover')
       const anchorHovered = anchorEl ? anchorEl.matches(':hover') : false
+      const pointerRef = lastPointer
+      if (
+        overlayHovered ||
+        anchorHovered ||
+        pointerNearOverlay(pointerRef) ||
+        pointerNearAnchor(pointerRef)
+      ) {
+        scheduleHide(pointerRef)
+        return
+      }
       if (!overlayHovered && !anchorHovered) {
         hideOverlay()
       } else {
-        scheduleHide()
+        scheduleHide(pointerRef)
       }
     }, HIDE_DELAY)
   }
@@ -649,7 +760,9 @@ function createHoverOverlay(doc, selectors, callbacks) {
       anchorPointer = candidate
     }
     anchorEl.classList.add(HIGHLIGHT_CLASSES.active)
-    overlay.style.setProperty('--hover-fade', '0.22s')
+    overlay.style.setProperty('--hover-fade', '0.16s')
+    overlay.classList.remove('leaving')
+    clearLeaveTimer()
     overlay.classList.add('show')
     overlay.removeAttribute('aria-hidden')
     isShown = true
@@ -659,13 +772,24 @@ function createHoverOverlay(doc, selectors, callbacks) {
     })
   }
 
-  overlay.addEventListener('pointerenter', () => {
+  overlay.addEventListener('pointerenter', (event) => {
+    if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+      lastPointer = { x: event.clientX, y: event.clientY }
+    }
     clearHideTimer()
     if (anchorEl) anchorEl.classList.add(HIGHLIGHT_CLASSES.active)
   })
 
-  overlay.addEventListener('pointerleave', () => {
-    scheduleHide()
+  overlay.addEventListener('pointerleave', (event) => {
+    const pointer =
+      event && typeof event.clientX === 'number' && typeof event.clientY === 'number'
+        ? { x: event.clientX, y: event.clientY }
+        : lastPointer
+    if (pointerNearOverlay(pointer) || pointerNearAnchor(pointer)) {
+      scheduleHide(pointer)
+      return
+    }
+    scheduleHide(pointer)
   })
 
   doc.addEventListener('mouseover', (event) => {
@@ -677,6 +801,11 @@ function createHoverOverlay(doc, selectors, callbacks) {
     clearHideTimer()
     pendingAnchor = el
     pendingPointer = extractPointer(event, el)
+    if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+      lastPointer = { x: event.clientX, y: event.clientY }
+    } else if (pendingPointer) {
+      lastPointer = pendingPointer
+    }
     clearShowTimer()
     showTimer = setTimeout(() => {
       if (pendingAnchor === el) {
@@ -694,6 +823,15 @@ function createHoverOverlay(doc, selectors, callbacks) {
     if (!pendingPointer || shouldUpdatePointer(pendingPointer, nextPointer)) {
       pendingPointer = nextPointer
     }
+    if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+      lastPointer = { x: event.clientX, y: event.clientY }
+    }
+  })
+
+  doc.addEventListener('pointermove', (event) => {
+    if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+      lastPointer = { x: event.clientX, y: event.clientY }
+    }
   })
 
   doc.addEventListener('mouseout', (event) => {
@@ -706,21 +844,49 @@ function createHoverOverlay(doc, selectors, callbacks) {
       pendingAnchor = null
       pendingPointer = null
       clearShowTimer()
-      hideOverlay()
+      let pointer = null
+      if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+        pointer = { x: event.clientX, y: event.clientY }
+      } else if (typeof extractPointer === 'function') {
+        pointer = extractPointer(event, el) || lastPointer
+      } else {
+        pointer = lastPointer
+      }
+      if (pointer) lastPointer = pointer
+      if (isShown) {
+        scheduleHide(lastPointer)
+      } else {
+        hideOverlay()
+      }
       return
     }
     if (related && (el.contains(related) || overlay.contains(related))) return
+    let pointer = null
+    if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+      pointer = { x: event.clientX, y: event.clientY }
+    } else {
+      pointer = extractPointer(event, el)
+    }
+    if (pointer) {
+      lastPointer = pointer
+      if (pointerNearOverlay(pointer) || pointerNearAnchor(pointer)) {
+        scheduleHide(pointer)
+        return
+      }
+    }
     if (pendingAnchor === el) {
       pendingAnchor = null
       pendingPointer = null
       clearShowTimer()
     }
-    scheduleHide()
+    scheduleHide(pointer)
   })
 
   return () => {
     clearShowTimer()
     clearHideTimer()
+    clearRelocateTimer()
+    clearLeaveTimer()
     hideOverlay()
     overlay.remove()
     debugLog('overlay:destroy')

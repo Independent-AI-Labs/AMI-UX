@@ -269,6 +269,17 @@ function ensureHighlightPluginConfig(win) {
     ? cfg.scopeSelector
     : 'body'
   if (cfg.autoStart === undefined) cfg.autoStart = !isTopWindow
+  if (!cfg.assetBase) {
+    try {
+      const href = win.location ? win.location.href : window.location?.href
+      if (href) {
+        const baseUrl = new URL('/', href)
+        baseUrl.search = ''
+        baseUrl.hash = ''
+        cfg.assetBase = baseUrl.toString()
+      }
+    } catch {}
+  }
   cfg.debug = true
   logHighlightShell('config', {
     overlayFollow: cfg.overlayFollow,

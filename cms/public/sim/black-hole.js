@@ -114,6 +114,9 @@ function updateResolution(gl, resolutionLocation, canvas, scale) {
 function animate(gl, program, canvas, resolutionLocation, options) {
   const uCameraTranslate = gl.getUniformLocation(program, 'uCameraTranslate')
   let frameId = null
+  const onFps = typeof options.onFps === 'function' ? options.onFps : null
+  let fpsFrames = 0
+  let fpsWindowStart = performance.now()
 
   function renderFrame(now) {
     if (!gl || gl.isContextLost()) return
@@ -125,6 +128,18 @@ function animate(gl, program, canvas, resolutionLocation, options) {
     const z = Math.sin(t * 0.17) * 0.12
     gl.uniform3f(uCameraTranslate, x, y, z)
     gl.drawArrays(gl.TRIANGLES, 0, 3)
+    if (onFps) {
+      fpsFrames += 1
+      const elapsed = now - fpsWindowStart
+      if (elapsed >= 400) {
+        const fps = (fpsFrames * 1000) / (elapsed || 1)
+        try {
+          onFps(fps)
+        } catch {}
+        fpsFrames = 0
+        fpsWindowStart = now
+      }
+    }
     frameId = window.requestAnimationFrame(renderFrame)
   }
 
@@ -152,6 +167,7 @@ export function attachBlackHoleSimulation(canvas, options = {}) {
     pov: options.pov || 75,
     cameraSwing: options.cameraSwing || 0.9,
     resolutionScale: options.resolutionScale || 1.7,
+    onFps: typeof options.onFps === 'function' ? options.onFps : null,
   }
   setStaticUniforms(gl, program, texture, config)
   const uResolution = gl.getUniformLocation(program, 'uResolution')
@@ -182,6 +198,11 @@ export function attachBlackHoleSimulation(canvas, options = {}) {
     if (!gl.isContextLost()) {
       gl.bindTexture(gl.TEXTURE_2D, null)
       gl.useProgram(null)
+    }
+    if (typeof config.onFps === 'function') {
+      try {
+        config.onFps(0)
+      } catch {}
     }
   }
 }

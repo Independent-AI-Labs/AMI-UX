@@ -599,6 +599,15 @@ header .btn i[class*=' ri-'] {
   padding-top: 14px;
 }
 
+.tree-root details.file > .body:fullscreen,
+.tree-root details.file > .body:-webkit-full-screen,
+.tree-root details.file > .body:-moz-full-screen {
+  padding: 0;
+  margin: 0;
+  background: var(--bg);
+  overflow: auto;
+}
+
 .tree-root__overlay {
   position: absolute;
   inset: 0;
@@ -2483,4 +2492,7 @@ body.shell-console-active > :not(#shellConsole) {
     border-bottom-right-radius: 16px;
     padding: 16px;
   }
+}
+[data-ami-highlight-proxy] {
+  overflow: hidden !important;
 }

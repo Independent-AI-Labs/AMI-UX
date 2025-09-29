@@ -78,14 +78,38 @@ function resolveElementFromResult(result) {
   return null
 }
 
-let fullscreenButtonRef = null
 let fullscreenListenerAttached = false
 
+function assignFullscreenTarget(button, target) {
+  if (!button) return
+  if (target && target instanceof HTMLElement) {
+    button.__fullscreenTarget = target
+    button.dataset.fullscreenTarget = '1'
+  } else {
+    button.__fullscreenTarget = null
+    delete button.dataset.fullscreenTarget
+  }
+}
+
+function isFullscreenForTarget(target) {
+  if (typeof document === 'undefined') return false
+  const active = document.fullscreenElement
+  if (!active || !target) return false
+  if (active === target) return true
+  if (typeof active.contains === 'function' && active.contains(target)) return true
+  if (typeof target.contains === 'function' && target.contains(active)) return true
+  return false
+}
+
 function updateFullscreenButtonState() {
-  if (!fullscreenButtonRef) return
-  const active = typeof document !== 'undefined' && !!document.fullscreenElement
-  fullscreenButtonRef.classList.toggle('is-active', active)
-  fullscreenButtonRef.setAttribute('aria-pressed', active ? 'true' : 'false')
+  if (typeof document === 'undefined') return
+  const buttons = document.querySelectorAll('[data-fullscreen-target]')
+  buttons.forEach((btn) => {
+    const target = btn.__fullscreenTarget
+    const active = isFullscreenForTarget(target)
+    btn.classList.toggle('is-active', active)
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false')
+  })
 }
 
 function ensureFullscreenListener() {
@@ -336,10 +360,7 @@ function attachFileLoader(details, state, body) {
           await loadFileNode(state, details, node, body)
           return
         }
-        const summary = details.querySelector(':scope > summary')
-        if (summary) {
-          const fullscreenBtn = summary.querySelector('.tree-actions__btn[data-action="fullscreen"]')
-          if (fullscreenBtn instanceof HTMLElement) fullscreenButtonRef = fullscreenBtn
+        if (details.querySelector(':scope > summary')) {
           updateFullscreenButtonState()
         }
         restoreHashTarget()
@@ -467,7 +488,7 @@ function ensureSummaryActions(state, details, node) {
     markPluginNode(actions)
   }
 
-  const makeButton = (action, iconName, label, handler) => {
+  const makeButton = (action, iconName, label, handler, options = {}) => {
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'tree-actions__btn icon-button'
@@ -484,24 +505,42 @@ function ensureSummaryActions(state, details, node) {
       event.stopPropagation()
       handler(btn)
     })
+    if (options.fullscreenTarget instanceof HTMLElement) {
+      assignFullscreenTarget(btn, options.fullscreenTarget)
+    }
     actions.appendChild(btn)
     return btn
   }
 
-  const fullscreenBtn = makeButton('fullscreen', 'fullscreen-line', 'Toggle full-screen view', async (btn) => {
-    try {
-      if (typeof document !== 'undefined' && !document.fullscreenElement) {
-        await document.documentElement?.requestFullscreen?.()
-      } else if (typeof document !== 'undefined' && document.exitFullscreen) {
-        await document.exitFullscreen()
+  const fullscreenTarget =
+    (details.__fileBody && details.__fileBody instanceof HTMLElement && details.__fileBody) ||
+    details
+
+  makeButton(
+    'fullscreen',
+    'fullscreen-line',
+    'Toggle full-screen view',
+    async (btn) => {
+      try {
+        let target = btn.__fullscreenTarget
+        if (!(target instanceof HTMLElement)) target = fullscreenTarget
+        const fallback = target && typeof target.requestFullscreen === 'function'
+          ? target
+          : document.documentElement
+        if (typeof document !== 'undefined' && !isFullscreenForTarget(fallback)) {
+          await fallback?.requestFullscreen?.()
+        } else if (typeof document !== 'undefined' && document.exitFullscreen) {
+          await document.exitFullscreen()
+        }
+      } catch (error) {
+        console.warn('Failed to toggle fullscreen', error)
+      } finally {
+        updateFullscreenButtonState()
       }
-    } catch (error) {
-      console.warn('Failed to toggle fullscreen', error)
-    } finally {
-      fullscreenButtonRef = btn
-      updateFullscreenButtonState()
-    }
-  })
+    },
+    { fullscreenTarget },
+  )
+  updateFullscreenButtonState()
 
   const path = node.path || ''
 
@@ -510,6 +549,8 @@ function ensureSummaryActions(state, details, node) {
     try {
       const base = new URL('/doc.html', window.location.origin)
       base.searchParams.set('embed', '1')
+      base.searchParams.set('mode', 'file')
+      base.searchParams.set('path', path)
       base.hash = pathAnchor(path)
       window.open(base.toString(), '_blank', 'noopener')
     } catch (error) {
@@ -544,7 +585,6 @@ function ensureSummaryActions(state, details, node) {
 
   const activePath = state.activePath || ''
   if (path && path === activePath) {
-    fullscreenButtonRef = fullscreenBtn
     updateFullscreenButtonState()
   }
 
@@ -567,6 +607,7 @@ function createDetailsNode(state, node, depth, indexPath, key) {
   const body = document.createElement('div')
   body.className = 'body'
   details.appendChild(body)
+  details.__fileBody = body
 
   attachOpenState(details, state)
 
@@ -598,6 +639,7 @@ function updateDetailsNode(state, details, node, depth, indexPath, key) {
   ensureSummaryActions(state, details, node)
 
   const body = details.querySelector(':scope > .body')
+  details.__fileBody = body
   if (node.type === 'dir') {
     ensureDirAnchor(body, node)
   } else if (body) {

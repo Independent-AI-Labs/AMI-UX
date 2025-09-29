@@ -207,8 +207,17 @@
     (function(){
       try {
         const usp = new URLSearchParams(location.search)
-        if (usp.get('embed') === '1') {
-          document.documentElement.classList.add('embed')
+        const root = document.documentElement
+        const boot = (window.__CMS_BOOT_OPTIONS__ = window.__CMS_BOOT_OPTIONS__ || {})
+        const embedMode = usp.get('embed') === '1'
+        const requestedMode = usp.get('mode') || ''
+        const focusPath = usp.get('path') || ''
+
+        if (focusPath) boot.focusPath = focusPath
+        if (requestedMode === 'file') boot.fileOnly = true
+
+        if (embedMode) {
+          root.classList.add('embed')
           const s = document.createElement('style')
           s.textContent = `
             .embed body.doc-viewer > header { display: none !important; }
@@ -216,7 +225,20 @@
             .embed body.doc-viewer main > nav { top: 0; height: 100vh; }
           `
           document.head.appendChild(s)
-          document.documentElement.style.setProperty('--doc-header-height', '0px')
+          root.style.setProperty('--doc-header-height', '0px')
+        }
+
+        if (boot.fileOnly) {
+          root.classList.add('file-only')
+          const s = document.createElement('style')
+          s.textContent = `
+            .file-only body.doc-viewer > header { display: none !important; }
+            .file-only body.doc-viewer main { grid-template-columns: 1fr; min-height: 100vh; }
+            .file-only body.doc-viewer main > nav { display: none !important; }
+            .file-only body.doc-viewer main > section#content { padding: clamp(24px, 6vw, 84px); }
+          `
+          document.head.appendChild(s)
+          root.style.setProperty('--doc-header-height', '0px')
         }
       } catch {}
     })()

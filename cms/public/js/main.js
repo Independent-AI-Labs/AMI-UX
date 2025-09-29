@@ -21,6 +21,11 @@ window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
 })
 
+const bootOptions =
+  typeof window !== 'undefined' && window.__CMS_BOOT_OPTIONS__
+    ? window.__CMS_BOOT_OPTIONS__
+    : {}
+
 const state = {
   tree: null,
   cache: new Map(),
@@ -39,7 +44,7 @@ const state = {
   treeFilterValue: '',
   rootKey: 'docRoot',
   rootLabelOverride: null,
-  pendingFocus: '',
+  pendingFocus: typeof bootOptions.focusPath === 'string' ? bootOptions.focusPath : '',
   docRootAbsolute: '',
   cacheContext: 'docRoot',
   isLoading: false,
@@ -47,6 +52,8 @@ const state = {
   docOverlay: null,
   docOverlayLabel: null,
   documentLoadTokens: new Set(),
+  bootOptions,
+  fileOnly: Boolean(bootOptions.fileOnly),
 }
 
 // Theme
@@ -377,6 +384,9 @@ async function persistDocRoot(pathStr, options = {}) {
 
 export async function startCms(fromSelect = false) {
   restoreState(state)
+  if (state.fileOnly) {
+    state.open = new Set()
+  }
   if (!state.eventsAttached) {
     attachEvents(
       state,
@@ -473,13 +483,14 @@ export async function startCms(fromSelect = false) {
   const introIdx = findIntroIdx()
   const intro = introIdx >= 0 ? rootChildren[introIdx] : null
   const fallbackFile = intro || rootChildren.find((child) => child && child.type === 'file') || null
-  if (fallbackFile && fallbackFile.type === 'file') {
+  const hasPendingFocus = Boolean(state.pendingFocus && state.pendingFocus.trim())
+  if (!hasPendingFocus && fallbackFile && fallbackFile.type === 'file') {
     await preloadFileContent(state, {
       name: fallbackFile.name,
       path: fallbackFile.path,
       type: 'file',
     })
-  } else {
+  } else if (!hasPendingFocus) {
     state.activePath = ''
   }
   if (typeof state.applyTreeFilter === 'function') {
@@ -489,7 +500,7 @@ export async function startCms(fromSelect = false) {
   updateTOC(state)
   restoreHashTarget()
   try {
-    if (intro && intro.type === 'file') {
+    if (!hasPendingFocus && intro && intro.type === 'file') {
       const sel = document.querySelector(`details.file[data-path="${CSS.escape(intro.path)}"]`)
       if (sel) {
         sel.setAttribute('open', '')

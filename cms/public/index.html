@@ -289,8 +289,8 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 58px;
-      height: 58px;
+      width: 48px;
+      height: 48px;
       padding: 0;
       border: 0;
       border-radius: 50%;
@@ -302,16 +302,39 @@
       outline-offset: 3px;
     }
     .brand-logo {
-      width: 58px;
-      height: 58px;
+      position: relative;
+      width: 48px;
+      height: 48px;
       display: block;
-      border-radius: 14px;
-      box-shadow: 0 0 26px rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.16);
       background: none;
       opacity: 0.88;
+      overflow: hidden;
       transition: opacity 260ms ease;
     }
+    .brand-logo canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
     .brand-logo.is-ready { opacity: 1; }
+    .brand-logo__image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.28));
+      opacity: 0.9;
+      transition:
+        transform 1.15s cubic-bezier(0.22, 0.68, 0.46, 1),
+        opacity 1.15s ease;
+      will-change: transform, opacity;
+      pointer-events: none;
+    }
     .brand-text { display: flex; flex-direction: column; gap: 2px; }
     .brand-text h1 { margin: 0; font-size: 20px; font-weight: 800; }
     .brand-text .subtitle { font-size: 13px; line-height: 1.1; letter-spacing: 0.06em; }
@@ -349,6 +372,21 @@
       width: 100%;
       height: 100%;
       display: block;
+    }
+    .brand-singularity-dialog__fps {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      padding: 0;
+      border-radius: 0;
+      background: none;
+      color: #fff;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 13px;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
+      pointer-events: none;
     }
     .is-hidden { display: none !important; }
     .welcome-screen {
@@ -471,7 +509,10 @@
     <header>
       <div class="brand">
         <button id="brandSingularityTrigger" class="brand-logo-button" type="button" aria-label="AMI logo" aria-expanded="false">
-          <canvas id="brandSingularity" class="brand-logo brand-logo--singularity" width="72" height="72" aria-hidden="true"></canvas>
+          <div class="brand-logo brand-logo--singularity">
+            <canvas id="brandSingularity" width="72" height="72" aria-hidden="true"></canvas>
+            <img src="/res/LOGO.png" alt="AMI" class="brand-logo__image" />
+          </div>
         </button>
         <div class="brand-text">
           <h1>AMI DATA PORTAL</h1>
@@ -519,7 +560,7 @@
     <div class="dialog-surface brand-singularity-dialog" role="dialog" aria-modal="true" aria-labelledby="brandSingularityDialogTitle">
       <div class="dialog-header">
         <div class="dialog-header__titles">
-          <h2 id="brandSingularityDialogTitle" class="dialog-title">Singularity Simulation</h2>
+          <h2 id="brandSingularityDialogTitle" class="dialog-title">Singularity Simulation Benchmark</h2>
           <div class="dialog-subtitle">Monochromatic point cloud accretion disk</div>
         </div>
         <button class="icon-button dialog-close" type="button" aria-label="Close singularity simulation" title="Close">
@@ -528,6 +569,7 @@
       </div>
       <div class="brand-singularity-dialog__canvas-wrap">
         <canvas id="brandSingularityLarge" width="640" height="640" aria-describedby="brandSingularityDialogTitle"></canvas>
+        <div class="brand-singularity-dialog__fps" id="brandSingularityFps" aria-live="polite">— fps</div>
       </div>
     </div>
   </div>
@@ -543,10 +585,36 @@
       const dialogSurface = dialogOverlay?.querySelector('.dialog-surface')
       const closeButton = dialogOverlay?.querySelector('.dialog-close')
       const largeCanvas = document.getElementById('brandSingularityLarge')
+      const fpsLabel = document.getElementById('brandSingularityFps')
+      const logoImg = trigger?.querySelector('.brand-logo__image')
 
       let lensTeardown = null
       let largeTeardown = null
       let dialogHandle = null
+      let logoTicker = null
+
+      const jitterLogo = () => {
+        if (!logoImg) return
+        const rotate = (Math.random() - 0.5) * 2.0
+        const offsetX = (Math.random() - 0.5) * 3.0
+        const offsetY = (Math.random() - 0.5) * 3.0
+        const opacity = 0.82 + Math.random() * 0.14
+        logoImg.style.transform = `translate(${offsetX.toFixed(2)}px, ${offsetY.toFixed(2)}px) rotate(${rotate.toFixed(2)}deg)`
+        logoImg.style.opacity = opacity.toFixed(2)
+      }
+
+      const startLogoTicker = () => {
+        if (!logoImg) return
+        if (logoTicker) clearInterval(logoTicker)
+        jitterLogo()
+        logoTicker = setInterval(() => jitterLogo(), 1600)
+      }
+
+      if (logoImg) {
+        startLogoTicker()
+        trigger?.addEventListener('mouseenter', jitterLogo)
+        trigger?.addEventListener('focus', jitterLogo)
+      }
 
       if (canvas) {
         lensTeardown = attachLensFlare(canvas, {
@@ -567,6 +635,11 @@
                 maxIterations: 420,
                 cameraSwing: 0.94,
                 resolutionScale: 2.45,
+                onFps: (fps) => {
+                  if (!fpsLabel) return
+                  const value = Number.isFinite(fps) ? Math.max(0, Math.round(fps)) : 0
+                  fpsLabel.textContent = `${value} fps`
+                },
               })
             }
           },
@@ -576,6 +649,7 @@
               try { largeTeardown() } catch {}
             }
             largeTeardown = null
+            if (fpsLabel) fpsLabel.textContent = '— fps'
           },
         })
 
@@ -590,6 +664,10 @@
         if (dialogHandle) {
           try { dialogService.unregister('brand-singularity') } catch {}
           dialogHandle = null
+        }
+        if (logoTicker) {
+          clearInterval(logoTicker)
+          logoTicker = null
         }
       }, { once: true })
     } catch (error) {
