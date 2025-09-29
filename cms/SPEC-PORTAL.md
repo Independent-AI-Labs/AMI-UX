@@ -22,7 +22,7 @@ This spec captures how the Live Data Directory CMS inside `ux/cms` delivers the 
 - **Docs viewer (`public/doc.html`)**: Tree + document renderer supports Markdown, CSV, Mermaid, KaTeX, and media streaming.
 - **Server (`app/api/**`)**: Next.js 15 route handlers deliver filesystem APIs, automation metadata, uploads, account management, and LaTeX rendering.
 - **Automation runtime (`packages/highlight-core`)**: Shared with the highlight browser extension. Handles DOM overlays, comment/trigger actions, scenario persistence, and code execution in response to DOM events.
-- **Storage**: JSON configs live in `data/`; uploads in `files/uploads/`; automation metadata in sibling `.meta/automation/` folders; future comments/translations piggyback on `.meta/**`.
+- **Storage**: JSON configs live in `data/`; uploads in `files/uploads/`; every asset carries a dedicated meta directory (`<name>.meta/`) that houses automation state, comments, translations, logs, and other feature data (for example `reports/usage.md.meta/automation/`, `usage.md.meta/comments/<id>.json`, `usage.md.meta/translations/<locale>.json`).
 
 ## 4. Current Capabilities (Detailed)
 ### 4.1 Live Directory Workspace
@@ -58,7 +58,7 @@ This spec captures how the Live Data Directory CMS inside `ux/cms` delivers the 
 
 ### 5.2 Auto-Translate File Action
 - Triggered from library drawer and highlight overlay; pipes file contents through AMI translation MCP or REST endpoints.
-- Stores translated artefacts under `<asset>.meta/translations/<locale>.md` with provenance metadata.
+- Stores translated artefacts under `<asset>.meta/translations/<locale>.json` with provenance metadata.
 - Needs API surface to dispatch translation jobs and poll status; reuse automation scenarios for post-translation actions.
 
 ### 5.3 Event Type Coverage & Label Update
@@ -131,6 +131,7 @@ This spec captures how the Live Data Directory CMS inside `ux/cms` delivers the 
 - **Trigger (`*.json`)**: `{ id, name, selector, eventType, dataPath, targetCode, conditionCode, actionCode, updatedAt, enabled }` + custom fields.
 - **Library Entry**: persisted via `/api/library` with deterministic IDs based on absolute path.
 - **Comment (planned)**: `{ id, author, role, createdAt, updatedAt, selection, body, status }` stored as standalone files under `<asset>.meta/comments/`.
+- **Translation (planned)**: `{ locale, sourceHash, translatedAt, author, body, notes }` persisted as `<asset>.meta/translations/<locale>.json` so language variants stay version-controlled alongside the source.
 
 ## 8. API Surface Reference
 | Route | Purpose | Notes |

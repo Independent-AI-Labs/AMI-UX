@@ -19,7 +19,7 @@ The Live Data Directory CMS gives AMI teams a single pane for observing live dat
 
 ## Active Roadmap & In-Development Features
 - **Full Log & SSH Terminal / `~` Console**: `public/js/shell-console.js` already mounts multi-tab terminals with keyboard shortcuts; upcoming work wires it to agent logs, SSH relay sessions, and node health streaming so operators can pivot without leaving the CMS.
-- **Auto-Translate File Action**: Planned action in the library modal + highlight overlay triggers translation pipelines for selected files, storing localized variants under `.meta/` while surfacing provenance in drawer metadata.
+- **Auto-Translate File Action**: Planned action in the library modal + highlight overlay triggers translation pipelines for selected files, storing localized variants as `<asset>.meta/translations/<locale>.json` (with provenance metadata) while surfacing status inside drawer metadata.
 - **Event Type Coverage for DOM Triggers**: `packages/highlight-core/src/highlight-plugin/core/automation.js` normalises listener types; forthcoming updates expose the full event catalogue in the trigger composer UI (label will read `Event Type`) and ship presets for custom events emitted by AMI agents.
 - **Scheduled Triggers**: Automation scenarios will gain cron-style configuration persisted through `/api/automation` so DOM or API actions can fire on timers in addition to live events.
 - **Rich Text Edit**: The docs viewer is evolving into an inline editor with diff-aware saves back to `files/uploads/**` and `.meta/change-log`. Rich text editing builds on the highlight plugin’s selection plumbing and will reuse the comment system’s persistence format.
@@ -35,7 +35,7 @@ The Live Data Directory CMS gives AMI teams a single pane for observing live dat
 - **Next.js 15 service**: API routes under `app/api/**` serve trees, media, uploads, automation metadata, LaTeX rendering, authentication, and account management. Responses rely on `app/lib/*` helpers for persistence, doc-root resolution, and media roots.
 - **Vanilla shell + React drawers**: `public/index.html` drives the shell with vanilla modules for speed, loading React on demand for complex drawers (library, scenario manager). Message passing between shell and docs viewer happens through `postMessage` channels (`public/js/message-channel.js`).
 - **Highlight automation runtime**: `packages/highlight-core` powers selection overlays, trigger placement, scenario orchestration, and inline code execution. It is shared with the browser automation extension under `extension/highlight-plugin/`.
-- **State & storage**: JSON files in `data/`, `files/uploads/`, and per-asset `.meta` directories hold workspace config, library entries, automation scenarios, rendered artefacts, and (soon) comments. `/api/automation` keeps scenario folders in sync.
+- **State & storage**: JSON files in `data/`, `files/uploads/`, and per-asset meta directories (for example `directory_x.meta/` or `file.png.meta/`) hold workspace config, library entries, automation scenarios, rendered artefacts, comments, translations, and other feature data. `/api/automation` keeps scenario folders in sync.
 - **Security layers**: Middleware ensures authenticated sessions; API handlers enforce within-root guards and capability flags (e.g., automation capabilities, writable roots). CSP policies restrict media origins; uploads sanitise names and paths.
 
 ## Run the CMS Locally
@@ -65,7 +65,7 @@ Workspace state persists in `data/config.json`; uploads land under `files/upload
 - **Document & media exploration**: Use the Library drawer to open directories by path, upload folders, or select saved entries. Tabs persist across reloads and can be marked “served” to advertise running data apps.
 - **Automation authoring**: Activate the highlight overlay, capture DOM nodes, and launch the scenario manager to script trigger behaviour. Triggers compile down to JavaScript snippets executed by the automation runtime.
 - **Observability & upcoming console**: Watch the terminal drawer (currently read-only) for session multiplexing; planned log/SSH integration will bridge CMS session context with orchestrator-managed nodes.
-- **Meta-data & comments**: The overlay’s comment button will log structured feedback into `.meta` stores, making it easy to sync annotations into downstream repos and compliance reports.
+- **Meta-data, translations, & comments**: The overlay’s comment button and forthcoming translation/log tooling write one file per record into each asset’s `<name>.meta/` directory, keeping change history auditable via git and portable across repos/compliance reviews.
 
 ## Testing & Health
 - `npm run lint && npm run test` – baseline quality gate for local development.
