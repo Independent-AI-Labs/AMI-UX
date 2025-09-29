@@ -744,6 +744,36 @@ function createHoverOverlay(doc, selectors, callbacks) {
     }, HIDE_DELAY)
   }
 
+  function shouldIgnorePointerDown(event) {
+    if (!(event?.target instanceof Element)) return false
+    if (overlay.contains(event.target)) return true
+    if (anchorEl && anchorEl.contains(event.target)) return true
+    return false
+  }
+
+  function handlePointerDown(event) {
+    if (!isShown) return
+    if (shouldIgnorePointerDown(event)) return
+    let pointer = null
+    if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+      pointer = { x: event.clientX, y: event.clientY }
+      lastPointer = pointer
+    } else {
+      pointer = lastPointer
+    }
+    if (pointer && (pointerNearOverlay(pointer) || pointerNearAnchor(pointer))) return
+    hideOverlay()
+  }
+
+  function handleScrollEvent(event) {
+    if (!isShown) return
+    if (event?.target instanceof Element) {
+      if (overlay.contains(event.target)) return
+      if (anchorEl && anchorEl.contains(event.target)) return
+    }
+    hideOverlay()
+  }
+
   function showOverlay(el, pointer) {
     if (!el) return
     clearHideTimer()
@@ -882,12 +912,24 @@ function createHoverOverlay(doc, selectors, callbacks) {
     scheduleHide(pointer)
   })
 
+  doc.addEventListener('pointerdown', handlePointerDown, true)
+  const wheelOptions = { passive: true, capture: true }
+  doc.addEventListener('wheel', handleScrollEvent, wheelOptions)
+  if (view && typeof view.addEventListener === 'function') {
+    view.addEventListener('scroll', handleScrollEvent, true)
+  }
+
   return () => {
     clearShowTimer()
     clearHideTimer()
     clearRelocateTimer()
     clearLeaveTimer()
     hideOverlay()
+    doc.removeEventListener('pointerdown', handlePointerDown, true)
+    doc.removeEventListener('wheel', handleScrollEvent, wheelOptions)
+    if (view && typeof view.removeEventListener === 'function') {
+      view.removeEventListener('scroll', handleScrollEvent, true)
+    }
     overlay.remove()
     debugLog('overlay:destroy')
   }
