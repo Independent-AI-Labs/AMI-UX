@@ -11,6 +11,7 @@ import {
   restoreHashTarget,
   attachEvents,
   preloadFileContent,
+  ensureFileContent,
 } from './ui.js'
 import { connectSSE } from './sse.js'
 import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
