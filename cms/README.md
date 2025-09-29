@@ -1,130 +1,79 @@
-# Docs Shell (Next.js + Vanilla JS)
+# AMI Data Portal – Live Data Directory CMS
 
-The docs shell turns raw documentation repositories into an interactive, searchable workspace for AMI teams. It combines a Next.js edge service with lightweight browser modules so writers, engineers, and compliance reviewers can browse, annotate, and serve content without leaving the orchestrator.
+The Live Data Directory CMS gives AMI teams a single pane for observing live data assets, curating documentation, and wiring automation around high-signal events. It fuses the orchestrator’s file roots, upload buckets, and browser automation tooling into a workspace where DataOps, compliance, and agent developers can explore, annotate, and operationalise their content without leaving the portal.
 
-## What You Get
+## Why It Matters
+- Create a self-serve “AMI Data Portal” surface where operators discover data sources, dashboards, and automation recipes in one place.
+- Shorten the loop between observing live DOM changes and shipping automations by letting analysts capture triggers directly from rendered pages.
+- Keep compliance and support partners engaged with the same tooling—the CMS honours auth, audit, and serving guardrails from the orchestrator stack.
+- Provide runway for AI-powered actions (translation, scheduled triggers, agent launches) while the legacy documentation browser stays usable today.
 
-A Next.js 15.5 service that hosts the docs shell UI and JSON-backed APIs. Rendering (Markdown, Mermaid, KaTeX) runs client-side via vanilla modules under `public/js/`; the Next runtime provides file/tree/media APIs, config persistence, and upload endpoints.
+## What Ships Today
+- **Live directory + tabbed workspace**: `public/js/shell.js` lets users pin directories, HTML bundles, and Next apps in tabs, persist layout state (`/api/config`), and seed workspaces from saved selections.
+- **Multi-surface rendering**: Modes A/B/C/D switch between inline HTML, packaged front-ends, markdown tree viewer, and app embeddings (`public/js/visualizers.js`, `public/doc.html`). CSP, path sanitation, and MIME inference are enforced server-side (`app/api/media/**`).
+- **Uploads, library, and serving book-keeping**: The React-powered library drawer (`public/js/modal.js`) rides on `/api/library`, `/api/upload`, and `/api/serve` to bookmark entries, ingest folders, and memoise running services across restarts.
+- **Automation scaffolding**: `packages/highlight-core` exposes the scenario manager + trigger composer used to map DOM events to scripted actions. Triggers live alongside content under `.meta/automation/` and are orchestrated via `/api/automation`.
+- **Highlight + commenting chrome**: The highlight plugin (`packages/highlight-core/src/highlight-plugin/core/effects.js`) anchors automation, commenting, and “ask/share” affordances onto selected DOM nodes—future comments will persist as meta files per directory.
+- **Authentication + policy guardrails**: `middleware.ts` wraps the app with `@ami/auth`, while APIs perform doc-root confinement, JSON persistence validation (`app/lib/store.ts`), and optional delegation to upstream auth gateways.
+- **Operational tooling**: Scripts under `scripts/` manage dev runners, health checks, UI validation, and highlight extension builds. Tests in `tests/` cover uploads, LaTeX rendering, and format utilities; CI hooks reuse `npm run lint`, `npm run test`, and `scripts/validate-ui.mjs`.
 
-## Tech Stack
+## Active Roadmap & In-Development Features
+- **Full Log & SSH Terminal / `~` Console**: `public/js/shell-console.js` already mounts multi-tab terminals with keyboard shortcuts; upcoming work wires it to agent logs, SSH relay sessions, and node health streaming so operators can pivot without leaving the CMS.
+- **Auto-Translate File Action**: Planned action in the library modal + highlight overlay triggers translation pipelines for selected files, storing localized variants under `.meta/` while surfacing provenance in drawer metadata.
+- **Event Type Coverage for DOM Triggers**: `packages/highlight-core/src/highlight-plugin/core/automation.js` normalises listener types; forthcoming updates expose the full event catalogue in the trigger composer UI (label will read `Event Type`) and ship presets for custom events emitted by AMI agents.
+- **Scheduled Triggers**: Automation scenarios will gain cron-style configuration persisted through `/api/automation` so DOM or API actions can fire on timers in addition to live events.
+- **Rich Text Edit**: The docs viewer is evolving into an inline editor with diff-aware saves back to `files/uploads/**` and `.meta/change-log`. Rich text editing builds on the highlight plugin’s selection plumbing and will reuse the comment system’s persistence format.
+- **Agents Drawer**: A new drawer surfaces orchestrator agents, their capabilities, and launch parameters directly inside the CMS so analysts can invoke automations against the viewed directory.
+- **Data Sources Drawer**: Connects the portal to upstream catalogues (warehouses, buckets, REST endpoints) and lets users map them into the Live Data Directory via metadata seeds.
+- **API Drawer (MCP, REST)**: Centralises API clients for MCP endpoints and REST integrations, pairing credentials with automation triggers and giving users copy/pasteable snippets.
+- **Infra Drawer**: Lists deploy targets, live services, and provisioning scripts so on-call staff can correlate content with runtime state.
+- **Chat / Message Thread UI**: Adds collaborative threads scoped to directories/files, backed by meta comment files and orchestrator messaging.
+- **Meta-File Comment System**: The highlight overlay’s comment action will write structured discussions into `.meta/comments/*.json`, enabling portable review history across repos.
+- **Video Streams**: Planned surface for live observability feeds—embedding stream URLs per directory and integrating with agent-driven playback controls.
 
-- Next.js `15.5.x` with app-router route handlers only (no React pages)
-- React `19.1.x` runtime loaded via CDN for the library modal
-- TypeScript API handlers compiled by Next (see `app/api/**`)
-- File-system helpers in `app/lib/store.ts`
-- Optional long-lived runner managed by `scripts/server.mjs`
+## Architecture Snapshot
+- **Next.js 15 service**: API routes under `app/api/**` serve trees, media, uploads, automation metadata, LaTeX rendering, authentication, and account management. Responses rely on `app/lib/*` helpers for persistence, doc-root resolution, and media roots.
+- **Vanilla shell + React drawers**: `public/index.html` drives the shell with vanilla modules for speed, loading React on demand for complex drawers (library, scenario manager). Message passing between shell and docs viewer happens through `postMessage` channels (`public/js/message-channel.js`).
+- **Highlight automation runtime**: `packages/highlight-core` powers selection overlays, trigger placement, scenario orchestration, and inline code execution. It is shared with the browser automation extension under `extension/highlight-plugin/`.
+- **State & storage**: JSON files in `data/`, `files/uploads/`, and per-asset `.meta` directories hold workspace config, library entries, automation scenarios, rendered artefacts, and (soon) comments. `/api/automation` keeps scenario folders in sync.
+- **Security layers**: Middleware ensures authenticated sessions; API handlers enforce within-root guards and capability flags (e.g., automation capabilities, writable roots). CSP policies restrict media origins; uploads sanitise names and paths.
 
-## Run
-
-From `ux/cms/`:
-
-```
+## Run the CMS Locally
+```sh
 npm install
-npm run dev   # defaults to http://localhost:3000; run in background or separate terminal
+npm run dev   # serves http://localhost:3000 ; run in a separate terminal or background it
 ```
 
-> Tip: Use `npm run dev &` (or a dedicated terminal) so the watcher doesn't block your current shell; stop it when finished.
+- `npm run lint` – ESLint 9 across the workspace.
+- `npm run test` – Vitest/Jest suites and integration probes.
+- `npm run build` / `npm run start` – production bundle + server.
+- `npm run serve -- <command>` – portable runner (start/status/stop/logs/kill-orphans).
 
-- Scripts:
-  - `npm run lint` — ESLint 9 against the entire repo
-  - `npm run build` — Next production build (ensures API routes compile)
-  - `npm run start` — serve the production build
+> Tip: background long-lived commands (`npm run dev &`) or launch them in another terminal so your active shell stays unblocked.
 
-- Runner (non-blocking, cross‑platform):
-  - `npm run serve -- start --dev --port 3000 --wait 10` — start and wait until ready
-  - `npm run serve -- status --port 3000` — print readiness and PID
-  - `npm run serve -- stop --port 3000` — stop by PID and listener
-  - `npm run serve -- logs --port 3000` — print recent log
-  - `npm run serve -- kill-orphans` — kill stray Next processes bound to this app dir
+## Configuration Reference
+- `DOC_ROOT` – primary live data directory (defaults to `../../../AMI-REACH/social`).
+- `ALLOWED_EXTENSIONS` – comma-delimited whitelist for text-serving endpoints.
+- `MEDIA_ROOTS` – optional labelled roots (`Label::/abs/path`) merged into `/api/media/list` alongside uploads and repo media.
+- `AUTH_SECRET`, `AUTH_TRUST_HOST` – NextAuth session security knobs.
+- `DATAOPS_AUTH_URL`, `DATAOPS_INTERNAL_TOKEN` – hook into the DataOps auth gateway instead of local credential files.
+- `AUTH_CREDENTIALS_FILE`, `AUTH_ALLOWED_EMAILS` – offline credential configuration for the stubbed auth flow.
 
-## Authentication
+Workspace state persists in `data/config.json`; uploads land under `files/uploads/<timestamp>/`; automation metadata lives in `*.meta/automation/` beside the source asset.
 
-- The CMS now requires a signed-in session for `/index.html`, `/api/**`, and all static assets. Unauthenticated requests are redirected to `/auth/signin` by `middleware.ts`.
-- Credentials are validated through the shared `ux/auth` module. In local development (or automated tests) where `next-auth` is not installed, the module falls back to a stub implementation that yields a deterministic "admin" session and logs a warning.
-- Legacy vanilla JS modules automatically include cookies via `public/js/auth-fetch.js` and dispatch `ami:unauthorized` on `401` responses, which triggers the redirect to the sign-in page.
-- To exercise the full NextAuth flow, install `next-auth@5` and `next-auth/providers/credentials` in a workspace-visible location (e.g. promote `ux/` to a pnpm workspace) and set the environment variables below.
+## Core Workflows
+- **Document & media exploration**: Use the Library drawer to open directories by path, upload folders, or select saved entries. Tabs persist across reloads and can be marked “served” to advertise running data apps.
+- **Automation authoring**: Activate the highlight overlay, capture DOM nodes, and launch the scenario manager to script trigger behaviour. Triggers compile down to JavaScript snippets executed by the automation runtime.
+- **Observability & upcoming console**: Watch the terminal drawer (currently read-only) for session multiplexing; planned log/SSH integration will bridge CMS session context with orchestrator-managed nodes.
+- **Meta-data & comments**: The overlay’s comment button will log structured feedback into `.meta` stores, making it easy to sync annotations into downstream repos and compliance reports.
 
-## Configuration
+## Testing & Health
+- `npm run lint && npm run test` – baseline quality gate for local development.
+- `scripts/validate-ui.mjs` – headless smoke test that exercises uploads, library interactions, serving, and automation bootstrapping.
+- `scripts/health.mjs` – lightweight readiness probe for CI/ops.
 
-Environment (`.env.local`) or process env:
-
-- `DOC_ROOT` — docs directory to index (default: `../../../AMI-REACH/social` relative to app cwd)
-- `ALLOWED_EXTENSIONS` — served text file extensions (default: `.md,.csv,.txt`)
-- `MEDIA_ROOTS` — optional extra media roots in `/api/media/list` as a comma-separated list; supports `Label::/abs/path` or `/abs/path`
-- `AUTH_SECRET` — symmetric secret (32+ chars) used by NextAuth for JWT signing/encryption.
-- `AUTH_TRUST_HOST` — set to `true` when terminating TLS upstream; otherwise cookies default to strict host checks.
-- `DATAOPS_AUTH_URL` — optional URL of the DataOps auth gateway; enables remote credential validation instead of the local JSON file.
-- `DATAOPS_INTERNAL_TOKEN` — bearer token presented to the DataOps gateway when the URL above is configured.
-- `AUTH_CREDENTIALS_FILE` — path to a JSON array of `{ email, password, roles }` records used for offline/local credential checks.
-- `AUTH_ALLOWED_EMAILS` — optional comma-separated allow-list enforced by the local credential file loader.
-
-Config persistence lives under `ux/cms/data/` as JSON files. The `/api/config` endpoint reads/writes:
-
-- `docRoot`, `selected`, `openTabs`, `activeTabId`, `preferredMode`, `recents`, `allowed`
-
-Data directories checked into git:
-
-- `data/` — persisted config (`config.json` created on first run)
-- `files/uploads/` — uploaded assets bucketed by timestamp
-- `public/res/` — static assets bundled with the shell
-
-## UI Overview
-
-- Shell + tabs
-  - Tabs represent opened entries: directories (Docs viewer), files (A/B), or apps (D)
-  - Right‑click a tab for: Open, Start Serving, Stop Serving, Close Tab
-  - A ● badge shows when a tab is served (file/dir) or when an app is detected running
-  - “Seed tabs” are created automatically at startup from `selected` or `docRoot` if there are no saved tabs; seed tabs are not in the Library and cannot be served until added
-
-- Visualizers (modes)
-  - A: Single HTML file via `/api/media?mode=A` (inline script allowed, CSP limited)
-  - B: HTML + JS/CSS set via `/api/media?mode=B` (no inline; prefers `hasJs` from `/api/pathinfo`)
-  - C: Directory docs viewer (this app’s doc.html embed)
-  - D: Next.js app (serving disabled by default; status checked via `/api/app/status`)
-
-- Select Media… modal (Library)
-  - Library drawer lists saved entries and supports context actions (open, serve start/stop, delete)
-  - Upload tab preserves folder structure under `files/uploads/<timestamp>/`
-  - Enter Path tab validates a path and proposes mode based on `/api/pathinfo`
-  - Recents are appended automatically when tabs open/seed
-
-- Status pill
-  - Shows Mode A/B for files, “Docs” for directories, and “App: Running/Not running” for apps
-  - Updated on tab change and via periodic polling
-
-- Laser glow hover (CSS‑only)
-  - Always on; centralized in `public/styles/shared.css` behind `.fx-glow`
-  - Uses underline lasers for headings and rows; softer drop‑shadow glow for text blocks
-  - Ancestor trace via `:has(:hover)` for details/li where supported; degrades gracefully
-
-## API Summary
-
-- Tree/file
-  - `GET /api/tree` — docs tree of `DOC_ROOT`
-  - `GET /api/file?path=...` — text file content from `DOC_ROOT` (extensions filtered by `ALLOWED_EXTENSIONS`)
-
-- Media and path info
-  - `GET /api/media?path=...&mode=A|B` — serve static assets with CSP
-  - `GET /api/media/list` — list of candidate roots: `docRoot`, `uploads`, optional repo `files/`, and `MEDIA_ROOTS`
-  - `GET /api/pathinfo?path=...` — classify as `file|dir|app`, detect `hasJs`
-
-- Library and serving
-  - `GET/POST /api/library` — list/add entries; id derived from absolute path
-  - `PATCH/DELETE /api/library/[id]` — rename label / remove from library
-  - `GET/POST /api/serve` — list served instances / start serving
-  - `GET/DELETE /api/serve/[id]` — instance status / stop serving
-  - `GET /api/served/[id]/...` — proxy/mapped access for served entries
-  - `GET /api/app/status?path=...` — check if a Next app is running (ps grep)
-
-- Uploads
-  - `POST /api/upload` — multipart files; preserves `webkitRelativePath`; optional `prefix` folder
-
-- Config
-  - `GET/POST/PATCH /api/config` — persisted UI state; supports `recentsAdd`
-
-## Security Notes
-
-- Middleware-enforced auth guards wrap `/index.html`, API routes, and static assets; `/auth/*` is the only unauthenticated surface.
-- Path traversal protections remain on all file-serving endpoints; CSP is applied to media routes.
-- Client-side Markdown is sanitized using DOMPurify; Mermaid/KaTeX are loaded from a CDN.
-- App serving (mode D) is intentionally disabled server‑side by default (501).
+## Related Documentation
+- `SPEC-PORTAL.md` – high-level specification of the AMI Data Portal Live Data Directory CMS (created alongside this README).
+- `docs/spec.md` – detailed breakdown of the current Next.js docs shell implementation.
+- `docs/CMS-UI-Standardization.md` – design tokens and drawer/overlay guidelines for the CMS UI.
+- `TODO.md` – backlog of immediate fixes and architectural follow-ups.
