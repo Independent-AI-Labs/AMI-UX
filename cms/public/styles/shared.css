@@ -2493,6 +2493,6 @@ body.shell-console-active > :not(#shellConsole) {
     padding: 16px;
   }
 }
-[data-ami-highlight-proxy] {
-  overflow: hidden !important;
+html[data-ami-highlight-proxy] {
+  overflow-y: hidden !important;
 }

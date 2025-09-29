@@ -1,6 +1,6 @@
 import './auth-fetch.js'
 
-import { humanizeName } from './utils.js'
+import { humanizeName, pathAnchor } from './utils.js'
 import { fetchConfig, fetchTree, setDocRoot } from './api.js'
 import {
   applyTheme,
@@ -376,6 +376,83 @@ function focusTreePath(relativePath) {
   }
 }
 
+function findNodeByPath(tree, targetPath) {
+  if (!tree || !targetPath) return null
+  const normalized = String(targetPath || '').trim()
+  if (!normalized) return null
+  if (tree.path === normalized) return tree
+  const queue = Array.isArray(tree.children) ? tree.children.slice() : []
+  while (queue.length) {
+    const current = queue.shift()
+    if (!current) continue
+    if (current.path === normalized) return current
+    if (current.type === 'dir' && Array.isArray(current.children)) {
+      queue.push(...current.children)
+    }
+  }
+  return null
+}
+
+async function renderStandaloneDocument(state, tree, targetPath) {
+  const content = document.getElementById('content')
+  if (!content) return
+  const desiredPath = String(targetPath || '').trim()
+  const releaseLoading =
+    typeof state.beginDocumentLoading === 'function'
+      ? state.beginDocumentLoading('Loading document…')
+      : () => {}
+  try {
+    const nodeFromTree = desiredPath ? findNodeByPath(tree, desiredPath) : null
+    const fallbackName = desiredPath.split('/').pop() || desiredPath || 'document'
+    const node = nodeFromTree || {
+      name: fallbackName,
+      path: desiredPath,
+      type: 'file',
+    }
+    const entry = await ensureFileContent(state, node)
+    if (!entry) throw new Error('No document content available')
+    state.activePath = node.path || ''
+    content.innerHTML = ''
+    if (node.path) {
+      const anchor = document.createElement('a')
+      anchor.id = pathAnchor(node.path)
+      content.appendChild(anchor)
+    }
+    const cloned =
+      entry.html && typeof entry.html.cloneNode === 'function'
+        ? entry.html.cloneNode(true)
+        : entry.html || document.createTextNode('')
+    content.appendChild(cloned)
+    try {
+      const docRootKey = state?.rootKey || 'docRoot'
+      if (document && document.documentElement) {
+        document.documentElement.setAttribute('data-ami-doc-root', docRootKey)
+        if (node.path) document.documentElement.setAttribute('data-ami-doc-path', node.path)
+        else document.documentElement.removeAttribute('data-ami-doc-path')
+      }
+      document.dispatchEvent(
+        new CustomEvent('ami:doc-context', {
+          detail: {
+            path: node.path || '',
+            name: node.name || '',
+            root: docRootKey,
+          },
+        }),
+      )
+    } catch (error) {
+      console.warn('Failed to broadcast doc context', error)
+    }
+    updateTOC(state)
+  } catch (error) {
+    console.warn('Failed to render standalone document', error)
+    content.textContent = 'Failed to load file.'
+  } finally {
+    try {
+      if (typeof releaseLoading === 'function') releaseLoading()
+    } catch {}
+  }
+}
+
 async function persistDocRoot(pathStr, options = {}) {
   await setDocRoot(pathStr, options)
   state.rootKey = 'docRoot'
@@ -450,19 +527,34 @@ export async function startCms(fromSelect = false) {
     }
     treeSubtitleEl.textContent = subtitleText
   }
-  const root = ensureTreeContainer()
-  if (!root) return
-  const hasDetails = root.querySelector('details')
-  const shouldWipe = !hasDetails
-  setTreeStatus('loading', 'Loading content…', { wipe: shouldWipe, skeleton: true })
+  let root = null
+  let shouldWipe = false
+  if (state.fileOnly) {
+    root = document.getElementById('content')
+    if (!root) return
+    state.treeContainer = root
+    state.treeShell = root.parentElement || state.treeShell || null
+    root.innerHTML = ''
+  } else {
+    root = ensureTreeContainer()
+    if (!root) return
+    const hasDetails = root.querySelector('details')
+    shouldWipe = !hasDetails
+    setTreeStatus('loading', 'Loading content…', { wipe: shouldWipe, skeleton: true })
+  }
   state.isLoading = true
   let tree = null
   try {
     tree = await fetchTree(activeRootKey)
   } catch (err) {
     state.isLoading = false
-    setTreeStatus('error', 'Failed to load content', { wipe: shouldWipe })
-    console.warn('Failed to load tree', err)
+    if (state.fileOnly) {
+      console.warn('Failed to load tree', err)
+      if (root) root.textContent = 'Failed to load document.'
+    } else {
+      setTreeStatus('error', 'Failed to load content', { wipe: shouldWipe })
+      console.warn('Failed to load tree', err)
+    }
     return
   }
   state.isLoading = false
@@ -472,7 +564,7 @@ export async function startCms(fromSelect = false) {
     const treeName = tree?.name || (activeRootKey === 'uploads' ? 'Uploads' : 'Docs')
     title.textContent = humanizeName(treeName, 'dir')
   }
-  renderTree(state, root, tree)
+
   const rootChildren = Array.isArray(tree.children) ? tree.children.slice() : []
   const findIntroIdx = () =>
     rootChildren.findIndex(
@@ -483,7 +575,22 @@ export async function startCms(fromSelect = false) {
   const introIdx = findIntroIdx()
   const intro = introIdx >= 0 ? rootChildren[introIdx] : null
   const fallbackFile = intro || rootChildren.find((child) => child && child.type === 'file') || null
-  const hasPendingFocus = Boolean(state.pendingFocus && state.pendingFocus.trim())
+  const trimmedFocus = (state.pendingFocus || '').trim()
+  const hasPendingFocus = Boolean(trimmedFocus)
+
+  if (state.fileOnly) {
+    const targetPath = hasPendingFocus
+      ? trimmedFocus
+      : fallbackFile && fallbackFile.type === 'file'
+        ? fallbackFile.path
+        : ''
+    await renderStandaloneDocument(state, tree, targetPath)
+    state.pendingFocus = ''
+    restoreHashTarget()
+    return
+  }
+
+  renderTree(state, root, tree)
   if (!hasPendingFocus && fallbackFile && fallbackFile.type === 'file') {
     await preloadFileContent(state, {
       name: fallbackFile.name,
