@@ -143,7 +143,7 @@ async function renderWithView(view, providedContent, baseContext) {
   }
 }
 
-async function ensureFileContent(state, node) {
+export async function ensureFileContent(state, node) {
   if (!node || !node.path) return null
   const key = cacheKey(state, node.path)
   if (state.cache.has(key)) {
