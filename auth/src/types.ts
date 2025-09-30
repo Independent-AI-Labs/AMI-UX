@@ -48,3 +48,43 @@ export type SessionToken = {
   image?: string | null
   metadata?: Record<string, unknown>
 }
+
+export type AuthProviderType =
+  | 'google'
+  | 'github'
+  | 'azure_ad'
+  | 'openai'
+  | 'anthropic'
+  | 'api_key'
+  | 'oauth2'
+  | 'ssh'
+
+export type ProviderMode = 'credentials' | 'oauth' | 'api_key' | 'ssh'
+
+export type OAuthProviderCatalogEntry = {
+  id: string
+  providerType: AuthProviderType
+  mode: 'oauth'
+  clientId: string
+  clientSecret: string
+  displayName?: string
+  scopes?: string[]
+  tenant?: string | null
+  authorization?: {
+    url?: string
+    params?: Record<string, string>
+  }
+  token?: {
+    url?: string
+  }
+  userInfo?: {
+    url?: string
+  }
+  wellKnown?: string
+  flags?: {
+    allowDangerousEmailAccountLinking?: boolean
+  }
+  metadata?: Record<string, unknown>
+}
+
+export type AuthProviderCatalogEntry = OAuthProviderCatalogEntry

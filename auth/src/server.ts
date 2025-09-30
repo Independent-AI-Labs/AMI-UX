@@ -1,5 +1,5 @@
 import { createRequire } from 'module'
-import { authConfig } from './config'
+import { loadAuthConfig } from './config'
 
 type AuthExports = {
   auth: (...args: any[]) => any
@@ -134,18 +134,71 @@ function createStubAuth(): AuthExports {
   }
 }
 
-let authExports: AuthExports
+let authExportsPromise: Promise<AuthExports> | null = null
 
-try {
-  const require = createRequire(import.meta.url)
-  const mod = require('next-auth')
-  const factory = (mod as any).default ?? mod
-  authExports = factory(authConfig)
-} catch (err) {
-  console.warn('[ux/auth] next-auth module unavailable, falling back to stub auth implementation.', err)
-  authExports = createStubAuth()
+const HAS_NEXT_RUNTIME = typeof process.env.NEXT_RUNTIME === 'string' && process.env.NEXT_RUNTIME.length > 0
+const FORCE_STUB_AUTH =
+  process.env.AMI_AUTH_FORCE_STUB === '1' || (!HAS_NEXT_RUNTIME && process.env.NODE_ENV !== 'production')
+
+async function initialiseAuthExports(): Promise<AuthExports> {
+  if (FORCE_STUB_AUTH) {
+    return createStubAuth()
+  }
+  try {
+    const config = await loadAuthConfig()
+    const require = createRequire(import.meta.url)
+    const mod = require('next-auth')
+    const factory = (mod as any).default ?? mod
+    const maybeExports = typeof factory === 'function' ? factory(config) : factory
+
+    if (
+      maybeExports &&
+      typeof maybeExports === 'object' &&
+      typeof (maybeExports as any).auth === 'function' &&
+      typeof (maybeExports as any).handlers === 'object'
+    ) {
+      return maybeExports as AuthExports
+    }
+
+    console.warn(
+      '[ux/auth] next-auth module did not return expected exports, using stub auth implementation instead.',
+    )
+    return createStubAuth()
+  } catch (err) {
+    console.warn('[ux/auth] next-auth initialisation failed, falling back to stub auth implementation.', err)
+    return createStubAuth()
+  }
 }
 
-export const { auth, handlers, signIn, signOut } = authExports
+function getAuthExports(): Promise<AuthExports> {
+  if (!authExportsPromise) {
+    authExportsPromise = initialiseAuthExports()
+  }
+  return authExportsPromise
+}
 
-export const { GET: authGetHandler, POST: authPostHandler } = handlers
+export function auth(...args: any[]) {
+  return getAuthExports().then(({ auth }) => auth(...args))
+}
+
+export const handlers = {
+  GET: async (...args: any[]) => {
+    const exports = await getAuthExports()
+    return exports.handlers.GET(...args)
+  },
+  POST: async (...args: any[]) => {
+    const exports = await getAuthExports()
+    return exports.handlers.POST(...args)
+  },
+}
+
+export function signIn(...args: any[]) {
+  return getAuthExports().then(({ signIn }) => signIn(...args))
+}
+
+export function signOut(...args: any[]) {
+  return getAuthExports().then(({ signOut }) => signOut(...args))
+}
+
+export const authGetHandler = async (...args: any[]) => handlers.GET(...args)
+export const authPostHandler = async (...args: any[]) => handlers.POST(...args)

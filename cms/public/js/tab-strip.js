@@ -238,7 +238,9 @@ export function createTabStrip(root, options = {}) {
     if (tab.trailingHTML) parts.push(tab.trailingHTML)
     if (tab.closable) {
       const closeTitle = escapeHTML(tab.closeLabel)
-      parts.push(`<span class="close" title="${closeTitle}" aria-label="${closeTitle}">${tab.closeIcon}</span>`)
+      parts.push(
+        `<span class="close" data-hint="${closeTitle}" aria-label="${closeTitle}">${tab.closeIcon}</span>`,
+      )
     }
     return parts.join('')
   }
@@ -260,8 +262,13 @@ export function createTabStrip(root, options = {}) {
         tab.tooltip != null && tab.tooltip !== undefined && tab.tooltip !== ''
           ? String(tab.tooltip)
           : String(tab.label ?? '')
-      if (tooltipText) btn.title = tooltipText
-      else btn.removeAttribute('title')
+      if (tooltipText) {
+        btn.dataset.hint = tooltipText
+        if (!tab.ariaLabel) btn.setAttribute('aria-label', tooltipText)
+      } else {
+        delete btn.dataset.hint
+      }
+      btn.removeAttribute('title')
       if (tab.ariaLabel) btn.setAttribute('aria-label', tab.ariaLabel)
       if (tab.dataset) {
         for (const [key, value] of Object.entries(tab.dataset)) {

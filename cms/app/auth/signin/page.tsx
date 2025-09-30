@@ -21,7 +21,7 @@ export default async function SignInPage({ searchParams }: { searchParams?: Reco
     <div className="auth-layout">
       <div className="auth-card">
         <header>
-          <h1>Welcome back</h1>
+          <h1>Welcome back!</h1>
           <p className="muted">Sign in to continue to the AMI Data Portal.</p>
         </header>
         {errorParam ? (

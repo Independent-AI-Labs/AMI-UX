@@ -2,11 +2,18 @@ import { readFile, stat as statFile } from 'fs/promises'
 import path from 'path'
 import { scryptSync, timingSafeEqual, createHash, randomUUID } from 'crypto'
 
-import { getAllowedEmails, getCredentialsFile, getDataOpsAuthUrl, getInternalToken } from './env'
+import {
+  getAllowedEmails,
+  getCredentialsFile,
+  getDataOpsAuthUrl,
+  getInternalToken,
+  getProviderCatalogFile,
+} from './env'
 import type {
   AuthenticatedUser,
   CredentialsPayload,
   DataOpsCredentialRecord,
+  AuthProviderCatalogEntry,
   VerifyCredentialsResponse,
 } from './types'
 
@@ -83,6 +90,29 @@ class LocalCredentialsStore {
   }
 }
 
+class LocalProviderCatalogStore {
+  private cache: { mtimeMs: number; entries: AuthProviderCatalogEntry[] } | null = null
+
+  constructor(private readonly filePath: string) {}
+
+  async load(): Promise<AuthProviderCatalogEntry[]> {
+    const abs = path.resolve(process.cwd(), this.filePath)
+    const stat = await statFile(abs).catch(() => null)
+    if (!stat) return []
+
+    if (this.cache && Math.abs(this.cache.mtimeMs - stat.mtimeMs) < 1) {
+      return this.cache.entries
+    }
+
+    const raw = await readFile(abs, 'utf8').catch(() => '')
+    if (!raw) return []
+
+    const parsed = safeParseCatalog(raw)
+    this.cache = { mtimeMs: stat.mtimeMs, entries: parsed }
+    return parsed
+  }
+}
+
 function deriveStableId(email: string): string {
   const digest = createHash('sha256').update(email).digest('hex')
   return `local-${digest.slice(0, 24)}`
@@ -123,12 +153,15 @@ export class DataOpsClient {
   private readonly baseUrl: URL | null
   private readonly token: string | null
   private readonly localStore: LocalCredentialsStore | null
+  private readonly localCatalog: LocalProviderCatalogStore | null
 
   constructor() {
     this.baseUrl = getDataOpsAuthUrl()
     this.token = getInternalToken()
     const credentialsFile = getCredentialsFile()
     this.localStore = credentialsFile ? new LocalCredentialsStore(credentialsFile) : null
+    const catalogFile = getProviderCatalogFile()
+    this.localCatalog = catalogFile ? new LocalProviderCatalogStore(catalogFile) : null
   }
 
   private makeUrl(pathname: string): string {
@@ -244,6 +277,133 @@ export class DataOpsClient {
     }
     return user
   }
+
+  async getAuthProviderCatalog(): Promise<AuthProviderCatalogEntry[]> {
+    if (this.baseUrl) {
+      try {
+        const response = await requestJSON<unknown>(this.makeUrl('/auth/providers/catalog'), {
+          method: 'GET',
+          headers: this.authHeaders(),
+          cache: 'no-store',
+        })
+        const parsed = normaliseCatalogResponse(response)
+        if (parsed.length) {
+          return parsed
+        }
+      } catch (err) {
+        console.error('[ux/auth] Failed to fetch provider catalog from DataOps', err)
+      }
+    }
+
+    if (this.localCatalog) {
+      return this.localCatalog.load()
+    }
+
+    return []
+  }
 }
 
 export const dataOpsClient = new DataOpsClient()
+
+function safeParseCatalog(raw: string): AuthProviderCatalogEntry[] {
+  try {
+    const parsed = JSON.parse(raw)
+    return normaliseCatalogResponse(parsed)
+  } catch (err) {
+    console.warn('[ux/auth] Failed to parse local provider catalog file', err)
+    return []
+  }
+}
+
+function normaliseCatalogResponse(input: unknown): AuthProviderCatalogEntry[] {
+  const entries: AuthProviderCatalogEntry[] = []
+  const items = Array.isArray(input)
+    ? input
+    : input && typeof input === 'object' && 'providers' in input && Array.isArray((input as any).providers)
+      ? (input as any).providers
+      : []
+
+  for (const candidate of items) {
+    const parsed = normaliseCatalogEntry(candidate)
+    if (parsed) entries.push(parsed)
+  }
+
+  return entries
+}
+
+function normaliseCatalogEntry(candidate: unknown): AuthProviderCatalogEntry | null {
+  if (!candidate || typeof candidate !== 'object') return null
+  const raw = candidate as Record<string, unknown>
+  const mode = String(raw.mode ?? 'oauth').toLowerCase()
+  if (mode !== 'oauth') {
+    // Only OAuth providers integrate directly with NextAuth today.
+    return null
+  }
+
+  const providerType = String(raw.providerType ?? raw.provider_type ?? raw.type ?? '').toLowerCase()
+  const clientId = valueToString(raw.clientId ?? raw.client_id)
+  const clientSecret = valueToString(raw.clientSecret ?? raw.client_secret)
+
+  if (!providerType || !clientId || !clientSecret) {
+    return null
+  }
+
+  const id = valueToString(raw.id) || providerType
+  const scopes = Array.isArray(raw.scopes) ? raw.scopes.map((scope) => String(scope)) : undefined
+  const tenant = raw.tenant ? String(raw.tenant) : raw.tenantId ? String(raw.tenantId) : undefined
+  const allowDangerous = Boolean(
+    raw.allowDangerousEmailAccountLinking ?? raw.allow_dangerous_email_account_linking ??
+      (raw.flags && typeof raw.flags === 'object' && 'allowDangerousEmailAccountLinking' in (raw.flags as any)
+        ? (raw.flags as Record<string, unknown>).allowDangerousEmailAccountLinking
+        : false),
+  )
+
+  const authorization = parseNestedRecord(raw.authorization ?? raw.authorizationUrl ?? raw.authorization_url)
+  const token = parseNestedRecord(raw.token ?? raw.tokenUrl ?? raw.token_url)
+  const userInfo = parseNestedRecord(raw.userInfo ?? raw.userInfoUrl ?? raw.user_info_url)
+  const wellKnown = valueToString(raw.wellKnown ?? raw.well_known ?? raw.wellKnownUrl ?? raw.well_known_url)
+  const displayName = valueToString(raw.displayName ?? raw.name)
+  const metadata = raw.metadata && typeof raw.metadata === 'object' ? (raw.metadata as Record<string, unknown>) : undefined
+
+  return {
+    id,
+    providerType: providerType as AuthProviderCatalogEntry['providerType'],
+    mode: 'oauth',
+    clientId,
+    clientSecret,
+    displayName: displayName || undefined,
+    scopes,
+    tenant: tenant ?? null,
+    authorization,
+    token,
+    userInfo,
+    flags: allowDangerous ? { allowDangerousEmailAccountLinking: true } : undefined,
+    wellKnown: wellKnown || undefined,
+    metadata,
+  }
+}
+
+function parseNestedRecord(value: unknown): { url?: string; params?: Record<string, string> } | undefined {
+  if (!value) return undefined
+  if (typeof value === 'string') {
+    return { url: value }
+  }
+  if (typeof value !== 'object') return undefined
+  const record = value as Record<string, unknown>
+  const url = valueToString(record.url)
+  const params = record.params && typeof record.params === 'object'
+    ? Object.fromEntries(
+        Object.entries(record.params as Record<string, unknown>)
+          .filter(([key, val]) => typeof val === 'string')
+          .map(([key, val]) => [key, String(val)]),
+      )
+    : undefined
+  const result: { url?: string; params?: Record<string, string> } = {}
+  if (url) result.url = url
+  if (params && Object.keys(params).length) result.params = params
+  return Object.keys(result).length ? result : undefined
+}
+
+function valueToString(input: unknown): string {
+  return typeof input === 'string' ? input.trim() : typeof input === 'number' ? String(input) : ''
+}

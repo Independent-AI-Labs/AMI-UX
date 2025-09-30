@@ -8,6 +8,7 @@ import {
   VisualizerD,
 } from './visualizers.js'
 import { startCms } from './main.js'
+import { applyHint } from './utils.js'
 
 // Wrap current Docs viewer as VisualizerC
 const VisualizerC = {
@@ -77,14 +78,17 @@ async function updateStatusPill(mode, info) {
       if (r.ok) {
         const s = await r.json()
         pill.textContent = s.running ? 'App: Running' : 'App: Not running'
-        pill.title = s.message || ''
+        applyHint(pill, s.message || '', { replaceAriaLabel: true })
         return
       }
     } catch {}
     pill.textContent = 'App: Unknown'
+    applyHint(pill, '', { clearAriaLabel: true })
   } else {
     // C: show SSE connected later; A/B: static
     pill.textContent = mode ? `Mode ${mode}` : ''
+    const hint = mode ? `Active mode ${mode}` : ''
+    applyHint(pill, hint, { replaceAriaLabel: true, clearAriaLabel: !hint })
   }
 }
 

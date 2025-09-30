@@ -599,6 +599,9 @@ function createAccountDrawerComponent(React) {
       setBusyId('signout')
       setBusyKind('signout')
       try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('ami-auth-preferred')
+        }
         await performSignOut(window.location.href)
         window.location.reload()
       } catch (err) {

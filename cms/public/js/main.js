@@ -1,7 +1,7 @@
 import './auth-fetch.js'
 
-import { humanizeName, pathAnchor } from './utils.js'
-import { fetchConfig, fetchTree, setDocRoot } from './api.js'
+import { applyHint, humanizeName, pathAnchor } from './utils.js'
+import { fetchConfig, fetchTreeChildren, setDocRoot } from './api.js'
 import {
   applyTheme,
   renderTree,
@@ -17,6 +17,7 @@ import { connectSSE } from './sse.js'
 import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { markIgnoredNode } from './highlight-plugin/core/dom-utils.js'
+import { normalizeFsPath } from './file-tree.js'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -52,9 +53,10 @@ const state = {
   eventsAttached: false,
   docOverlay: null,
   docOverlayLabel: null,
-  documentLoadTokens: new Set(),
   bootOptions,
   fileOnly: Boolean(bootOptions.fileOnly),
+  treeIndex: new Map(),
+  loadDirectoryChildren: null,
 }
 
 // Theme
@@ -133,6 +135,144 @@ function setTreeStatus(kind, message, options = {}) {
     viewport.innerHTML = ''
     if (skeleton) viewport.appendChild(createTreeSkeleton())
   }
+}
+
+function normalizeTreeKey(pathValue) {
+  return normalizeFsPath(pathValue || '')
+}
+
+function ensureTreeIndex(state) {
+  if (!state.treeIndex || !(state.treeIndex instanceof Map)) state.treeIndex = new Map()
+  return state.treeIndex
+}
+
+function registerTreeNode(state, node) {
+  if (!node) return null
+  const index = ensureTreeIndex(state)
+  const key = normalizeTreeKey(node.path)
+  node.path = key
+  index.set(key, node)
+  if (node.type === 'dir') {
+    const meta = ensureNodeMeta(node)
+    if (Array.isArray(node.children) && node.children.length) {
+      meta.loaded = true
+      node.children.forEach((child) => registerTreeNode(state, child))
+    } else if (!meta.initialized) {
+      meta.initialized = true
+    }
+  }
+  return node
+}
+
+function ensureNodeMeta(node) {
+  if (!node) return { hasChildren: false, loaded: true, loading: false, error: null }
+  if (!node.__lazy) {
+    const hasChildren = node.type === 'dir'
+    node.__lazy = {
+      hasChildren,
+      loaded: hasChildren ? Array.isArray(node.children) && node.children.length > 0 : true,
+      loading: false,
+      error: null,
+      childCount: Array.isArray(node.children) ? node.children.length : 0,
+      initialized: true,
+      promise: null,
+    }
+  }
+  return node.__lazy
+}
+
+function createNodeFromSummary(summary) {
+  const normalizedPath = normalizeTreeKey(summary.path || '')
+  const node = {
+    name: summary.name || '',
+    path: normalizedPath,
+    type: summary.type === 'dir' ? 'dir' : 'file',
+    children: summary.type === 'dir' ? [] : [],
+  }
+  if (node.type === 'dir') {
+    node.__lazy = {
+      hasChildren: summary.hasChildren !== false,
+      childCount:
+        typeof summary.childCount === 'number' && summary.childCount >= 0
+          ? summary.childCount
+          : undefined,
+      loaded: false,
+      loading: false,
+      error: null,
+      initialized: true,
+      promise: null,
+    }
+    if (!node.__lazy.hasChildren) node.__lazy.loaded = true
+  }
+  return node
+}
+
+function locateNode(state, pathValue) {
+  const index = ensureTreeIndex(state)
+  const key = normalizeTreeKey(pathValue)
+  return index.get(key) || null
+}
+
+async function loadDirectoryChildren(state, node) {
+  if (!node || node.type !== 'dir') return []
+  const meta = ensureNodeMeta(node)
+  if (meta.loaded) return Array.isArray(node.children) ? node.children : []
+  if (meta.promise) return meta.promise
+  meta.loading = true
+  meta.error = null
+  meta.promise = (async () => {
+    try {
+      const res = await fetchTreeChildren(state.rootKey || 'docRoot', node.path || '')
+      const summaries = Array.isArray(res.children) ? res.children : []
+      const children = summaries.map((summary) => createNodeFromSummary(summary))
+      node.children = children
+      meta.loaded = true
+      meta.hasChildren = children.length > 0
+      meta.childCount = children.length
+      children.forEach((child) => registerTreeNode(state, child))
+      return children
+    } catch (err) {
+      meta.error = err?.message || 'Failed to load directory'
+      throw err
+    } finally {
+      meta.loading = false
+      meta.promise = null
+    }
+  })()
+  return meta.promise
+}
+
+async function buildInitialTree(state, rootKey) {
+  const res = await fetchTreeChildren(rootKey, '')
+  const nodeInfo = res?.node || { name: '', path: '', type: 'dir', hasChildren: true }
+  const rootNode = {
+    name: nodeInfo.name || (rootKey === 'uploads' ? 'Uploads' : 'Docs'),
+    path: '',
+    type: nodeInfo.type === 'file' ? 'file' : 'dir',
+    children: [],
+  }
+  rootNode.__lazy = {
+    hasChildren: nodeInfo.type === 'dir' ? nodeInfo.hasChildren !== false : false,
+    childCount:
+      nodeInfo.type === 'dir' && typeof nodeInfo.childCount === 'number'
+        ? nodeInfo.childCount
+        : undefined,
+    loaded: false,
+    loading: false,
+    error: null,
+    initialized: true,
+  }
+  ensureTreeIndex(state).clear()
+  registerTreeNode(state, rootNode)
+  const summaries = Array.isArray(res.children) ? res.children : []
+  const children = summaries.map((summary) => createNodeFromSummary(summary))
+  rootNode.children = children
+  const meta = ensureNodeMeta(rootNode)
+  meta.loaded = true
+  meta.hasChildren = children.length > 0
+  meta.childCount = children.length
+  children.forEach((child) => registerTreeNode(state, child))
+  return rootNode
 }
 
 function ensureDocOverlay() {
@@ -239,8 +379,7 @@ function ensureTreeContainer() {
   expandBtn.id = 'treeExpandAll'
   expandBtn.type = 'button'
   expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 16 })}<span>Expand All</span>`
-  expandBtn.dataset.hint = 'Expand all sections in the tree'
-  expandBtn.title = 'Expand all sections in the tree'
+  applyHint(expandBtn, 'Expand all sections in the tree')
   markIgnoredNode(expandBtn)
   expandBtn.addEventListener('click', () => expandCollapseAll(true))
 
@@ -249,8 +388,7 @@ function ensureTreeContainer() {
   collapseBtn.id = 'treeCollapseAll'
   collapseBtn.type = 'button'
   collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 16 })}<span>Collapse All</span>`
-  collapseBtn.dataset.hint = 'Collapse all sections in the tree'
-  collapseBtn.title = 'Collapse all sections in the tree'
+  applyHint(collapseBtn, 'Collapse all sections in the tree')
   markIgnoredNode(collapseBtn)
   collapseBtn.addEventListener('click', () => expandCollapseAll(false))
 
@@ -317,8 +455,17 @@ function debounceRefreshTree() {
     let scrollY = window.scrollY
     state.isLoading = true
     try {
-      const newTree = await fetchTree(state.rootKey || 'docRoot')
+      const newTree = await buildInitialTree(state, state.rootKey || 'docRoot')
       state.tree = newTree
+      state.loadDirectoryChildren = async (nodeOrPath) => {
+        if (!nodeOrPath) return []
+        if (typeof nodeOrPath === 'string') {
+          const target = locateNode(state, nodeOrPath)
+          if (!target) throw new Error('Directory not found')
+          return loadDirectoryChildren(state, target)
+        }
+        return loadDirectoryChildren(state, nodeOrPath)
+      }
       if (!root) return
       renderTree(state, root, newTree)
       if (typeof state.applyTreeFilter === 'function') {
@@ -546,7 +693,7 @@ export async function startCms(fromSelect = false) {
   state.isLoading = true
   let tree = null
   try {
-    tree = await fetchTree(activeRootKey)
+    tree = await buildInitialTree(state, activeRootKey)
   } catch (err) {
     state.isLoading = false
     if (state.fileOnly) {
@@ -560,6 +707,15 @@ export async function startCms(fromSelect = false) {
   }
   state.isLoading = false
   state.tree = tree
+  state.loadDirectoryChildren = async (nodeOrPath) => {
+    if (!nodeOrPath) return []
+    if (typeof nodeOrPath === 'string') {
+      const target = locateNode(state, nodeOrPath)
+      if (!target) throw new Error('Directory not found')
+      return loadDirectoryChildren(state, target)
+    }
+    return loadDirectoryChildren(state, nodeOrPath)
+  }
   const title = document.getElementById('appTitle')
   if (title) {
     const treeName = tree?.name || (activeRootKey === 'uploads' ? 'Uploads' : 'Docs')

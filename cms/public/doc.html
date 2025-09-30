@@ -190,11 +190,11 @@
   <header data-ami-highlight-ignore="1">
     <h1 id="appTitle">Docs</h1>
     <input id="search" type="search" placeholder="Search files and headings (/)" />
-    <button class="icon-button" id="themeToggle" title="Toggle Theme" aria-label="Toggle Theme" data-ami-highlight-ignore="1">
+    <button class="icon-button" id="themeToggle" data-hint="Toggle Theme" aria-label="Toggle Theme" data-ami-highlight-ignore="1">
       <svg id="iconThemeDoc" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
     </button>
-    <span class="muted" id="docRootLabel" title="Current doc root"></span>
-    <button class="icon-button" id="printBtn" title="Print" aria-label="Print" data-ami-highlight-ignore="1">
+    <span class="muted" id="docRootLabel" data-hint="Current doc root"></span>
+    <button class="icon-button" id="printBtn" data-hint="Print" aria-label="Print" data-ami-highlight-ignore="1">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8" rx="2"></rect></svg>
     </button>
   </header>
@@ -240,6 +240,26 @@
           document.head.appendChild(s)
           root.style.setProperty('--doc-header-height', '0px')
         }
+
+        try {
+          const existingCfg = window.__AMI_HIGHLIGHT_CONFIG__
+          const cfg = existingCfg && typeof existingCfg === 'object' ? { ...existingCfg } : {}
+          if (!cfg.assetBase) {
+            const explicitRoot = typeof window.__AMI_HIGHLIGHT_ASSET_ROOT__ === 'string'
+              ? window.__AMI_HIGHLIGHT_ASSET_ROOT__
+              : null
+            if (explicitRoot) cfg.assetBase = explicitRoot
+            else {
+              try {
+                const base = new URL('.', window.location.href)
+                cfg.assetBase = base.toString()
+              } catch {
+                cfg.assetBase = '/'
+              }
+            }
+          }
+          window.__AMI_HIGHLIGHT_CONFIG__ = cfg
+        } catch {}
       } catch {}
     })()
   </script>

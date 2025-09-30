@@ -1,4 +1,5 @@
 import { IGNORE_ATTR, invalidateIgnoreCacheFor, markPluginNode, resetIgnoreCache, shouldIgnoreNode } from './dom-utils.js'
+import { setHint } from './hints.js'
 import { debugLog } from './debug.js'
 
 const STYLE_ID = 'fx-glow-highlight-style'
@@ -498,8 +499,7 @@ function createHoverOverlay(doc, selectors, callbacks) {
     const btn = doc.createElement('button')
     btn.className = `${HOVER_BTN_CLASS} ${cls}`
     btn.type = 'button'
-    btn.title = title
-    btn.setAttribute('aria-label', title)
+    setHint(btn, title)
     const iconEl = doc.createElement('i')
     iconEl.className = `ri-${iconName}`
     iconEl.setAttribute('aria-hidden', 'true')

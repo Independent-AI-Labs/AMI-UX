@@ -1,4 +1,5 @@
 import { displayName, pathAnchor } from './utils.js'
+import { normalizeFsPath } from './file-tree.js'
 import { fetchFile } from './api.js'
 import { resolveFileView, getFallbackFileView } from './file-view-registry.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
@@ -306,10 +307,15 @@ function cleanupNode(details, state) {
     details.removeEventListener('toggle', details.__fileToggleHandler)
     details.__fileToggleHandler = null
   }
+  if (details.__dirToggleHandler) {
+    details.removeEventListener('toggle', details.__dirToggleHandler)
+    details.__dirToggleHandler = null
+  }
   if (details.__openHandler) {
     details.removeEventListener('toggle', details.__openHandler)
     details.__openHandler = null
   }
+  details.__nodeRef = null
   const path = details.__nodeData?.path
   if (path && state?.open?.has(path)) {
     state.open.delete(path)
@@ -381,6 +387,55 @@ function attachFileLoader(details, state, body) {
     updateTOC(state)
   }
   details.__fileToggleHandler = handler
+  details.addEventListener('toggle', handler)
+}
+
+function attachDirLoader(details, state, node, depth, indexPath) {
+  if (!details || details.__dirToggleHandler) return
+  const handler = async () => {
+    if (!details.open) return
+    if (typeof state.loadDirectoryChildren !== 'function') return
+    const meta = node && node.__lazy ? node.__lazy : null
+    const body = details.querySelector(':scope > .body')
+    const parentIndexPath = Array.isArray(node?.__indexPath) ? node.__indexPath : indexPath
+    const ensureSpinner = () => {
+      if (!body) return () => {}
+      let spinner = body.querySelector(':scope > .tree-loading')
+      if (!spinner) {
+        spinner = document.createElement('div')
+        spinner.className = 'tree-loading'
+        spinner.textContent = 'Loading…'
+        body.appendChild(spinner)
+      }
+      return () => {
+        if (spinner && spinner.parentElement === body) spinner.remove()
+      }
+    }
+    const release = meta && meta.loaded ? () => {} : ensureSpinner()
+    try {
+      const children = await state.loadDirectoryChildren(node)
+      if (body) {
+        syncChildren(state, body, children, depth + 1, parentIndexPath)
+      }
+      if (state._structureWatcher) {
+        try {
+          state._structureWatcher.refresh(true)
+        } catch {}
+      }
+    } catch (error) {
+      if (body) {
+        body.innerHTML = ''
+        const errEl = document.createElement('div')
+        errEl.className = 'tree-error'
+        errEl.textContent = error?.message || 'Failed to load directory'
+        body.appendChild(errEl)
+      }
+      console.warn('Failed to load directory', error)
+    } finally {
+      release()
+    }
+  }
+  details.__dirToggleHandler = handler
   details.addEventListener('toggle', handler)
 }
 
@@ -495,7 +550,6 @@ function ensureSummaryActions(state, details, node) {
     btn.dataset.action = action
     btn.setAttribute('aria-label', label)
     btn.dataset.hint = label
-    btn.title = label
     btn.innerHTML = iconMarkup(iconName, { size: 16 })
     markPluginNode(btn)
     const iconEl = btn.querySelector('i, svg, span')
@@ -594,6 +648,7 @@ function ensureSummaryActions(state, details, node) {
 function createDetailsNode(state, node, depth, indexPath, key) {
   const details = document.createElement('details')
   details.__nodeData = { path: node.path || '', name: node.name || '', type: node.type }
+  details.__nodeRef = node
   details.dataset.path = details.__nodeData.path
   details.dataset.type = node.type
   details.dataset.key = key
@@ -613,6 +668,7 @@ function createDetailsNode(state, node, depth, indexPath, key) {
 
   if (node.type === 'dir') {
     ensureDirAnchor(body, node)
+    attachDirLoader(details, state, node, depth, indexPath)
   } else {
     attachFileLoader(details, state, body)
   }
@@ -628,6 +684,7 @@ function updateDetailsNode(state, details, node, depth, indexPath, key) {
   details.__nodeData.path = node.path || ''
   details.__nodeData.name = node.name || ''
   details.__nodeData.type = node.type
+  details.__nodeRef = node
   details.dataset.path = details.__nodeData.path
   details.dataset.type = node.type
   details.dataset.key = key
@@ -642,6 +699,7 @@ function updateDetailsNode(state, details, node, depth, indexPath, key) {
   details.__fileBody = body
   if (node.type === 'dir') {
     ensureDirAnchor(body, node)
+    if (!details.__dirToggleHandler) attachDirLoader(details, state, node, depth, indexPath)
   } else if (body) {
     const dirAnchor = body.querySelector(':scope > a.dir-anchor')
     if (dirAnchor) dirAnchor.remove()
@@ -713,6 +771,23 @@ function syncChildren(state, parentEl, children, depth = 0, indexPath = []) {
     }
 
     parentEl.appendChild(details)
+
+    if (
+      child.type === 'dir' &&
+      details.open &&
+      typeof state?.loadDirectoryChildren === 'function'
+    ) {
+      const meta = child.__lazy
+      if (!meta || !meta.loaded) {
+        state
+          .loadDirectoryChildren(child)
+          .then((children) => {
+            const body = details.querySelector(':scope > .body')
+            if (body) syncChildren(state, body, children || [], depth + 1, childIndexPath)
+          })
+          .catch((error) => console.warn('Failed to preload directory', error))
+      }
+    }
   })
 
   lookup.forEach((el) => {
@@ -771,12 +846,6 @@ function rebuildTOC(state, progress) {
 
   const struct = document.createElement('div')
   struct.className = 'structure-nav'
-
-  const structIndexPath = (node, fallback = []) => {
-    if (node && Array.isArray(node.__indexPath)) return node.__indexPath
-    return fallback
-  }
-
   const renderStructToggle = (el, open = false) => {
     if (!el) return
     const iconName = open ? 'subtract-line' : 'add-line'
@@ -784,83 +853,153 @@ function rebuildTOC(state, progress) {
   }
 
   const structKeyFor = (node, indexPath = []) => {
-    const path = node.path || ''
-    if (path) return `p:${path}`
+    const pathValue = node?.path ? normalizeFsPath(node.path) : ''
+    if (pathValue) return `p:${pathValue}`
     if (indexPath.length) return `i:${indexPath.join('.')}`
     return 'root'
   }
 
-  const addStruct = (node, providedIndexPath = []) => {
-    if (node.type === 'dir') {
-      const det = document.createElement('details')
-      const indexPath = structIndexPath(node, providedIndexPath)
-      const key = structKeyFor(node, indexPath)
-      det.dataset.structureKey = key
-      det.dataset.indexPath = indexPath.join('.')
-      const remembered = openMemory.has(key)
-      const shouldDefaultOpen = indexPath.length <= 1
-      det.open = remembered || (!remembered && shouldDefaultOpen)
-      det.dataset.path = node.path || ''
-      const sum = document.createElement('summary')
-      const depth = Math.max(indexPath.length - 1, 0)
-      const baseIndent = 32
-      const indent = baseIndent + depth * 18
-      sum.style.setProperty('--struct-indent', `${indent}px`)
-      const num = indexPath.length ? indexPath.join('.') + '. ' : ''
-      const label = displayName(node)
-      const toggle = document.createElement('span')
-      toggle.className = 'struct-toggle'
-      toggle.style.setProperty('--struct-toggle-offset', `${Math.max(indent - 20, 12)}px`)
-      toggle.setAttribute('aria-hidden', 'true')
-      sum.appendChild(toggle)
-      const a = document.createElement('a')
-      a.textContent = num + label + '/'
-      a.href = '#' + ('dir-' + (node.path ? node.path.replace(/[^a-zA-Z0-9]+/g, '-') : 'root'))
-      a.dataset.path = node.path || ''
-      a.dataset.type = 'dir'
-      a.style.setProperty('--struct-indent', `${indent + 8}px`)
-      sum.appendChild(a)
-      det.appendChild(sum)
-      const setToggleState = () => {
-        renderStructToggle(toggle, det.hasAttribute('open'))
-        if (key) {
-          if (det.hasAttribute('open')) openMemory.add(key)
-          else openMemory.delete(key)
+  const ensureStructureChildren = async (container, node, indexPath) => {
+    if (!container || !node || node.type !== 'dir') return
+    if (container.dataset.loaded === 'true') return
+    if (container.__loadingPromise) return container.__loadingPromise
+    container.dataset.loading = 'true'
+    const loadTask = (async () => {
+      let children = []
+      if (typeof state.loadDirectoryChildren === 'function') {
+        try {
+          children = await state.loadDirectoryChildren(node)
+        } catch (error) {
+          console.warn('Structure load failed', error)
+          children = Array.isArray(node.children) ? node.children : []
         }
+      } else if (Array.isArray(node.children)) {
+        children = node.children
       }
-      det.__structToggle = toggle
-      det.__structToggleUpdate = setToggleState
-      setToggleState()
-      det.addEventListener('toggle', setToggleState)
-      const container = document.createElement('div')
-      const kids = Array.isArray(node.children) ? node.children : []
-      let idx = 1
-      kids.forEach((ch) => {
-        const childIndexPath = structIndexPath(ch, indexPath.concat(idx))
-        container.appendChild(addStruct(ch, childIndexPath))
-        idx += 1
+      container.innerHTML = ''
+      let childIndex = 1
+      children.forEach((child) => {
+        if (!child) return
+        const childIndexPath = indexPath.concat(childIndex)
+        child.__indexPath = childIndexPath
+        const element =
+          child.type === 'dir'
+            ? createDirectoryEntry(child, childIndexPath)
+            : createFileEntry(child, childIndexPath)
+        if (element) container.appendChild(element)
+        childIndex += 1
       })
-      det.appendChild(container)
-      return det
+      if (state && state._structureWatcher && typeof state._structureWatcher.scheduleUpdate === 'function') {
+        try {
+          state._structureWatcher.scheduleUpdate(true)
+        } catch {}
+      }
+      container.dataset.loaded = 'true'
+    })()
+    container.__loadingPromise = loadTask
+    try {
+      await loadTask
+    } finally {
+      container.dataset.loading = 'false'
+      container.__loadingPromise = null
     }
+  }
+
+  const createSummaryContent = (node, indexPath, indent) => {
+    const num = indexPath.length ? `${indexPath.join('.')}. ` : ''
+    const label = displayName(node)
     const a = document.createElement('a')
-    const indexPath = structIndexPath(node, providedIndexPath)
-    const num = indexPath.length ? indexPath.join('.') + '. ' : ''
-    a.textContent = num + displayName(node)
-    a.href = '#' + pathAnchor(node.path)
-    a.style.display = 'block'
-    const depth = Math.max(indexPath.length - 1, 0)
-    const baseIndent = 32
-    const indent = baseIndent + depth * 18
-    a.style.setProperty('--struct-indent', `${indent}px`)
     a.dataset.path = node.path || ''
-    a.dataset.type = 'file'
+    a.style.setProperty('--struct-indent', `${indent + 8}px`)
+    if (node.type === 'dir') {
+      a.dataset.type = 'dir'
+      a.textContent = num + label + '/'
+      const anchorId = node.path
+        ? `dir-${node.path.replace(/[^a-zA-Z0-9]+/g, '-')}`
+        : 'dir-root'
+      a.href = '#' + anchorId
+    } else {
+      a.dataset.type = 'file'
+      a.textContent = num + label
+      a.href = '#' + pathAnchor(node.path)
+    }
     return a
   }
 
+  const createDirectoryEntry = (node, indexPath = []) => {
+    const details = document.createElement('details')
+    const key = structKeyFor(node, indexPath)
+    details.dataset.structureKey = key
+    details.dataset.indexPath = indexPath.join('.')
+    details.dataset.type = 'dir'
+    details.classList.add('dir')
+    const depth = Math.max(indexPath.length - 1, 0)
+    const baseIndent = 32
+    const indent = baseIndent + depth * 18
+    const summary = document.createElement('summary')
+    summary.style.setProperty('--struct-indent', `${indent}px`)
+    const toggle = document.createElement('span')
+    toggle.className = 'struct-toggle'
+    toggle.style.setProperty('--struct-toggle-offset', `${Math.max(indent - 20, 12)}px`)
+    toggle.setAttribute('aria-hidden', 'true')
+    summary.appendChild(toggle)
+    summary.appendChild(createSummaryContent(node, indexPath, indent))
+    details.appendChild(summary)
+    const body = document.createElement('div')
+    body.className = 'body'
+    details.appendChild(body)
+    details.dataset.path = node.path || ''
+    const remembered = openMemory.has(key)
+    const shouldDefaultOpen = false
+    const setToggleState = () => {
+      renderStructToggle(toggle, details.open)
+      if (details.open) openMemory.add(key)
+      else openMemory.delete(key)
+    }
+    details.__ensureStructureChildren = () => ensureStructureChildren(body, node, indexPath)
+    details.addEventListener('toggle', () => {
+      setToggleState()
+      if (details.open) details.__ensureStructureChildren()
+    })
+    details.__structToggle = toggle
+    details.__structToggleUpdate = setToggleState
+    if (remembered || shouldDefaultOpen) {
+      details.setAttribute('open', '')
+      details.__ensureStructureChildren()
+    }
+    setToggleState()
+    return details
+  }
+
+  const createFileEntry = (node, indexPath = []) => {
+    const anchor = document.createElement('a')
+    const depth = Math.max(indexPath.length - 1, 0)
+    const baseIndent = 32
+    const indent = baseIndent + depth * 18
+    anchor.style.setProperty('--struct-indent', `${indent}px`)
+    anchor.style.display = 'block'
+    anchor.dataset.path = node.path || ''
+    anchor.dataset.type = 'file'
+    anchor.textContent = `${indexPath.length ? `${indexPath.join('.')}. ` : ''}${displayName(node)}`
+    anchor.href = '#' + pathAnchor(node.path)
+    return anchor
+  }
+
   if (state.tree?.children) {
+    const fragment = document.createDocumentFragment()
     let idx = 1
-    state.tree.children.forEach((ch) => struct.appendChild(addStruct(ch, [idx++])))
+    state.tree.children.forEach((child) => {
+      if (!child) return
+      const indexPath = [idx]
+      child.__indexPath = indexPath
+      const element =
+        child.type === 'dir'
+          ? createDirectoryEntry(child, indexPath)
+          : createFileEntry(child, indexPath)
+      if (element) fragment.appendChild(element)
+      idx += 1
+    })
+    struct.appendChild(fragment)
   }
   toc.appendChild(struct)
 
@@ -1160,9 +1299,30 @@ function createStructureWatcher(state) {
 
   let watcher = null
   let viewportEl = null
+  let detailNodes = []
+  let detailScope = null
+  let lastUpdateTime = 0
+  const UPDATE_THROTTLE_MS = 90
 
   let updateQueued = false
   let queuedForce = false
+
+  const markDetailCacheDirty = () => {
+    detailScope = null
+  }
+
+  const collectDetailNodes = (force = false) => {
+    const scope = resolveContainer()
+    if (!scope) {
+      detailNodes = []
+      detailScope = null
+      return detailNodes
+    }
+    if (!force && scope === detailScope && detailNodes.length) return detailNodes
+    detailScope = scope
+    detailNodes = Array.from(scope.querySelectorAll('details[data-path]'))
+    return detailNodes
+  }
 
   const scheduleWatcherUpdate = (force = false) => {
     queuedForce = queuedForce || force
@@ -1225,7 +1385,7 @@ function createStructureWatcher(state) {
     return raw.replace(/"/g, '\\"')
   }
 
-  const ensureDetailsChain = (path) => {
+  const ensureDetailsChain = async (path) => {
     const parts = String(path || '')
       .split('/')
       .map((segment) => segment.trim())
@@ -1255,6 +1415,14 @@ function createStructureWatcher(state) {
         try {
           details.dispatchEvent(new Event('toggle'))
         } catch {}
+        markDetailCacheDirty()
+      }
+      if (details.__ensureStructureChildren && details.open) {
+        try {
+          await details.__ensureStructureChildren()
+        } catch (error) {
+          console.warn('Structure ensure failed', error)
+        }
       }
       last = details
     }
@@ -1304,20 +1472,26 @@ function createStructureWatcher(state) {
       const latestContainer = resolveContainer()
       if (latestContainer && latestContainer !== this.container) {
         this.container = latestContainer
+        collectDetailNodes(true)
       }
       const nextViewport = resolveTreeRoot() || this.container
       if (nextViewport) swapViewport(nextViewport)
       else if (force && this.container) swapViewport(this.container)
       if (!this.viewport) this.viewport = viewportEl
+      if (force) collectDetailNodes(true)
     },
     refresh(force = false) {
       this.ensureTargets(true)
       this.links = Array.from(this.tocRoot.querySelectorAll('a[data-path]'))
       if (force) this.lastActive = new Set()
+      collectDetailNodes(true)
       this.scheduleUpdate(true)
     },
     updateActive(force = false) {
       this.ensureTargets()
+      const now = Date.now()
+      if (!force && now - lastUpdateTime < UPDATE_THROTTLE_MS) return
+      lastUpdateTime = now
       const viewport = this.viewport || viewportEl || resolveTreeRoot() || this.container
       if (!viewport) return
       const contentRect = viewport.getBoundingClientRect()
@@ -1328,11 +1502,15 @@ function createStructureWatcher(state) {
       const visible = new Set()
       const scope = this.container || resolveContainer()
       if (!scope) return
-      const details = scope.querySelectorAll('details[data-path]')
-      details.forEach((det) => {
+      const details = collectDetailNodes(force)
+      if (!details.length) return
+      const activeDetails = []
+      for (let i = 0; i < details.length; i += 1) {
+        const det = details[i]
+        if (!det || !det.isConnected) continue
         const path = det.dataset?.path || ''
         const summary = det.querySelector(':scope > summary')
-        if (!summary) return
+        if (!summary) continue
         const hidden = det.classList?.contains('hidden') || summary.offsetParent === null
         let isVisible = false
         if (!hidden) {
@@ -1353,8 +1531,12 @@ function createStructureWatcher(state) {
           }
         }
         summary.classList.toggle('is-visible', isVisible && !!path)
-        if (isVisible && path) visible.add(path)
-      })
+        if (isVisible && path) {
+          visible.add(path)
+          activeDetails.push(det)
+        }
+      }
+      if (activeDetails.length === 0 && force) markDetailCacheDirty()
       const changed = force || !setsEqual(this.lastActive, visible)
       if (changed) {
         this.links.forEach((link) => {
@@ -1380,7 +1562,7 @@ function createStructureWatcher(state) {
 
   watcher.ensureTargets(true)
 
-  tocRoot.addEventListener('click', (e) => {
+  tocRoot.addEventListener('click', async (e) => {
     const link =
       e.target && typeof e.target.closest === 'function' ? e.target.closest('a[data-path]') : null
     if (!link) return
@@ -1393,7 +1575,7 @@ function createStructureWatcher(state) {
     watcher.ignoreHashClearUntil = Date.now() + 1600
     if (type === 'dir' || type === 'file') {
       e.preventDefault()
-      const details = ensureDetailsChain(path)
+      const details = await ensureDetailsChain(path)
       const anchorId = type === 'dir' ? dirAnchorId(path) : pathAnchor(path)
       if (anchorId) {
         let hashApplied = false

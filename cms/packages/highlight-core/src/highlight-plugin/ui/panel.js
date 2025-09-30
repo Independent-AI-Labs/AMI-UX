@@ -1,5 +1,6 @@
 import { dialogService } from '../../lib/dialog-service.js'
 import { markPluginNode } from '../core/dom-utils.js'
+import { setHint } from '../core/hints.js'
 import { debugLog, setDebugEnabled } from '../core/debug.js'
 import { createAutomationController } from '../core/automation.js'
 import { ensureUIStyles } from './styles.js'
@@ -266,8 +267,7 @@ export class HighlightSettingsUI {
     const btn = this.document.createElement('button')
     btn.type = 'button'
     btn.className = 'ami-highlight-toggle'
-    btn.title = 'Toggle highlight settings'
-    btn.setAttribute('aria-label', 'Toggle highlight settings')
+    setHint(btn, 'Toggle highlight settings')
     btn.innerHTML = `
       <span class="ami-highlight-toggle__icon ami-highlight-toggle__icon--gear" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

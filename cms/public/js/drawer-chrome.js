@@ -164,9 +164,12 @@ export function createDrawerChrome(React) {
         props.className += ' has-hint'
       }
       if (resolvedStatus.label) {
-        props.title = resolvedStatus.label
         props.role = 'img'
         props['aria-label'] = resolvedStatus.label
+        if (!props['data-hint']) {
+          props['data-hint'] = resolvedStatus.label
+          props['data-hint-tone'] = props['data-hint-tone'] || 'neutral'
+        }
       } else {
         props['aria-hidden'] = 'true'
       }
@@ -192,7 +195,6 @@ export function createDrawerChrome(React) {
         'span',
         {
           className: `drawer-list-item__title${titleVisuallyHidden ? ' sr-only' : ''}`,
-          title: isString(title) ? title : undefined,
         },
         title,
       ),

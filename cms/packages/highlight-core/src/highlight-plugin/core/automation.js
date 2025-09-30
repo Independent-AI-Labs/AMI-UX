@@ -1,4 +1,5 @@
 import { markPluginNode, shouldIgnoreNode } from './dom-utils.js'
+import { setHint } from './hints.js'
 import { debugLog } from './debug.js'
 
 const TRIGGER_ATTR = 'data-ami-automation-trigger'
@@ -352,7 +353,7 @@ class AutomationController {
     icon.className = ICON_CLASS
     icon.innerHTML = ICON_SVG
     icon.setAttribute('aria-label', `Edit automation trigger "${trigger.name}"`)
-    icon.title = `Automation trigger: ${trigger.name}`
+    setHint(icon, `Automation trigger: ${trigger.name}`)
     icon.dataset.triggerId = trigger.id
     icon.addEventListener('click', (event) => {
       event.preventDefault()

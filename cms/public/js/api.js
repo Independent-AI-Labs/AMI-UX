@@ -41,14 +41,20 @@ export async function setDocRoot(pathStr, options = {}) {
   throw new Error('Failed to set doc root: ' + lastText)
 }
 
-export async function fetchTree(rootKey = 'docRoot') {
+export async function fetchTree(rootKey = 'docRoot', options = {}) {
   const params = new URLSearchParams()
   if (rootKey && rootKey !== 'docRoot') params.set('root', rootKey)
+  if (options.mode) params.set('mode', options.mode)
+  if (options.path) params.set('path', options.path)
   const query = params.toString()
   const url = query ? `/api/tree?${query}` : '/api/tree'
   const res = await fetch(url)
   if (!res.ok) throw new Error('Failed to fetch tree')
   return res.json()
+}
+
+export async function fetchTreeChildren(rootKey = 'docRoot', path = '') {
+  return fetchTree(rootKey, { mode: 'children', path })
 }
 
 export async function fetchFile(relPath, rootKey = 'docRoot', options = {}) {

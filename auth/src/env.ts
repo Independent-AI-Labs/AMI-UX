@@ -5,6 +5,7 @@ export type AuthEnvironment = {
   DATAOPS_INTERNAL_TOKEN?: string
   AUTH_CREDENTIALS_FILE?: string
   AUTH_ALLOWED_EMAILS?: string
+  AUTH_PROVIDER_CATALOG_FILE?: string
 }
 
 let cachedEnv: AuthEnvironment | null = null
@@ -48,6 +49,10 @@ export function loadAuthEnvironment(): AuthEnvironment {
     parsed.AUTH_ALLOWED_EMAILS = env.AUTH_ALLOWED_EMAILS.trim()
   }
 
+  if (typeof env.AUTH_PROVIDER_CATALOG_FILE === 'string' && env.AUTH_PROVIDER_CATALOG_FILE.trim()) {
+    parsed.AUTH_PROVIDER_CATALOG_FILE = env.AUTH_PROVIDER_CATALOG_FILE.trim()
+  }
+
   cachedEnv = parsed
   return parsed
 }
@@ -82,6 +87,10 @@ export function getCredentialsFile(): string | null {
 
 export function getInternalToken(): string | null {
   return loadAuthEnvironment().DATAOPS_INTERNAL_TOKEN ?? null
+}
+
+export function getProviderCatalogFile(): string | null {
+  return loadAuthEnvironment().AUTH_PROVIDER_CATALOG_FILE ?? null
 }
 
 export function shouldTrustHost(): boolean {

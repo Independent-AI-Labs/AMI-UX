@@ -9,7 +9,7 @@ import {
 } from './visualizers.js'
 import { openSelectMediaModal } from './modal.js'
 import { showToast } from './toast-manager.js?v=20250306'
-import { humanizeName, normalizeFsPath } from './utils.js'
+import { applyHint, humanizeName, normalizeFsPath } from './utils.js'
 import { createDocMessenger } from './message-channel.js?v=20250310'
 import { openAccountDrawer } from './account-drawer.js?v=20250316'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
@@ -271,12 +271,27 @@ function ensureHighlightPluginConfig(win) {
   if (cfg.autoStart === undefined) cfg.autoStart = !isTopWindow
   if (!cfg.assetBase) {
     try {
-      const href = win.location ? win.location.href : window.location?.href
-      if (href) {
-        const baseUrl = new URL('/', href)
-        baseUrl.search = ''
-        baseUrl.hash = ''
-        cfg.assetBase = baseUrl.toString()
+      const explicitRoot = (() => {
+        try {
+          return typeof win.__AMI_HIGHLIGHT_ASSET_ROOT__ === 'string'
+            ? win.__AMI_HIGHLIGHT_ASSET_ROOT__
+            : null
+        } catch {
+          return null
+        }
+      })()
+      if (explicitRoot) {
+        cfg.assetBase = explicitRoot
+      } else {
+        const href = win.location ? win.location.href : window.location?.href
+        if (href) {
+          try {
+            const baseUrl = new URL('.', href)
+            cfg.assetBase = baseUrl.toString()
+          } catch {
+            cfg.assetBase = '/'
+          }
+        }
       }
     } catch {}
   }
@@ -586,7 +601,7 @@ async function updateStatusPillForTab(tab) {
   try {
     if (!tab) {
       pill.textContent = ''
-      pill.title = ''
+      applyHint(pill, '', { clearAriaLabel: true })
       return
     }
     if (tab.kind === 'app') {
@@ -595,23 +610,23 @@ async function updateStatusPillForTab(tab) {
         if (r.ok) {
           const s = await r.json()
           pill.textContent = s.running ? 'App: Running' : 'App: Not running'
-          pill.title = s.message || ''
+          applyHint(pill, s.message || '', { replaceAriaLabel: true })
           return
         }
       }
       pill.textContent = 'App: Unknown'
-      pill.title = ''
+      applyHint(pill, '', { clearAriaLabel: true })
       return
     }
     if (tab.kind === 'file') {
       const mode = tab.mode || 'A'
       pill.textContent = `Mode ${mode}`
-      pill.title = tab.path || ''
+      applyHint(pill, tab.path || '', { replaceAriaLabel: true })
       return
     }
     if (tab.kind === 'dir') {
       pill.textContent = ''
-      pill.title = tab.path || ''
+      applyHint(pill, tab.path || '', { replaceAriaLabel: true })
       return
     }
   } catch {
@@ -1169,8 +1184,12 @@ function renderTabs() {
     const tabLabel = t.label || (t.kind === 'file' ? humanizeName(baseName, 'file') : baseName)
     const pillTitle =
       t.kind === 'app' ? (isRunningApp ? 'App running' : '') : t.servedId ? 'Served' : ''
+    const indicatorHint = escapeHTML(pillTitle)
+    const indicatorAttrs = indicatorHint
+      ? ` data-hint="${indicatorHint}" aria-label="${indicatorHint}"`
+      : ''
     const indicatorHTML = showPill
-      ? `<span class="status-indicator serve-dot status-indicator--positive" title="${escapeHTML(pillTitle)}"></span>`
+      ? `<span class="status-indicator serve-dot status-indicator--positive"${indicatorAttrs}></span>`
       : ''
     const classes = ['tab--' + (t.kind || 'unknown')]
     if (showPill) classes.push('served')

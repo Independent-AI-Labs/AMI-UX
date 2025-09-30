@@ -39,7 +39,7 @@ function createIframe(
   wrapper.style.cssText = 'position:relative; height: calc(100vh - 44px); background: transparent;'
   const iframe = document.createElement('iframe')
   iframe.src = src
-  iframe.title = title
+  if (title) iframe.setAttribute('aria-label', title)
   iframe.sandbox = sandbox
   iframe.style.cssText = 'width:100%;height:100%;border:0; background: transparent;'
   wrapper.appendChild(iframe)

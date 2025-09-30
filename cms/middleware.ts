@@ -1,4 +1,4 @@
-import { AUTH_MIDDLEWARE_MATCHER, createAuthMiddleware } from '@ami/auth/middleware'
+import createAuthMiddleware, { AUTH_MIDDLEWARE_MATCHER } from '@ami/auth/middleware'
 
 export default createAuthMiddleware({
   publicRoutes: [/^\/public\//],

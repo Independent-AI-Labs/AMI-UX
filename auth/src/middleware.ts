@@ -6,6 +6,17 @@ import { auth } from './server'
 const PUBLIC_FILE = /\.[^/]+$/
 const DEFAULT_PUBLIC_PREFIXES = ['/_next', '/auth', '/api/auth', '/favicon.ico', '/docs', '/static']
 
+type AuthenticatedRequest = NextRequest & {
+  auth?: {
+    user?: {
+      id: string
+      email: string
+      roles?: string[]
+      tenantId?: string | null
+    }
+  }
+}
+
 export type AuthMiddlewareOptions = {
   publicRoutes?: (RegExp | string)[]
   signInPath?: string
@@ -27,7 +38,7 @@ function isPublicRoute(url: URL, custom: (RegExp | string)[] = []): boolean {
 export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
   const { publicRoutes = [], signInPath = '/auth/signin', headerForwarding = true } = options
 
-  return auth((req: NextRequest, event: NextFetchEvent) => {
+  return auth((req: AuthenticatedRequest, event: NextFetchEvent) => {
     if (isPublicRoute(req.nextUrl, publicRoutes)) {
       return NextResponse.next()
     }
@@ -53,3 +64,5 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
 export const AUTH_MIDDLEWARE_MATCHER = [
   '/((?!_next/static|_next/image|api/auth|auth|favicon.ico|docs).*)',
 ]
+
+export default createAuthMiddleware

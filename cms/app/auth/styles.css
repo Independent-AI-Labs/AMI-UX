@@ -27,6 +27,17 @@
   gap: 24px;
 }
 
+.auth-card header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  position: static;
+}
+
 .auth-card header h1 {
   margin: 0;
   font-size: 26px;
@@ -85,6 +96,27 @@
 
 .signin-form .btn[disabled] {
   cursor: wait;
+}
+
+.signin-form .signin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.signin-form .guest-btn {
+  border-color: color-mix(in srgb, var(--border, #242832) 65%, transparent);
+  background: color-mix(in srgb, var(--panel, #111319) 60%, transparent);
+}
+
+.signin-form .guest-btn:hover {
+  filter: brightness(1.08);
+}
+
+.signin-form .guest-hint {
+  font-size: 12px;
+  text-align: center;
 }
 
 .error {

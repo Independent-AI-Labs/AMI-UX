@@ -131,6 +131,53 @@ function reconcileSelection(previous, scenarios, requested, normalizePath) {
   return applyTarget(previous)
 }
 
+function buildScenarioSignature(scenarios, normalizePath) {
+  if (!Array.isArray(scenarios) || !scenarios.length) return ''
+  const parts = []
+  scenarios.forEach((scenario) => {
+    if (!scenario) return
+    const slug = normalizeSlug(scenario.slug, normalizePath)
+    const triggers = Array.isArray(scenario.triggers) ? scenario.triggers : []
+    const triggerParts = triggers.map((trigger) => {
+      const id = typeof trigger?.id === 'string' ? trigger.id : ''
+      const version = trigger?.updatedAt || trigger?.version || trigger?.name || ''
+      return `${id}::${version}`
+    })
+    parts.push(
+      [slug, scenario.name || '', triggers.length, triggerParts.join(',')]
+        .map((value) => (value == null ? '' : String(value)))
+        .join('|'),
+    )
+  })
+  return parts.join('||')
+}
+
+function setsEqual(a, b) {
+  if (a === b) return true
+  if (!a || !b) return false
+  if (a.size !== b.size) return false
+  for (const value of a) {
+    if (!b.has(value)) return false
+  }
+  return true
+}
+
+function selectionsEqual(a, b) {
+  if (a === b) return true
+  if (!a && !b) return true
+  if (!a || !b) return false
+  if (a.kind !== b.kind) return false
+  const slugA = typeof a.slug === 'string' ? a.slug : ''
+  const slugB = typeof b.slug === 'string' ? b.slug : ''
+  if (slugA !== slugB) return false
+  if (a.kind === 'trigger') {
+    const idA = a.trigger && typeof a.trigger.id === 'string' ? a.trigger.id : ''
+    const idB = b.trigger && typeof b.trigger.id === 'string' ? b.trigger.id : ''
+    return idA === idB
+  }
+  return true
+}
+
 export function createScenarioManager(options = {}) {
   const doc = options.document || (typeof document !== 'undefined' ? document : null)
   const manager = options.manager
@@ -310,8 +357,16 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
   return function ScenarioManager({ onClose, surfaceElement, overlayElement, registerApi }) {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
-    const [scenarios, setScenarios] = useState([])
+    const [scenarioState, setScenarioState] = useState({ signature: '', list: [] })
+    const scenarios = scenarioState.list
     const [selected, setSelected] = useState(null)
+    const updateSelection = useCallback((valueOrUpdater) => {
+      setSelected((prev) => {
+        const nextValue =
+          typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater
+        return selectionsEqual(prev, nextValue) ? prev : nextValue
+      })
+    }, [])
     const [expandedKeys, setExpandedKeys] = useState(() => new Set([rootNodeKey, defaultNodeKey]))
     const [view, setView] = useState('tree')
     const [composerConfig, setComposerConfig] = useState(null)
@@ -403,9 +458,13 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
           await manager.reloadAutomation(force)
           const meta = manager.automationMeta || { scenarios: [] }
           const list = Array.isArray(meta.scenarios) ? meta.scenarios : []
-          setScenarios(list)
-          setExpandedKeys((prev) => reconcileExpansion(prev, list, makeNodeKey, normalizePath))
-          setSelected((prev) =>
+          const signature = buildScenarioSignature(list, normalizePath)
+          setScenarioState((prev) => (prev.signature === signature ? prev : { signature, list }))
+          setExpandedKeys((prev) => {
+            const next = reconcileExpansion(prev, list, makeNodeKey, normalizePath)
+            return setsEqual(prev, next) ? prev : next
+          })
+          updateSelection((prev) =>
             reconcileSelection(prev, list, pendingSelectionRef.current, normalizePath),
           )
           setTimeout(() => {
@@ -425,7 +484,10 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
       refresh(true)
     }, [refresh])
 
-    const treeRoots = useMemo(() => buildTreeFromScenarios(scenarios), [scenarios])
+    const treeRoots = useMemo(
+      () => buildTreeFromScenarios(scenarios),
+      [scenarioState.signature],
+    )
 
     const selectionDescriptor = useMemo(() => {
       if (!selected) return null
@@ -441,27 +503,33 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
       return null
     }, [selected])
 
-    const handleSelect = useCallback((payload) => {
-      if (!payload || !payload.node) {
-        setSelected(null)
-        return
-      }
-      const node = payload.node
-      if (node.type === 'dir' && node.path === '') {
-        setSelected(null)
-        return
-      }
-      if (node.type === 'dir') {
-        setSelected({ kind: 'scenario', slug: node.path })
-        return
-      }
-      if (node.type === 'file' && node.trigger) {
-        setSelected({ kind: 'trigger', slug: node.scenarioSlug, trigger: node.trigger })
-      }
-    }, [])
+    const handleSelect = useCallback(
+      (payload) => {
+        if (!payload || !payload.node) {
+          updateSelection(null)
+          return
+        }
+        const node = payload.node
+        if (node.type === 'dir' && node.path === '') {
+          updateSelection(null)
+          return
+        }
+        if (node.type === 'dir') {
+          updateSelection({ kind: 'scenario', slug: node.path })
+          return
+        }
+        if (node.type === 'file' && node.trigger) {
+          updateSelection({ kind: 'trigger', slug: node.scenarioSlug, trigger: node.trigger })
+        }
+      },
+      [updateSelection],
+    )
 
     const handleExpandedChange = useCallback((next) => {
-      setExpandedKeys(new Set(next))
+      setExpandedKeys((prev) => {
+        const nextSet = next instanceof Set ? new Set(next) : new Set(next || [])
+        return setsEqual(prev, nextSet) ? prev : nextSet
+      })
     }, [])
 
     const requireScenarioSelection = useCallback(() => {
@@ -502,10 +570,12 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
         pendingSelectionRef.current = { kind: 'scenario', slug: normalizedSlug }
         setExpandedKeys((prev) => {
           const next = new Set(prev)
-          next.add(makeNodeKey(ROOT_KEY, normalizedSlug))
+          const keyToAdd = makeNodeKey(ROOT_KEY, normalizedSlug)
+          if (next.has(keyToAdd)) return prev
+          next.add(keyToAdd)
           return next
         })
-        setSelected({ kind: 'scenario', slug: normalizedSlug })
+        updateSelection({ kind: 'scenario', slug: normalizedSlug })
         setError('')
         setComposerBusy(false)
         setComposerConfig({

@@ -63,6 +63,24 @@ const STYLE_TEXT = `
     transform 210ms cubic-bezier(0.33, 0, 0.2, 1),
     filter 210ms cubic-bezier(0.33, 0, 0.2, 1);
 }
+.dialog-backdrop[data-ami-highlight-owned='1'] {
+  background: rgba(11, 12, 15, 0.95);
+  backdrop-filter: blur(14px);
+}
+.dialog-surface[data-ami-highlight-owned='1'] {
+  background: rgba(20, 24, 32, 0.92);
+  color: #e6e9ef;
+  border: 1px solid rgba(36, 40, 50, 0.55);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(22px);
+}
+.dialog-surface[data-ami-highlight-owned='1'] .dialog-subtitle {
+  color: rgba(154, 163, 178, 0.95);
+}
+.dialog-surface[data-ami-highlight-owned='1'] .dialog-button,
+.dialog-surface[data-ami-highlight-owned='1'] button {
+  color: inherit;
+}
 .dialog-surface[data-state="enter"],
 .dialog-surface[data-state="open"] {
   opacity: 1;
