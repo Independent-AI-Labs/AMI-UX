@@ -354,14 +354,17 @@
     .brand-text__subtitle {
       font-size: 13px;
       line-height: 1.1;
-      letter-spacing: 0.18em;
+      letter-spacing: 0.12em;
       color: rgba(255, 255, 255, 0.82);
       text-transform: uppercase;
       font-family: 'Roboto Mono', 'IBM Plex Mono', 'SFMono-Regular', Menlo, Monaco,
         Consolas, 'Liberation Mono', 'Courier New', monospace;
       display: inline-flex;
-      gap: 0.08em;
+      gap: 0.04em;
       white-space: pre;
+      font-variant-ligatures: none;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'liga' 0, 'clig' 0;
     }
     .brand-text__subtitle span {
       display: inline-block;
@@ -371,6 +374,9 @@
         opacity 260ms cubic-bezier(0.4, 0, 0.2, 1);
       will-change: filter, color, opacity;
       filter: blur(0px);
+      width: 1ch;
+      min-width: 1ch;
+      text-align: center;
     }
     .brand-text__subtitle span.is-morphing {
       filter: blur(4px);
