@@ -1,5 +1,4 @@
-import { displayName, pathAnchor } from './utils.js'
-import { normalizeFsPath } from './file-tree.js'
+import { displayName, pathAnchor, normalizeFsPath } from './utils.js'
 import { fetchFile } from './api.js'
 import { resolveFileView, getFallbackFileView } from './file-view-registry.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
