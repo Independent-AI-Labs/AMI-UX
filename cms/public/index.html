@@ -662,9 +662,11 @@
 
         const spans = characters.map((char, index) => {
           const span = document.createElement('span')
+          const isMutable = char !== ' '
           span.dataset.index = String(index)
           span.dataset.original = char
           span.dataset.state = 'original'
+          span.dataset.mutable = isMutable ? 'true' : 'false'
           span.textContent = char
           subtitle.appendChild(span)
           return span
@@ -691,6 +693,7 @@
         }
 
         let subtitleTimer = null
+        let flipCounter = 0
 
         const scheduleSubtitleMorph = () => {
           const delay = 520 + Math.random() * 840
@@ -699,23 +702,53 @@
               scheduleSubtitleMorph()
               return
             }
-            const target = spans[Math.floor(Math.random() * spans.length)]
+
+            flipCounter += 1
+            const mutatedSpans = spans.filter((span) => span.dataset.state === 'mutated')
+            const eligibleOriginals = spans.filter(
+              (span) => span.dataset.state !== 'mutated' && span.dataset.mutable === 'true',
+            )
+
+            const shouldRestore = flipCounter % 3 === 0 && mutatedSpans.length > 0
+            const actionPool = shouldRestore ? mutatedSpans : eligibleOriginals
+
+            if (!actionPool.length) {
+              if (mutatedSpans.length) {
+                // fallback: force restore if no originals left but mutated remain
+                const fallback = mutatedSpans[Math.floor(Math.random() * mutatedSpans.length)]
+                fallback.dataset.state = 'original'
+                fallback.textContent = fallback.dataset.original || ''
+                fallback.classList.add('is-morphing')
+                window.setTimeout(() => fallback.classList.remove('is-morphing'), 320)
+              }
+              scheduleSubtitleMorph()
+              return
+            }
+
+            const target = actionPool[Math.floor(Math.random() * actionPool.length)]
             if (!target) {
               scheduleSubtitleMorph()
               return
             }
-            const isOriginal = target.dataset.state !== 'mutated'
+
             target.classList.add('is-morphing')
-            if (isOriginal) {
-              target.dataset.state = 'mutated'
-              target.textContent = randomGlyph()
-            } else {
+            if (shouldRestore) {
               target.dataset.state = 'original'
               target.textContent = target.dataset.original || ''
+            } else {
+              target.dataset.state = 'mutated'
+              let nextGlyph = randomGlyph()
+              const originalChar = target.dataset.original || ''
+              if (nextGlyph === originalChar) {
+                nextGlyph = randomGlyph()
+              }
+              target.textContent = nextGlyph
             }
+
             window.setTimeout(() => {
               target.classList.remove('is-morphing')
             }, 320)
+
             scheduleSubtitleMorph()
           }, delay)
         }
