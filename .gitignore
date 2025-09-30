@@ -82,5 +82,6 @@ dist/
 *.log
 .env.local
 .env.production
+cms/public/vendor/texlive/
 !cms/app/lib/
 !cms/app/lib/*.ts

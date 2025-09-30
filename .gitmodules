@@ -1,6 +1,10 @@
 [submodule "browser"]
 	path = browser
 	url = git@github.com:Independent-AI-Labs/AMI-WEB.git
+	branch = main
+	update = checkout
 [submodule "ux"]
 	path = ux
 	url = git@github.com:Independent-AI-Labs/AMI-UX.git
+	branch = main
+	update = checkout
