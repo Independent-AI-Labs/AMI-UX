@@ -86,7 +86,7 @@ header {
   top: 0;
   z-index: 10;
   background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
   padding: 8px 12px;
   display: flex;
   gap: 12px;
