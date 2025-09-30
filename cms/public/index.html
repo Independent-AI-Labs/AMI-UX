@@ -325,11 +325,17 @@
     .brand-clock__time {
       font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
       font-size: 15px;
-      font-weight: 900;
-      letter-spacing: 0.26em;
+      font-weight: 700;
+      letter-spacing: 0.32em;
       color: rgba(255, 255, 255, 0.98);
       text-transform: uppercase;
       line-height: 1;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .brand-clock__time .blink {
+      transition: opacity 0.2s ease-in-out;
     }
     .brand-text {
       display: flex;
@@ -354,34 +360,25 @@
     .brand-text__subtitle {
       font-size: 13px;
       line-height: 1.1;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.08em;
       color: rgba(255, 255, 255, 0.82);
       text-transform: uppercase;
-      font-family: 'Roboto Mono', 'IBM Plex Mono', 'SFMono-Regular', Menlo, Monaco,
-        Consolas, 'Liberation Mono', 'Courier New', monospace;
-      display: inline-flex;
-      gap: 0.08em;
-      white-space: pre;
+      font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+      display: inline-block;
+      white-space: nowrap;
       font-variant-ligatures: none;
       font-variant-numeric: tabular-nums;
       font-feature-settings: 'liga' 0, 'clig' 0;
-    }
-    .brand-text__subtitle span {
-      display: inline-block;
       transition:
-        filter 280ms cubic-bezier(0.4, 0, 0.2, 1),
-        color 320ms cubic-bezier(0.33, 0, 0.2, 1),
-        opacity 260ms cubic-bezier(0.4, 0, 0.2, 1);
+        filter 420ms cubic-bezier(0.05, 0, 0.2, 1),
+        color 460ms cubic-bezier(0.05, 0, 0.2, 1),
+        opacity 420ms cubic-bezier(0.05, 0, 0.2, 1);
       will-change: filter, color, opacity;
-      filter: blur(0px);
-      width: 1ch;
-      min-width: 1ch;
-      text-align: center;
     }
-    .brand-text__subtitle span.is-morphing {
-      filter: blur(4px);
-      color: rgba(255, 255, 255, 0.92);
-      opacity: 0.5;
+    .brand-text__subtitle.is-morphing {
+      filter: blur(5px);
+      color: rgba(255, 255, 255, 0.9);
+      opacity: 0.55;
     }
     .brand-singularity-dialog {
       width: min(560px, calc(100vw - 48px));
@@ -663,137 +660,167 @@
       }
 
       if (clockDate && clockTime) {
-        scheduleClock()
-      }
-
-      if (subtitle) {
-        const originalText = subtitle.textContent || ''
-        const characters = Array.from(originalText)
-        subtitle.textContent = ''
-
-        const spans = characters.map((char, index) => {
-          const span = document.createElement('span')
-          const isMutable = char !== ' '
-          span.dataset.index = String(index)
-          span.dataset.original = char
-          span.dataset.state = 'original'
-          span.dataset.mutable = isMutable ? 'true' : 'false'
-          span.textContent = char
-          subtitle.appendChild(span)
-          return span
-        })
-
-        const glyphMap = {
-          A: 'AΛΔ∀ꓮ',
-          B: 'Bß฿𝔅',
-          C: 'CϾ₵ℂ',
-          D: 'DĐÐ',
-          E: 'EΞΣɆ',
-          F: 'FҒҒ',
-          G: 'Gɢ',
-          H: 'HΉĦ♓',
-          I: 'I1|∣І',
-          J: 'Jʝ',
-          K: 'KҜҠ',
-          L: 'LĿŁ',
-          M: 'MΜϺ',
-          N: 'NИŅ',
-          O: 'O0ΘΦΩ⊙◎',
-          P: 'P₱Р',
-          Q: 'QΩҨ',
-          R: 'RЯŖ',
-          S: 'S5§Ϩ',
-          T: 'T⊤Ŧ',
-          U: 'UՍЧ',
-          V: 'VѴ▽',
-          W: 'WШѠ',
-          X: 'XЖ✕✖',
-          Y: 'Y¥Ψ',
-          Z: 'ZƵɀ',
-          '0': '0OΘΦ⊘',
-          '1': '1I|Ɩ',
-          '2': '2ƻ',
-          '3': '3Ɛ',
-          '4': '4Δ',
-          '5': '5Ƽ',
-          '6': '6б',
-          '7': '7Γ',
-          '8': '8∞',
-          '9': '9Ϛ',
+        const ensureBlinker = () => {
+          if (!clockTime || clockTime.dataset.blinkAttached === 'true') return
+          const [hours, minutes] = (clockTime.textContent || '00:00').split(':')
+          clockTime.textContent = ''
+          const hourNode = document.createElement('span')
+          hourNode.textContent = hours
+          const colonNode = document.createElement('span')
+          colonNode.textContent = ':'
+          colonNode.classList.add('blink')
+          colonNode.dataset.visible = 'true'
+          const minuteNode = document.createElement('span')
+          minuteNode.textContent = minutes
+          clockTime.appendChild(hourNode)
+          clockTime.appendChild(colonNode)
+          clockTime.appendChild(minuteNode)
+          clockTime.dataset.blinkAttached = 'true'
         }
 
-        const randomGlyph = (baseline) => {
-          if (!baseline) return '?'
-          const key = baseline.toUpperCase()
-          const pool = glyphMap[key] ? Array.from(new Set((baseline + glyphMap[key]).split(''))) : [baseline]
-          if (!pool.length) return baseline
-          const filtered = pool.filter((glyph) => glyph !== baseline)
-          const choices = filtered.length ? filtered : pool
-          return choices[Math.floor(Math.random() * choices.length)]
+        const updateClockWithBlink = () => {
+          if (!clockDate || !clockTime) return
+          const now = new Date()
+          const day = String(now.getDate()).padStart(2, '0')
+          const month = String(now.getMonth() + 1).padStart(2, '0')
+          const hours = String(now.getHours()).padStart(2, '0')
+          const minutes = String(now.getMinutes()).padStart(2, '0')
+          clockDate.textContent = `${day}.${month}`
+          const blinkSpan = clockTime.querySelector('.blink')
+          if (blinkSpan) {
+            clockTime.firstChild.textContent = hours
+            clockTime.lastChild.textContent = minutes
+          } else {
+            clockTime.textContent = `${hours}:${minutes}`
+            clockTime.dataset.blinkAttached = 'false'
+            ensureBlinker()
+          }
         }
 
-        let subtitleTimer = null
-        let restoreAccumulator = 0
+        ensureBlinker()
+        updateClockWithBlink()
+        let blinkTimer = null
 
-        const scheduleSubtitleMorph = () => {
-          const delay = 520 + Math.random() * 840
-          subtitleTimer = window.setTimeout(() => {
-            if (!spans.length) {
-              scheduleSubtitleMorph()
-              return
-            }
+        const toggleBlink = () => {
+          const colon = clockTime.querySelector('.blink')
+          if (!colon) return
+          const visible = colon.dataset.visible !== 'false'
+          colon.style.opacity = visible ? '0' : '1'
+          colon.dataset.visible = visible ? 'false' : 'true'
+        }
 
-            restoreAccumulator += 1
-            const mutatedSpans = spans.filter((span) => span.dataset.state === 'mutated')
-            const eligibleOriginals = spans.filter(
-              (span) => span.dataset.state !== 'mutated' && span.dataset.mutable === 'true',
-            )
-
-            const shouldRestore = restoreAccumulator >= 2.5 && mutatedSpans.length > 0
-            const actionPool = shouldRestore ? mutatedSpans : eligibleOriginals
-
-            if (!actionPool.length) {
-              if (mutatedSpans.length) {
-                // fallback: force restore if no originals left but mutated remain
-                const fallback = mutatedSpans[Math.floor(Math.random() * mutatedSpans.length)]
-                fallback.dataset.state = 'original'
-                fallback.textContent = fallback.dataset.original || ''
-                fallback.classList.add('is-morphing')
-                restoreAccumulator -= 2.5
-                if (restoreAccumulator < 0) restoreAccumulator = 0
-                window.setTimeout(() => fallback.classList.remove('is-morphing'), 320)
-              }
-              scheduleSubtitleMorph()
-              return
-            }
-
-            const target = actionPool[Math.floor(Math.random() * actionPool.length)]
-            if (!target) {
-              scheduleSubtitleMorph()
-              return
-            }
-
-            target.classList.add('is-morphing')
-            if (shouldRestore) {
-              restoreAccumulator -= 2.5
-              if (restoreAccumulator < 0) restoreAccumulator = 0
-              target.dataset.state = 'original'
-              target.textContent = target.dataset.original || ''
-            } else {
-              target.dataset.state = 'mutated'
-              const originalChar = target.dataset.original || ''
-              target.textContent = randomGlyph(originalChar)
-            }
-
-            window.setTimeout(() => {
-              target.classList.remove('is-morphing')
-            }, 320)
-
-            scheduleSubtitleMorph()
+        const scheduleClockWithBlink = () => {
+          if (clockTimer) {
+            clearTimeout(clockTimer)
+          }
+          updateClockWithBlink()
+          const now = new Date()
+          const delay = Math.max(1000, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()))
+          clockTimer = window.setTimeout(() => {
+            toggleBlink()
+            scheduleClockWithBlink()
           }, delay)
         }
 
-        scheduleSubtitleMorph()
+        scheduleClockWithBlink()
+
+        blinkTimer = window.setInterval(toggleBlink, 1000)
+
+        window.addEventListener(
+          'beforeunload',
+          () => {
+            if (blinkTimer) {
+              clearInterval(blinkTimer)
+            }
+          },
+          { once: true },
+        )
+      }
+
+      if (subtitle) {
+        const translations = [
+          ['LIVE', 'CONTENT', 'DIRECTORY'],
+          ['RÉPERTOIRE', 'CONTENU', 'VIVANT'],
+          ['DIRECTORIO', 'CONTENIDO', 'VIVO'],
+          ['DIRETÓRIO', 'CONTEÚDO', 'ATIVO'],
+          ['CATALOGO', 'CONTENUTI', 'VIVI'],
+          ['LIVE', 'INHALT', 'VERZEICHNIS'],
+          ['ЖИВОЙ', 'КОНТЕНТ', 'КАТАЛОГ'],
+          ['CANLI', 'İÇERİK', 'DİZİNİ'],
+          ['实时', '内容', '目录'],
+          ['ライブ', 'コンテンツ', 'ディレクトリ'],
+          ['라이브', '콘텐츠', '디렉터리'],
+        ]
+
+        const phrases = translations.map((words) => words.join(' '))
+        const fontSizePx = parseFloat(window.getComputedStyle(subtitle).fontSize) || 13
+        const minSpacingEm = 0.08
+        const minSpacingPx = fontSizePx * minSpacingEm
+        const measure = document.createElement('span')
+        measure.className = 'brand-text__subtitle'
+        measure.style.position = 'absolute'
+        measure.style.visibility = 'hidden'
+        measure.style.pointerEvents = 'none'
+        measure.style.whiteSpace = 'nowrap'
+        measure.style.letterSpacing = '0px'
+        document.body.appendChild(measure)
+        const metrics = phrases.map((text) => {
+          measure.textContent = text
+          const natural = measure.getBoundingClientRect().width
+          const slots = Math.max(Array.from(text).length - 1, 1)
+          return { text, natural, slots }
+        })
+        document.body.removeChild(measure)
+        const baselineWidth = Math.max(
+          ...metrics.map(({ natural, slots }) => natural + minSpacingPx * slots),
+        )
+        const titleElement = document.querySelector('.brand-text__title')
+        const titleWidth = titleElement?.getBoundingClientRect().width || 0
+        const targetWidth = Math.max(baselineWidth, titleWidth)
+        const phraseData = metrics.map(({ text, natural, slots }) => {
+          const extraPerSlot = Math.max(0, (targetWidth - (natural + minSpacingPx * slots)) / slots)
+          const spacingPx = minSpacingPx + extraPerSlot
+          return { text, spacingEm: spacingPx / fontSizePx }
+        })
+        subtitle.style.display = 'inline-block'
+        subtitle.style.minWidth = `${Math.ceil(targetWidth)}px`
+        subtitle.style.maxWidth = `${Math.ceil(targetWidth)}px`
+        subtitle.style.width = `${Math.ceil(targetWidth)}px`
+
+        let phraseIndex = Math.floor(Math.random() * phraseData.length)
+        const applyPhrase = (index) => {
+          const data = phraseData[index]
+          subtitle.style.letterSpacing = `${data.spacingEm.toFixed(4)}em`
+          subtitle.textContent = data.text
+        }
+        applyPhrase(phraseIndex)
+
+        let subtitleTimer = null
+
+        const scheduleSubtitlePhrase = () => {
+          const delay = 3600 + Math.random() * 3200
+          subtitleTimer = window.setTimeout(() => {
+            if (phraseData.length <= 1) {
+              scheduleSubtitlePhrase()
+              return
+            }
+            let nextIndex = phraseIndex
+            while (nextIndex === phraseIndex) {
+              nextIndex = Math.floor(Math.random() * phraseData.length)
+            }
+            phraseIndex = nextIndex
+            subtitle.classList.add('is-morphing')
+            window.setTimeout(() => {
+              applyPhrase(phraseIndex)
+            }, 220)
+            window.setTimeout(() => {
+              subtitle.classList.remove('is-morphing')
+            }, 620)
+            scheduleSubtitlePhrase()
+          }, delay)
+        }
+
+        scheduleSubtitlePhrase()
 
         window.addEventListener(
           'beforeunload',
