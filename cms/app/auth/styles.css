@@ -45,7 +45,7 @@
 }
 
 .auth-card header .muted {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--muted, #9aa3b2);
 }
 
@@ -92,29 +92,55 @@
   font-size: 15px;
   padding: 12px;
   gap: 8px;
+  transition: filter var(--duration-fast, 120ms) var(--easing-standard, ease),
+    box-shadow var(--duration-fast, 120ms) var(--easing-standard, ease),
+    background var(--duration-fast, 120ms) var(--easing-standard, ease);
 }
 
 .signin-form .btn[disabled] {
   cursor: wait;
+  opacity: 0.85;
 }
 
-.signin-form .signin-actions {
+.signin-form .btn-primary {
+  background: color-mix(in srgb, var(--accent, #7aa2f7) 32%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #7aa2f7) 60%, transparent);
+  color: var(--text, #e6e9ef);
+}
+
+.signin-form .btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.signin-form .btn-primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #7aa2f7) 38%, transparent);
+}
+
+.signin-form .btn-secondary {
+  background: color-mix(in srgb, var(--panel, #111319) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border, #242832) 80%, transparent);
+  color: color-mix(in srgb, var(--text, #e6e9ef) 94%, var(--muted, #9aa3b2) 6%);
+}
+
+.signin-form .btn-secondary:hover {
+  border-color: color-mix(in srgb, var(--accent, #7aa2f7) 24%, transparent);
+  filter: brightness(1.05);
+}
+
+.signin-form .btn-secondary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #7aa2f7) 28%, transparent);
+}
+
+.signin-actions {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  align-items: stretch;
+  margin-top: 4px;
 }
 
-.signin-form .guest-btn {
-  border-color: color-mix(in srgb, var(--border, #242832) 65%, transparent);
-  background: color-mix(in srgb, var(--panel, #111319) 60%, transparent);
-}
-
-.signin-form .guest-btn:hover {
-  filter: brightness(1.08);
-}
-
-.signin-form .guest-hint {
+.guest-hint {
   font-size: 12px;
   text-align: center;
 }
@@ -127,6 +153,18 @@
   color: color-mix(in srgb, var(--error, #ef4444) 80%, white 10%);
   border: 1px solid color-mix(in srgb, var(--error, #ef4444) 35%, transparent);
   font-size: 13px;
+}
+
+.error[data-error-kind='guest'] {
+  background: color-mix(in srgb, var(--accent, #7aa2f7) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #7aa2f7) 35%, transparent);
+  color: color-mix(in srgb, var(--text, #e6e9ef) 88%, white 12%);
+}
+
+.error[data-error-kind='system'] {
+  background: color-mix(in srgb, var(--warn, #f97316) 14%, transparent);
+  border-color: color-mix(in srgb, var(--warn, #f97316) 35%, transparent);
+  color: color-mix(in srgb, var(--text, #e6e9ef) 90%, white 10%);
 }
 
 .auth-card footer {

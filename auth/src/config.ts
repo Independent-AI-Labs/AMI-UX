@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { createRequire } from 'module'
 import type { NextAuthConfig } from 'next-auth'
 
@@ -83,32 +84,24 @@ function createGuestProvider(): NextAuthProvider {
 
 async function resolveGuestUser(): Promise<AuthenticatedUser> {
   const email = getGuestEmail()
+  let candidate: AuthenticatedUser | null = null
   try {
     const existing = await dataOpsClient.getUserByEmail(email)
-    if (existing) return existing
+    if (existing) {
+      candidate = normaliseGuestUser(existing)
+    }
   } catch (err) {
     console.warn(`[ux/auth] Failed to load guest account ${email} from DataOps`, err)
   }
 
-  const template: AuthenticatedUser = {
-    id: 'guest',
-    email,
-    name: getGuestName(),
-    image: null,
-    roles: ['guest'],
-    groups: [],
-    tenantId: null,
-    metadata: {
-      accountType: 'guest',
-      managedBy: 'ux-auth',
-    },
-  }
+  const fallback = normaliseGuestUser(candidate)
 
   try {
-    return await dataOpsClient.ensureUser(template)
+    const ensured = await dataOpsClient.ensureUser(fallback)
+    return normaliseGuestUser(ensured)
   } catch (err) {
     console.error('[ux/auth] Failed to ensure guest account, falling back to local template', err)
-    return template
+    return fallback
   }
 }
 
@@ -405,6 +398,53 @@ function envBoolean(value: string | undefined): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function deriveGuestUserId(email: string): string {
+  const digest = createHash('sha256').update(email).digest('hex')
+  return `guest-${digest.slice(0, 24)}`
+}
+
+function readMetadataString(source: Record<string, unknown> | undefined, key: string, fallback: string): string {
+  if (!source) return fallback
+  const value = source[key]
+  if (typeof value === 'string' && value.trim()) return value
+  return fallback
+}
+
+function normaliseGuestUser(payload: AuthenticatedUser | null): AuthenticatedUser {
+  const email = (payload?.email || getGuestEmail()).toLowerCase()
+  const fallback: AuthenticatedUser = {
+    id: deriveGuestUserId(email),
+    email,
+    name: payload?.name ?? getGuestName(),
+    image: null,
+    roles: ['guest'],
+    groups: [],
+    tenantId: null,
+    metadata: { accountType: 'guest', managedBy: 'cms-login' },
+  }
+
+  if (!payload) return fallback
+
+  const ensuredRoles = Array.from(new Set([...(payload.roles ?? []), 'guest']))
+  const metadataBase = (payload.metadata && isRecord(payload.metadata) ? payload.metadata : {}) as Record<string, unknown>
+  const metadata = {
+    ...metadataBase,
+    accountType: readMetadataString(metadataBase, 'accountType', 'guest'),
+    managedBy: readMetadataString(metadataBase, 'managedBy', 'cms-login'),
+  }
+
+  return {
+    id: payload.id && payload.id.trim() ? payload.id : fallback.id,
+    email,
+    name: payload.name ?? fallback.name,
+    image: payload.image ?? fallback.image,
+    roles: ensuredRoles,
+    groups: Array.isArray(payload.groups) ? payload.groups : fallback.groups,
+    tenantId: payload.tenantId ?? null,
+    metadata,
+  }
 }
 
 function mapToSessionToken(user: AuthenticatedUser): SessionToken {

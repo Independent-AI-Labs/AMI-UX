@@ -1,52 +1,116 @@
 'use client'
 
-import { useCallback, useEffect, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { signIn } from 'next-auth/react'
 
-export function SignInForm({ callbackUrl, prefillEmail }: { callbackUrl?: string; prefillEmail?: string }) {
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
-  const [isGuestPending, setGuestPending] = useState(false)
+type FormError = {
+  kind: 'credentials' | 'guest' | 'system'
+  message: string
+}
 
-  const preferenceKey = 'ami-auth-preferred'
+type SignInFormProps = {
+  callbackUrl?: string
+  prefillEmail?: string
+  initialErrorCode?: string | null
+}
+
+function mapError(code: string | null): FormError | null {
+  if (!code) return null
+  const trimmed = code.trim()
+  if (!trimmed) return null
+  const key = trimmed.toLowerCase()
+  const dictionary: Record<string, FormError> = {
+    credentialssignin: {
+      kind: 'credentials',
+      message: 'Invalid email or password. Check your credentials and try again.',
+    },
+    guest_session_failed: {
+      kind: 'guest',
+      message: 'Unable to start a guest session right now. Please try again in a moment.',
+    },
+    guest_disabled: {
+      kind: 'guest',
+      message: 'Guest access is currently disabled. Contact an administrator for access.',
+    },
+  }
+  if (dictionary[key]) return dictionary[key]
+  if (trimmed.includes(' ')) {
+    return { kind: 'system', message: trimmed }
+  }
+  return {
+    kind: 'system',
+    message: 'Something went wrong while signing you in. Please try again.',
+  }
+}
+
+const preferenceKey = 'ami-auth-preferred'
+
+function rememberPreference(value: 'credentials' | 'guest' | null) {
+  if (typeof window === 'undefined') return
+  if (!value) {
+    window.localStorage.removeItem(preferenceKey)
+    return
+  }
+  window.localStorage.setItem(preferenceKey, value)
+}
+
+export function SignInForm({ callbackUrl, prefillEmail, initialErrorCode }: SignInFormProps) {
+  const [formError, setFormError] = useState<FormError | null>(() => mapError(initialErrorCode ?? null))
+  const [credentialsPending, startCredentialsTransition] = useTransition()
+  const [guestPending, startGuestTransition] = useTransition()
+
+  useEffect(() => {
+    setFormError(mapError(initialErrorCode ?? null))
+  }, [initialErrorCode])
+
+  const pending = credentialsPending || guestPending
+  const effectiveCallback = useMemo(() => callbackUrl || '/', [callbackUrl])
 
   const continueAsGuest = useCallback(
     (options?: { remember?: boolean; skipPreferenceUpdate?: boolean }) => {
-      if (typeof window === 'undefined') return
-      setError(null)
-      setGuestPending(true)
-      startTransition(async () => {
+      setFormError(null)
+      startGuestTransition(async () => {
         try {
           const result = await signIn('guest', {
-            callbackUrl: callbackUrl || '/',
+            callbackUrl: effectiveCallback,
             redirect: false,
           })
-          setGuestPending(false)
+
           if (!result) {
-            setError('Unable to reach the authentication service')
-            if (!options?.skipPreferenceUpdate) window.localStorage.removeItem(preferenceKey)
+            setFormError({ kind: 'guest', message: 'Unable to reach the authentication service.' })
+            if (!options?.skipPreferenceUpdate) rememberPreference(null)
             return
           }
+
           if (result.error) {
-            setError(result.error)
-            if (!options?.skipPreferenceUpdate) window.localStorage.removeItem(preferenceKey)
+            setFormError(
+              mapError(result.error) ?? {
+                kind: 'guest',
+                message: 'Unable to start a guest session. Please try again.',
+              },
+            )
+            if (!options?.skipPreferenceUpdate) rememberPreference(null)
             return
           }
+
           if (!options?.skipPreferenceUpdate && options?.remember !== false) {
-            window.localStorage.setItem(preferenceKey, 'guest')
+            rememberPreference('guest')
           }
+
           if (result.url) {
             window.location.href = result.url
+            return
           }
-        } catch (guestErr) {
-          console.error('[ux/auth] Guest sign-in failed', guestErr)
-          setError('Guest sign-in failed. Please try again.')
-          if (!options?.skipPreferenceUpdate) window.localStorage.removeItem(preferenceKey)
-          setGuestPending(false)
+
+          setFormError({ kind: 'guest', message: 'Guest session created but no redirect was provided.' })
+        } catch (error) {
+          console.error('[ux/auth] Guest sign-in failed', error)
+          setFormError({ kind: 'guest', message: 'Guest sign-in failed. Please try again.' })
+          if (!options?.skipPreferenceUpdate) rememberPreference(null)
         }
       })
     },
-    [callbackUrl, preferenceKey, startTransition],
+    [effectiveCallback],
   )
 
   useEffect(() => {
@@ -55,42 +119,64 @@ export function SignInForm({ callbackUrl, prefillEmail }: { callbackUrl?: string
     if (stored === 'guest') {
       continueAsGuest({ skipPreferenceUpdate: true })
     }
-  }, [continueAsGuest, preferenceKey])
+  }, [continueAsGuest])
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const form = event.currentTarget
-    const formData = new FormData(form)
-    const email = String(formData.get('email') || '').trim()
-    const password = String(formData.get('password') || '')
-    setError(null)
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      const form = event.currentTarget
+      const formData = new FormData(form)
+      const email = String(formData.get('email') || '').trim()
+      const password = String(formData.get('password') || '')
+      setFormError(null)
 
-    startTransition(async () => {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        callbackUrl: callbackUrl || '/',
-        redirect: false,
+      startCredentialsTransition(async () => {
+        const result = await signIn('credentials', {
+          email,
+          password,
+          callbackUrl: effectiveCallback,
+          redirect: false,
+        })
+
+        if (!result) {
+          setFormError({ kind: 'system', message: 'Unexpected response from the authentication service.' })
+          return
+        }
+
+        if (result.error) {
+          setFormError(
+            mapError(result.error) ?? {
+              kind: 'credentials',
+              message: 'Invalid email or password. Check your credentials and try again.',
+            },
+          )
+          return
+        }
+
+        rememberPreference('credentials')
+
+        if (result.url) {
+          window.location.href = result.url
+          return
+        }
+
+        setFormError({ kind: 'system', message: 'Signed in but no redirect URL was provided.' })
       })
-      if (!result) {
-        setError('Unknown response from server')
-        return
-      }
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(preferenceKey, 'credentials')
-      }
-      if (result.url) {
-        window.location.href = result.url
-      }
-    })
-  }
+    },
+    [effectiveCallback],
+  )
+
+  const handleGuestButton = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault()
+      continueAsGuest({ remember: true })
+    },
+    [continueAsGuest],
+  )
 
   return (
-    <form className="signin-form" onSubmit={handleSubmit}>
+    <form className="signin-form" onSubmit={handleSubmit} aria-busy={pending}>
+      <input type="hidden" name="callbackUrl" value={effectiveCallback} />
       <div className="field">
         <label htmlFor="email">Email</label>
         <input
@@ -102,28 +188,40 @@ export function SignInForm({ callbackUrl, prefillEmail }: { callbackUrl?: string
           autoComplete="email"
           defaultValue={prefillEmail || ''}
           autoFocus
+          disabled={pending}
         />
       </div>
       <div className="field">
         <label htmlFor="password">Password</label>
-        <input id="password" name="password" type="password" placeholder="••••••••" required autoComplete="current-password" />
+        <input
+          id="password"
+          name="password"
+          type="password"
+          placeholder="••••••••"
+          required
+          autoComplete="current-password"
+          disabled={pending}
+        />
       </div>
-      {error ? (
-        <p role="alert" className="error">
-          {error}
+      {formError ? (
+        <p role="alert" className="error" data-error-kind={formError.kind} aria-live="polite">
+          {formError.message}
         </p>
       ) : null}
       <div className="signin-actions">
-        <button className="btn" type="submit" disabled={isPending || isGuestPending}>
-          {isPending ? 'Signing in…' : 'Sign in'}
+        <button className="btn btn-primary" type="submit" disabled={pending}>
+          {credentialsPending ? 'Signing in…' : 'Sign in'}
         </button>
         <button
-          type="button"
-          className="btn btn--ghost guest-btn"
-          disabled={isPending || isGuestPending}
-          onClick={() => continueAsGuest({ remember: true })}
+          className="btn btn-secondary"
+          type="submit"
+          formAction="/auth/signin/guest"
+          formMethod="post"
+          formNoValidate
+          onClick={handleGuestButton}
+          disabled={pending}
         >
-          {isGuestPending ? 'Continuing…' : 'Continue as guest'}
+          {guestPending ? 'Starting guest session…' : 'Continue as Guest'}
         </button>
         <p className="guest-hint muted">We’ll remember your guest preference for next time.</p>
       </div>
