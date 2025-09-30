@@ -6,6 +6,11 @@ import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { markIgnoredNode, markPluginNode } from './highlight-plugin/core/dom-utils.js'
 
 const DOM_NODE = typeof Node === 'function' ? Node : null
+const STRUCTURE_WIDTH_STORAGE_KEY = 'ami:cms:structurePanelWidth'
+const STRUCTURE_WIDTH_DEFAULT = 320
+const STRUCTURE_WIDTH_MIN = 240
+const STRUCTURE_WIDTH_MAX = 560
+
 
 function isIntroFile(name) {
   const n = String(name || '').toLowerCase()
@@ -314,6 +319,13 @@ function cleanupNode(details, state) {
   if (details.__openHandler) {
     details.removeEventListener('toggle', details.__openHandler)
     details.__openHandler = null
+  }
+  if (state?.visibilityTracker && typeof state.visibilityTracker.unobserve === 'function') {
+    try {
+      state.visibilityTracker.unobserve(details)
+    } catch (error) {
+      console.warn('Failed to unobserve tree node', error)
+    }
   }
   details.__nodeRef = null
   const path = details.__nodeData?.path
@@ -676,6 +688,13 @@ function createDetailsNode(state, node, depth, indexPath, key) {
   if (node.path && state.open.has(node.path)) {
     details.setAttribute('open', '')
   }
+  if (state?.visibilityTracker && typeof state.visibilityTracker.observe === 'function') {
+    try {
+      state.visibilityTracker.observe(details, node.path || '')
+    } catch (error) {
+      console.warn('Failed to observe tree node', error)
+    }
+  }
   return details
 }
 
@@ -708,6 +727,14 @@ function updateDetailsNode(state, details, node, depth, indexPath, key) {
   if (node.type === 'file' && !details.__fileToggleHandler) {
     attachFileLoader(details, state, body)
   }
+
+  if (state?.visibilityTracker && typeof state.visibilityTracker.observe === 'function') {
+    try {
+      state.visibilityTracker.observe(details, node.path || '')
+    } catch (error) {
+      console.warn('Failed to refresh tree node observation', error)
+    }
+  }
 }
 
 function reorderRoot(children) {
@@ -732,6 +759,8 @@ function syncChildren(state, parentEl, children, depth = 0, indexPath = []) {
       return [key, el]
     }),
   )
+
+  const nextOrder = []
 
   ordered.forEach((child, idx) => {
     if (!child) return
@@ -769,8 +798,7 @@ function syncChildren(state, parentEl, children, depth = 0, indexPath = []) {
       const body = details.querySelector(':scope > .body')
       syncChildren(state, body, child.children || [], depth + 1, childIndexPath)
     }
-
-    parentEl.appendChild(details)
+    nextOrder.push(details)
 
     if (
       child.type === 'dir' &&
@@ -794,12 +822,229 @@ function syncChildren(state, parentEl, children, depth = 0, indexPath = []) {
     cleanupNode(el, state)
     el.remove()
   })
+
+  const ElementRef = typeof Element === 'undefined' ? null : Element
+  const staticNodes = Array.from(parentEl.childNodes || []).filter((node) => {
+    if (!ElementRef) return true
+    return !(node instanceof ElementRef) || node.tagName !== 'DETAILS'
+  })
+
+  const desired = staticNodes.concat(nextOrder)
+  const current = Array.from(parentEl.childNodes || [])
+  let needsReplace = desired.length !== current.length
+  if (!needsReplace) {
+    for (let i = 0; i < desired.length; i += 1) {
+      if (desired[i] !== current[i]) {
+        needsReplace = true
+        break
+      }
+    }
+  }
+
+  if (needsReplace) parentEl.replaceChildren(...desired)
 }
 
 export function renderTree(state, container, tree) {
   if (!state || !container || !tree) return
   const children = Array.isArray(tree.children) ? tree.children : []
   syncChildren(state, container, children, 0, [])
+}
+
+function ensureStructurePanelResizer(state, tocEl) {
+  if (!state || !tocEl) return
+  const ownerDoc = tocEl.ownerDocument || document
+  if (!ownerDoc) return
+  const view = ownerDoc.defaultView || window
+  let nav = null
+  try {
+    if (typeof tocEl.closest === 'function') nav = tocEl.closest('nav')
+  } catch {}
+  if (!nav) {
+    const parent = tocEl.parentElement
+    if (parent && parent.tagName === 'NAV') nav = parent
+  }
+  if (!nav) {
+    try {
+      nav = ownerDoc.querySelector('nav')
+    } catch {}
+  }
+  if (!nav) return
+  const root = ownerDoc.documentElement || document.documentElement
+  if (!root) return
+  if (nav.dataset) nav.dataset.structureScroll = 'true'
+
+  if (!state._structureResize || typeof state._structureResize !== 'object') {
+    state._structureResize = {}
+  }
+  const resizeState = state._structureResize
+
+  const readCssDimension = (varName, fallback) => {
+    if (!root || !view || typeof view.getComputedStyle !== 'function') return fallback
+    try {
+      const styles = view.getComputedStyle(root)
+      const raw = styles.getPropertyValue(varName)
+      const numeric = parseFloat(raw)
+      return Number.isFinite(numeric) ? numeric : fallback
+    } catch {
+      return fallback
+    }
+  }
+
+  const minCss = readCssDimension('--structure-panel-min-width', STRUCTURE_WIDTH_MIN)
+  const maxCss = readCssDimension('--structure-panel-max-width', STRUCTURE_WIDTH_MAX)
+  resizeState.min = Number.isFinite(resizeState.min) ? resizeState.min : minCss
+  resizeState.max = Number.isFinite(resizeState.max) ? resizeState.max : Math.max(maxCss, resizeState.min + 120)
+
+  const clampWidth = (value) => {
+    const base = Number.isFinite(value) ? value : STRUCTURE_WIDTH_DEFAULT
+    const viewportLimit = (() => {
+      const width = view?.innerWidth || 0
+      if (!width) return resizeState.max
+      return Math.max(resizeState.min + 80, width - 280)
+    })()
+    const allowedMax = Math.max(resizeState.max, resizeState.min + 80)
+    const hardMax = Math.max(resizeState.min, Math.min(allowedMax, viewportLimit))
+    return Math.min(Math.max(base, resizeState.min), hardMax)
+  }
+
+  let handle = resizeState.handle && resizeState.handle.isConnected ? resizeState.handle : null
+  if (!handle || handle.parentElement !== nav) {
+    handle = nav.querySelector('.structure-resize-handle')
+  }
+  if (!handle) {
+    handle = ownerDoc.createElement('button')
+    handle.type = 'button'
+    handle.className = 'structure-resize-handle'
+    handle.setAttribute('aria-label', 'Resize structure panel')
+    handle.setAttribute('role', 'separator')
+    handle.setAttribute('aria-orientation', 'vertical')
+    handle.tabIndex = 0
+    nav.appendChild(handle)
+  }
+
+  const applyWidth = (value, dragging = false) => {
+    const clamped = clampWidth(value)
+    const rounded = Math.round(clamped)
+    resizeState.width = clamped
+    try {
+      root.style.setProperty('--structure-panel-width', `${rounded}px`)
+      root.style.setProperty('--doc-toc-width', `${rounded}px`)
+    } catch {}
+    try {
+      nav.style.setProperty('--structure-panel-width', `${rounded}px`)
+    } catch {}
+    if (handle) {
+      handle.setAttribute('aria-valuenow', String(rounded))
+      handle.classList.toggle('is-dragging', dragging)
+    }
+    nav.classList.toggle('is-resizing', dragging)
+    return clamped
+  }
+
+  handle.setAttribute('aria-valuemin', String(Math.round(resizeState.min)))
+  handle.setAttribute('aria-valuemax', String(Math.round(resizeState.max)))
+
+  const storedWidth = (() => {
+    try {
+      const raw = view?.localStorage?.getItem(STRUCTURE_WIDTH_STORAGE_KEY)
+      const parsed = raw ? parseFloat(raw) : NaN
+      return Number.isFinite(parsed) ? parsed : null
+    } catch {
+      return null
+    }
+  })()
+
+  const navWidth = (() => {
+    try {
+      const rect = nav.getBoundingClientRect()
+      return rect && rect.width ? rect.width : null
+    } catch {
+      return null
+    }
+  })()
+
+  const initialWidth = clampWidth(resizeState.width || storedWidth || navWidth || STRUCTURE_WIDTH_DEFAULT)
+  applyWidth(initialWidth, false)
+
+  const persistWidth = (value) => {
+    try {
+      view?.localStorage?.setItem(STRUCTURE_WIDTH_STORAGE_KEY, String(Math.round(value)))
+    } catch {}
+  }
+
+  const startDrag = (event) => {
+    if (!event) return
+    if (typeof event.button === 'number' && event.button !== 0) return
+    event.preventDefault()
+    const pointerId = event.pointerId
+    if (pointerId !== undefined && handle?.setPointerCapture) {
+      try {
+        handle.setPointerCapture(pointerId)
+      } catch {}
+    }
+    const startX = event.clientX || 0
+    const startWidth = nav.getBoundingClientRect()?.width || initialWidth
+    const moveHandler = (moveEvent) => {
+      moveEvent.preventDefault()
+      const delta = (moveEvent.clientX || 0) - startX
+      const next = clampWidth(startWidth + delta)
+      resizeState.pendingWidth = next
+      applyWidth(next, true)
+    }
+    const stop = () => {
+      if (pointerId !== undefined && handle?.releasePointerCapture) {
+        try {
+          handle.releasePointerCapture(pointerId)
+        } catch {}
+      }
+      view.removeEventListener('pointermove', moveHandler)
+      view.removeEventListener('pointerup', stop)
+      view.removeEventListener('pointercancel', stop)
+      const finalWidth = clampWidth(
+        resizeState.pendingWidth || nav.getBoundingClientRect()?.width || resizeState.width || initialWidth,
+      )
+      resizeState.pendingWidth = null
+      applyWidth(finalWidth, false)
+      persistWidth(finalWidth)
+    }
+    view.addEventListener('pointermove', moveHandler)
+    view.addEventListener('pointerup', stop, { once: false })
+    view.addEventListener('pointercancel', stop, { once: false })
+  }
+
+  if (!handle.dataset.resizeBound) {
+    handle.addEventListener('pointerdown', startDrag)
+    handle.addEventListener('keydown', (event) => {
+      if (!event) return
+      const key = event.key
+      if (key !== 'ArrowLeft' && key !== 'ArrowRight') return
+      event.preventDefault()
+      const step = key === 'ArrowLeft' ? -16 : 16
+      const next = clampWidth((resizeState.width || initialWidth) + step)
+      applyWidth(next, false)
+      persistWidth(next)
+    })
+    handle.addEventListener('dblclick', () => {
+      const reset = clampWidth(STRUCTURE_WIDTH_DEFAULT)
+      applyWidth(reset, false)
+      persistWidth(reset)
+    })
+    handle.dataset.resizeBound = 'true'
+  }
+
+  if (!resizeState.boundResize) {
+    view.addEventListener('resize', () => {
+      const clamped = clampWidth(resizeState.width || initialWidth)
+      if (clamped !== resizeState.width) {
+        applyWidth(clamped, false)
+        persistWidth(clamped)
+      }
+    })
+    resizeState.boundResize = true
+  }
+
+  resizeState.handle = handle
+  resizeState.nav = nav
 }
 
 function ensureTocProgress(state) {
@@ -823,6 +1068,8 @@ function ensureTocProgress(state) {
 function rebuildTOC(state, progress) {
   const toc = document.getElementById('toc')
   if (!toc) return
+
+  ensureStructurePanelResizer(state, toc)
 
   if (!state._structureOpen || !(state._structureOpen instanceof Set)) {
     state._structureOpen = new Set()
@@ -1296,6 +1543,25 @@ function createStructureWatcher(state) {
 
   const resolveTreeRoot = () => ownerDoc.getElementById('treeRoot')
   const resolveContainer = () => resolveTreeRoot() || ownerDoc.getElementById('content') || fallbackContent
+  const visibilityTracker = state?.visibilityTracker || null
+
+  let structureScrollEl = null
+  const resolveStructureScrollContainer = () => {
+    if (!tocRoot) return null
+    try {
+      if (typeof tocRoot.closest === 'function') {
+        const navMatch = tocRoot.closest('nav')
+        if (navMatch) return navMatch
+      }
+    } catch {}
+    return tocRoot.parentElement || tocRoot
+  }
+  const ensureStructureScrollContainer = () => {
+    const next = resolveStructureScrollContainer()
+    if (next && next.dataset) next.dataset.structureScroll = 'true'
+    if (structureScrollEl !== next) structureScrollEl = next
+    return structureScrollEl
+  }
 
   let watcher = null
   let viewportEl = null
@@ -1374,6 +1640,13 @@ function createStructureWatcher(state) {
     viewportEl = next
     viewportEl.addEventListener('scroll', handleScroll, { passive: true })
     if (watcher) watcher.viewport = viewportEl
+    if (visibilityTracker && typeof visibilityTracker.setRoot === 'function') {
+      try {
+        visibilityTracker.setRoot(next)
+      } catch (error) {
+        console.warn('Failed to update visibility tracker root', error)
+      }
+    }
   }
 
   const escapeSelector = (value) => {
@@ -1484,7 +1757,15 @@ function createStructureWatcher(state) {
       this.ensureTargets(true)
       this.links = Array.from(this.tocRoot.querySelectorAll('a[data-path]'))
       if (force) this.lastActive = new Set()
+      ensureStructureScrollContainer()
       collectDetailNodes(true)
+      if (visibilityTracker && typeof visibilityTracker.refresh === 'function') {
+        try {
+          visibilityTracker.refresh()
+        } catch (error) {
+          console.warn('Failed to refresh visibility tracker', error)
+        }
+      }
       this.scheduleUpdate(true)
     },
     updateActive(force = false) {
@@ -1499,68 +1780,113 @@ function createStructureWatcher(state) {
       const bottom = contentRect.bottom
       const anchorOffset = Math.min(Math.max(contentRect.height * 0.15, 56), 200)
       const anchorY = Math.max(top, Math.min(bottom - 20, top + anchorOffset))
-      const visible = new Set()
-      const scope = this.container || resolveContainer()
-      if (!scope) return
-      const details = collectDetailNodes(force)
-      if (!details.length) return
-      const activeDetails = []
-      for (let i = 0; i < details.length; i += 1) {
-        const det = details[i]
-        if (!det || !det.isConnected) continue
-        const path = det.dataset?.path || ''
-        const summary = det.querySelector(':scope > summary')
-        if (!summary) continue
-        const hidden = det.classList?.contains('hidden') || summary.offsetParent === null
-        let isVisible = false
-        if (!hidden) {
-          const sectionRect = det.getBoundingClientRect()
-          const summaryRect = summary.getBoundingClientRect()
-          const intersectsAnchor = sectionRect.top <= anchorY && sectionRect.bottom >= anchorY
-          const summaryInView = summaryRect.bottom >= top && summaryRect.top <= bottom
-          const isFile = (det.dataset?.type || det.classList?.contains('file')) === 'file'
-          if (isFile) {
-            const body = det.querySelector(':scope > .body')
-            const bodyRect = body ? body.getBoundingClientRect() : null
-            const bodyVisible = bodyRect
-              ? bodyRect.top <= anchorY && bodyRect.bottom >= Math.min(bottom, top + 120)
-              : false
-            isVisible = bodyVisible || summaryInView
-          } else {
-            isVisible = intersectsAnchor || summaryInView
+
+      const evaluate = (items) => {
+        if (!items || !items.length) return null
+        const visibleSet = new Set()
+        const activeDetails = []
+        for (let i = 0; i < items.length; i += 1) {
+          const payload = items[i]
+          const det = payload?.element || payload
+          if (!det || !det.isConnected) continue
+          const path = payload?.path || det.dataset?.path || ''
+          const summary = det.querySelector(':scope > summary')
+          if (!summary) continue
+          const hidden = det.classList?.contains('hidden') || summary.offsetParent === null
+          let isVisible = false
+          if (!hidden) {
+            const sectionRect = payload?.entry?.boundingClientRect || det.getBoundingClientRect()
+            const summaryRect = summary.getBoundingClientRect()
+            const intersectsAnchor = sectionRect.top <= anchorY && sectionRect.bottom >= anchorY
+            const summaryInView = summaryRect.bottom >= top && summaryRect.top <= bottom
+            const isFile = (det.dataset?.type || det.classList?.contains('file')) === 'file'
+            if (isFile) {
+              const detailVisible =
+                sectionRect.top <= anchorY && sectionRect.bottom >= Math.min(bottom, top + 120)
+              isVisible = detailVisible || summaryInView
+            } else {
+              isVisible = intersectsAnchor || summaryInView
+            }
+          }
+          summary.classList.toggle('is-visible', isVisible && !!path)
+          if (isVisible && path) {
+            visibleSet.add(path)
+            activeDetails.push(det)
           }
         }
-        summary.classList.toggle('is-visible', isVisible && !!path)
-        if (isVisible && path) {
-          visible.add(path)
-          activeDetails.push(det)
-        }
+        return { visible: visibleSet, activeDetails }
       }
-      if (activeDetails.length === 0 && force) markDetailCacheDirty()
-      const changed = force || !setsEqual(this.lastActive, visible)
-      if (changed) {
-        this.links.forEach((link) => {
-          const path = link.dataset?.path || ''
-          const isActive = !!path && visible.has(path)
-          link.classList.toggle('is-active', isActive)
-          const parent = link.parentElement
-          if (parent && parent.tagName === 'SUMMARY') parent.classList.toggle('is-active', isActive)
-          else if (parent && parent !== this.tocRoot) parent.classList.toggle('is-active', isActive)
-        })
-        if (visible.size) {
-          const firstActive = this.links.find((link) => visible.has(link.dataset?.path || ''))
-          if (firstActive) {
-            try {
-              firstActive.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-            } catch {}
+
+      let result = null
+      if (visibilityTracker && typeof visibilityTracker.getVisibleEntries === 'function') {
+        try {
+          const snapshot = visibilityTracker.getVisibleEntries()
+          if (Array.isArray(snapshot) && snapshot.length) {
+            result = evaluate(snapshot)
           }
+        } catch (error) {
+          console.warn('Failed to read visibility tracker snapshot', error)
         }
-        this.lastActive = new Set(visible)
       }
+
+      if (!result) {
+        const details = collectDetailNodes(force)
+        if (!details.length) return
+        result = evaluate(details)
+      }
+
+      if (!result) return
+
+      if (result.activeDetails.length === 0 && force) markDetailCacheDirty()
+      const changed = force || !setsEqual(this.lastActive, result.visible)
+      if (!changed) return
+
+      let lastActiveLink = null
+      this.links.forEach((link) => {
+        const path = link.dataset?.path || ''
+        const isActive = !!path && result.visible.has(path)
+        link.classList.toggle('is-active', isActive)
+        const parent = link.parentElement
+        if (parent && parent.tagName === 'SUMMARY') parent.classList.toggle('is-active', isActive)
+        else if (parent && parent !== this.tocRoot) parent.classList.toggle('is-active', isActive)
+        if (isActive) lastActiveLink = link
+      })
+      if (lastActiveLink) {
+        const scrollContainer = ensureStructureScrollContainer()
+        if (
+          scrollContainer &&
+          typeof scrollContainer.getBoundingClientRect === 'function' &&
+          typeof scrollContainer.scrollTop === 'number'
+        ) {
+          try {
+            const containerRect = scrollContainer.getBoundingClientRect()
+            const linkRect = lastActiveLink.getBoundingClientRect()
+            const margin = 12
+            const below = linkRect.bottom > containerRect.bottom - margin
+            const above = linkRect.top < containerRect.top + margin
+            if (below) scrollContainer.scrollTop += linkRect.bottom - containerRect.bottom + margin
+            else if (above) scrollContainer.scrollTop -= containerRect.top - linkRect.top + margin
+          } catch {}
+        } else {
+          try {
+            lastActiveLink.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+          } catch {}
+        }
+      }
+      this.lastActive = new Set(result.visible)
     },
   }
 
   watcher.ensureTargets(true)
+
+  if (visibilityTracker && typeof visibilityTracker.subscribe === 'function') {
+    try {
+      const unsubscribe = visibilityTracker.subscribe(() => scheduleWatcherUpdate(false))
+      watcher.__unsubscribeVisibility = unsubscribe
+    } catch (error) {
+      console.warn('Failed to subscribe to visibility tracker', error)
+    }
+  }
 
   tocRoot.addEventListener('click', async (e) => {
     const link =

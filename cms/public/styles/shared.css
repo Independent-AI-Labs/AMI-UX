@@ -26,6 +26,12 @@
   --easing-emphasis: cubic-bezier(0.4, 0, 0, 1);
   --overlay-blur-strength: 8px;
   --overlay-blur-strength-strong: 18px;
+  --doc-header-height: 64px;
+  --structure-panel-width: 320px;
+  --structure-panel-min-width: 240px;
+  --structure-panel-max-width: 520px;
+  --structure-panel-handle-hit-area: 12px;
+  --doc-toc-width: var(--structure-panel-width);
 }
 [data-theme="light"] {
   --bg: #ffffff;
@@ -159,6 +165,87 @@ header .btn i[class*=' ri-'] {
   border-color: color-mix(in oklab, var(--border) 65%, transparent);
 }
 
+body.doc-viewer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.doc-viewer > header {
+  flex: 0 0 auto;
+}
+
+body.doc-viewer > main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(var(--structure-panel-min-width), var(--structure-panel-width)) 1fr;
+  align-items: stretch;
+}
+
+body.doc-viewer > main > nav {
+  position: sticky;
+  top: var(--doc-header-height);
+  height: calc(100vh - var(--doc-header-height));
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  width: var(--structure-panel-width);
+  min-width: var(--structure-panel-min-width);
+  max-width: var(--structure-panel-max-width);
+  box-sizing: border-box;
+  padding-right: calc(16px + var(--structure-panel-handle-hit-area));
+}
+
+body.doc-viewer > main > nav .structure-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--structure-panel-handle-hit-area);
+  min-width: var(--structure-panel-handle-hit-area);
+  height: 100%;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+body.doc-viewer > main > nav .structure-resize-handle:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+body.doc-viewer > main > nav .structure-resize-handle::before {
+  content: '';
+  display: block;
+  width: 2px;
+  height: 32px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--border) 85%, transparent);
+  transition: background var(--duration-medium) var(--easing-standard);
+}
+
+body.doc-viewer > main > nav .structure-resize-handle:hover::before,
+body.doc-viewer > main > nav .structure-resize-handle.is-dragging::before,
+body.doc-viewer > main > nav.is-resizing .structure-resize-handle::before {
+  background: color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+body.doc-viewer > main > section#content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px 24px;
+}
+
 .html-document {
   position: relative;
   width: 100%;
@@ -175,7 +262,7 @@ header .btn i[class*=' ri-'] {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 20px 16px 32px;
+  padding: 20px calc(16px + var(--structure-panel-handle-hit-area, 0px)) 32px 16px;
   font-size: 13px;
 }
 #toc h3 {

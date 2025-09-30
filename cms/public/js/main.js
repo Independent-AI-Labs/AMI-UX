@@ -18,6 +18,7 @@ import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { markIgnoredNode } from './highlight-plugin/core/dom-utils.js'
 import { normalizeFsPath } from './file-tree.js'
+import { createVisibilityTracker } from './visibility-tracker.js'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -57,6 +58,7 @@ const state = {
   fileOnly: Boolean(bootOptions.fileOnly),
   treeIndex: new Map(),
   loadDirectoryChildren: null,
+  visibilityTracker: null,
 }
 
 // Theme
@@ -438,6 +440,23 @@ function ensureTreeContainer() {
   state.treeOverlay = overlay
   state.treeOverlayLabel = label
   state.treeFilterInput = filterInput
+  if (!state.visibilityTracker) {
+    try {
+      state.visibilityTracker = createVisibilityTracker({ root: container })
+    } catch (error) {
+      console.warn('Failed to initialize visibility tracker', error)
+      state.visibilityTracker = null
+    }
+  } else {
+    try {
+      state.visibilityTracker.setRoot(container)
+    } catch (error) {
+      console.warn('Failed to bind visibility tracker root', error)
+    }
+  }
+  if (state.visibilityTracker && typeof state.visibilityTracker.setOptions === 'function') {
+    state.visibilityTracker.setOptions({ rootMargin: '160px 0px' })
+  }
   ensureDocOverlay()
   if (typeof state.registerTreeFilterInput === 'function') {
     state.registerTreeFilterInput(filterInput)
