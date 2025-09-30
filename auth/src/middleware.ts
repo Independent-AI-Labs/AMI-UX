@@ -38,7 +38,7 @@ function isPublicRoute(url: URL, custom: (RegExp | string)[] = []): boolean {
 export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
   const { publicRoutes = [], signInPath = '/auth/signin', headerForwarding = true } = options
 
-  return auth((req: AuthenticatedRequest, event: NextFetchEvent) => {
+  const handlerOrPromise = auth((req: AuthenticatedRequest, event: NextFetchEvent) => {
     if (isPublicRoute(req.nextUrl, publicRoutes)) {
       return NextResponse.next()
     }
@@ -59,6 +59,12 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
 
     return response
   })
+
+  if (typeof handlerOrPromise === 'function') return handlerOrPromise
+  return async (req: AuthenticatedRequest, event: NextFetchEvent) => {
+    const resolved = await handlerOrPromise
+    return resolved(req, event)
+  }
 }
 
 export const AUTH_MIDDLEWARE_MATCHER = [

@@ -178,6 +178,15 @@ function getAuthExports(): Promise<AuthExports> {
 }
 
 export function auth(...args: any[]) {
+  if (args.length && typeof args[0] === 'function') {
+    const handler = args[0]
+    return async (...innerArgs: any[]) => {
+      const exports = await getAuthExports()
+      const resolved = exports.auth(handler)
+      const callable = typeof resolved === 'function' ? resolved : () => resolved
+      return callable(...innerArgs)
+    }
+  }
   return getAuthExports().then(({ auth }) => auth(...args))
 }
 
