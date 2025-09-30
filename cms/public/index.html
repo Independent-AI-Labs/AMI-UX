@@ -354,13 +354,13 @@
     .brand-text__subtitle {
       font-size: 13px;
       line-height: 1.1;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.14em;
       color: rgba(255, 255, 255, 0.82);
       text-transform: uppercase;
       font-family: 'Roboto Mono', 'IBM Plex Mono', 'SFMono-Regular', Menlo, Monaco,
         Consolas, 'Liberation Mono', 'Courier New', monospace;
       display: inline-flex;
-      gap: 0.04em;
+      gap: 0.06em;
       white-space: pre;
       font-variant-ligatures: none;
       font-variant-numeric: tabular-nums;
@@ -733,7 +733,7 @@
         }
 
         let subtitleTimer = null
-        let flipCounter = 0
+        let restoreAccumulator = 0
 
         const scheduleSubtitleMorph = () => {
           const delay = 520 + Math.random() * 840
@@ -743,13 +743,13 @@
               return
             }
 
-            flipCounter += 1
+            restoreAccumulator += 1
             const mutatedSpans = spans.filter((span) => span.dataset.state === 'mutated')
             const eligibleOriginals = spans.filter(
               (span) => span.dataset.state !== 'mutated' && span.dataset.mutable === 'true',
             )
 
-            const shouldRestore = flipCounter % 3 === 0 && mutatedSpans.length > 0
+            const shouldRestore = restoreAccumulator >= 2.5 && mutatedSpans.length > 0
             const actionPool = shouldRestore ? mutatedSpans : eligibleOriginals
 
             if (!actionPool.length) {
@@ -759,6 +759,8 @@
                 fallback.dataset.state = 'original'
                 fallback.textContent = fallback.dataset.original || ''
                 fallback.classList.add('is-morphing')
+                restoreAccumulator -= 2.5
+                if (restoreAccumulator < 0) restoreAccumulator = 0
                 window.setTimeout(() => fallback.classList.remove('is-morphing'), 320)
               }
               scheduleSubtitleMorph()
@@ -773,6 +775,8 @@
 
             target.classList.add('is-morphing')
             if (shouldRestore) {
+              restoreAccumulator -= 2.5
+              if (restoreAccumulator < 0) restoreAccumulator = 0
               target.dataset.state = 'original'
               target.textContent = target.dataset.original || ''
             } else {
