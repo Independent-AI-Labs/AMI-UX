@@ -525,6 +525,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;500;600;700;900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css">
 </head>
 <body class="shell-app">
@@ -674,24 +675,53 @@
           return span
         })
 
-        const morphGlyphs = Array.from(
-          new Set(
-            [
-              ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-              ...'0123456789',
-              ...'⟁◇◆◈◉◎◍◐◑◒◓◖◗',
-              ...'△▽◊◌◍⚙⚛⚡☄☾☽',
-              ...'✦✧✩✪✫✬✭✮✯✰✱✲✳✴✵✶✷✸✹✺✻✼✽✾✿❀❁❂❃❇❈❉❊❖',
-              ...'♠♣♥♦♪♫♬☊☋☌☍',
-              ...'‰≠≈∴∵∞∇∂ΣΔΩλπφψχ',
-              ...'æøåßçñ',
-            ].join(''),
-          ),
-        )
+        const glyphMap = {
+          A: 'AΛΔ∀ꓮ',
+          B: 'Bß฿𝔅',
+          C: 'CϾ₵ℂ',
+          D: 'DĐÐ',
+          E: 'EΞΣɆ',
+          F: 'FҒҒ',
+          G: 'Gɢ',
+          H: 'HΉĦ♓',
+          I: 'I1|∣І',
+          J: 'Jʝ',
+          K: 'KҜҠ',
+          L: 'LĿŁ',
+          M: 'MΜϺ',
+          N: 'NИŅ',
+          O: 'O0ΘΦΩ⊙◎',
+          P: 'P₱Р',
+          Q: 'QΩҨ',
+          R: 'RЯŖ',
+          S: 'S5§Ϩ',
+          T: 'T⊤Ŧ',
+          U: 'UՍЧ',
+          V: 'VѴ▽',
+          W: 'WШѠ',
+          X: 'XЖ✕✖',
+          Y: 'Y¥Ψ',
+          Z: 'ZƵɀ',
+          '0': '0OΘΦ⊘',
+          '1': '1I|Ɩ',
+          '2': '2ƻ',
+          '3': '3Ɛ',
+          '4': '4Δ',
+          '5': '5Ƽ',
+          '6': '6б',
+          '7': '7Γ',
+          '8': '8∞',
+          '9': '9Ϛ',
+        }
 
-        const randomGlyph = () => {
-          if (!morphGlyphs.length) return '?' // fallback safety
-          return morphGlyphs[Math.floor(Math.random() * morphGlyphs.length)]
+        const randomGlyph = (baseline) => {
+          if (!baseline) return '?'
+          const key = baseline.toUpperCase()
+          const pool = glyphMap[key] ? Array.from(new Set((baseline + glyphMap[key]).split(''))) : [baseline]
+          if (!pool.length) return baseline
+          const filtered = pool.filter((glyph) => glyph !== baseline)
+          const choices = filtered.length ? filtered : pool
+          return choices[Math.floor(Math.random() * choices.length)]
         }
 
         let subtitleTimer = null
@@ -711,7 +741,7 @@
               (span) => span.dataset.state !== 'mutated' && span.dataset.mutable === 'true',
             )
 
-            const shouldRestore = flipCounter % 2 === 0 && mutatedSpans.length > 0
+            const shouldRestore = flipCounter % 3 === 0 && mutatedSpans.length > 0
             const actionPool = shouldRestore ? mutatedSpans : eligibleOriginals
 
             if (!actionPool.length) {
@@ -739,12 +769,8 @@
               target.textContent = target.dataset.original || ''
             } else {
               target.dataset.state = 'mutated'
-              let nextGlyph = randomGlyph()
               const originalChar = target.dataset.original || ''
-              if (nextGlyph === originalChar) {
-                nextGlyph = randomGlyph()
-              }
-              target.textContent = nextGlyph
+              target.textContent = randomGlyph(originalChar)
             }
 
             window.setTimeout(() => {
