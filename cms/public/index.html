@@ -357,6 +357,8 @@
       letter-spacing: 0.18em;
       color: rgba(255, 255, 255, 0.82);
       text-transform: uppercase;
+      font-family: 'Roboto Mono', 'IBM Plex Mono', 'SFMono-Regular', Menlo, Monaco,
+        Consolas, 'Liberation Mono', 'Courier New', monospace;
       display: inline-flex;
       gap: 0.08em;
       white-space: pre;
@@ -709,7 +711,7 @@
               (span) => span.dataset.state !== 'mutated' && span.dataset.mutable === 'true',
             )
 
-            const shouldRestore = flipCounter % 3 === 0 && mutatedSpans.length > 0
+            const shouldRestore = flipCounter % 2 === 0 && mutatedSpans.length > 0
             const actionPool = shouldRestore ? mutatedSpans : eligibleOriginals
 
             if (!actionPool.length) {
