@@ -357,6 +357,21 @@
       letter-spacing: 0.18em;
       color: rgba(255, 255, 255, 0.82);
       text-transform: uppercase;
+      display: inline-flex;
+      gap: 0.08em;
+      white-space: pre;
+    }
+    .brand-text__subtitle span {
+      display: inline-block;
+      transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1),
+        color 320ms cubic-bezier(0.33, 0, 0.2, 1),
+        opacity 260ms cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform, color, opacity;
+    }
+    .brand-text__subtitle span.is-morphing {
+      transform: translateY(-0.3em) scale(1.04);
+      color: rgba(255, 255, 255, 0.96);
+      opacity: 0.65;
     }
     .brand-singularity-dialog {
       width: min(560px, calc(100vw - 48px));
@@ -608,6 +623,7 @@
       const fpsLabel = document.getElementById('brandSingularityFps')
       const clockDate = document.querySelector('.brand-clock__date')
       const clockTime = document.querySelector('.brand-clock__time')
+      const subtitle = document.querySelector('.brand-text__subtitle')
       let lensTeardown = null
       let largeTeardown = null
       let dialogHandle = null
@@ -637,6 +653,85 @@
 
       if (clockDate && clockTime) {
         scheduleClock()
+      }
+
+      if (subtitle) {
+        const originalText = subtitle.textContent || ''
+        const characters = Array.from(originalText)
+        subtitle.textContent = ''
+
+        const spans = characters.map((char, index) => {
+          const span = document.createElement('span')
+          span.dataset.index = String(index)
+          span.dataset.original = char
+          span.dataset.state = 'original'
+          span.textContent = char
+          subtitle.appendChild(span)
+          return span
+        })
+
+        const morphGlyphs = Array.from(
+          new Set(
+            [
+              ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+              ...'0123456789',
+              ...'⟁◇◆◈◉◎◍◐◑◒◓◖◗',
+              ...'△▽◊◌◍⚙⚛⚡☄☾☽',
+              ...'✦✧✩✪✫✬✭✮✯✰✱✲✳✴✵✶✷✸✹✺✻✼✽✾✿❀❁❂❃❇❈❉❊❖',
+              ...'♠♣♥♦♪♫♬☊☋☌☍',
+              ...'‰≠≈∴∵∞∇∂ΣΔΩλπφψχ',
+              ...'æøåßçñ',
+            ].join(''),
+          ),
+        )
+
+        const randomGlyph = () => {
+          if (!morphGlyphs.length) return '?' // fallback safety
+          return morphGlyphs[Math.floor(Math.random() * morphGlyphs.length)]
+        }
+
+        let subtitleTimer = null
+
+        const scheduleSubtitleMorph = () => {
+          const delay = 520 + Math.random() * 840
+          subtitleTimer = window.setTimeout(() => {
+            if (!spans.length) {
+              scheduleSubtitleMorph()
+              return
+            }
+            const target = spans[Math.floor(Math.random() * spans.length)]
+            if (!target) {
+              scheduleSubtitleMorph()
+              return
+            }
+            const isOriginal = target.dataset.state !== 'mutated'
+            target.classList.add('is-morphing')
+            if (isOriginal) {
+              target.dataset.state = 'mutated'
+              target.textContent = randomGlyph()
+            } else {
+              target.dataset.state = 'original'
+              target.textContent = target.dataset.original || ''
+            }
+            window.setTimeout(() => {
+              target.classList.remove('is-morphing')
+            }, 320)
+            scheduleSubtitleMorph()
+          }, delay)
+        }
+
+        scheduleSubtitleMorph()
+
+        window.addEventListener(
+          'beforeunload',
+          () => {
+            if (subtitleTimer) {
+              clearTimeout(subtitleTimer)
+              subtitleTimer = null
+            }
+          },
+          { once: true },
+        )
       }
 
       if (canvas) {
