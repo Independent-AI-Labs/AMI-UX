@@ -16,6 +16,7 @@ const config = [
       'public/js/highlight-plugin/**',
       'public/js/lib/**',
       'extension/highlight-plugin/pkg/**',
+      'packages/highlight-engine/dist/**',
     ],
   },
   ...compat.config({
