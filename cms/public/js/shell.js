@@ -1306,14 +1306,35 @@ function openTabContextMenu(x, y, tab) {
   }, 0)
 }
 
-function openMetadataSettingsForTab(tab) {
+async function openMetadataSettingsForTab(tab) {
   if (!tab || !tab.path) return
   const context = getMetadataContextForPath(tab.path)
   const label = tab.label || tab.path.split(/[\\/]/).pop() || tab.path
+
+  // Fetch actual metadata path from automation API
+  let actualMetaPath = context.metaPath
+  if (context.rootKey && context.relativePath) {
+    try {
+      const params = new URLSearchParams({
+        path: context.relativePath,
+        root: context.rootKey
+      })
+      const response = await fetch(`/api/automation?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.metaPath) {
+          actualMetaPath = data.metaPath
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch automation metadata:', err)
+    }
+  }
+
   openMetadataSettingsDialog({
     label,
     path: tab.path,
-    metaPath: context.metaPath,
+    metaPath: actualMetaPath,
     rootKey: context.rootKey,
     rootLabel: context.rootLabel,
     relativePath: context.relativePath,
