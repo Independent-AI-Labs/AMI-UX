@@ -5,6 +5,7 @@ import path from 'path'
 import { withSession } from '../../lib/auth-guard'
 import { resolveMediaRoot } from '../../lib/media-roots'
 import { metadataRoot } from '../../lib/store'
+import { getOrCreateContentUUID } from '../../lib/content-registry'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -355,22 +356,24 @@ async function saveTriggerFile(automationDir: string, scenario: string, trigger:
 
 /**
  * Determine where to store automation metadata for a given path.
- * Prefers global metadata root for new content, uses local .meta for existing.
+ * Uses UUID-based global metadata directory: /metadata/{contentUUID}/automation/
+ * Legacy .meta directories are still supported for existing content.
  */
 async function resolveAutomationDir(rootKey: string, relPath: string, rootAbs: string): Promise<string> {
-  // Generate both possible paths
+  // Check if local .meta exists (legacy)
   const localMetaAbs = path.join(rootAbs, `${relPath}${META_SUFFIX}`, AUTOMATION_DIRNAME)
-  const globalMetaAbs = path.join(GLOBAL_METADATA_ROOT, rootKey, relPath, AUTOMATION_DIRNAME)
-
-  // Check if local .meta exists
   const localExists = await fs.stat(localMetaAbs).then(s => s.isDirectory()).catch(() => false)
 
-  // If local exists, continue using it
+  // If local exists, continue using it for existing content
   if (localExists) {
     return localMetaAbs
   }
 
-  // Otherwise use global metadata root
+  // Get or create UUID for this content
+  const contentUUID = await getOrCreateContentUUID(rootKey, relPath)
+
+  // Use UUID-based global metadata directory
+  const globalMetaAbs = path.join(GLOBAL_METADATA_ROOT, contentUUID, AUTOMATION_DIRNAME)
   await ensureDir(globalMetaAbs)
   return globalMetaAbs
 }

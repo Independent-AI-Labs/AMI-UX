@@ -20,10 +20,11 @@
   "dependencies": {
     "busboy": "1.6.0",
     "chokidar": "4.0.3",
-    "next-auth": "5.0.0-beta.29",
     "next": "15.5.4",
+    "next-auth": "5.0.0-beta.29",
     "react": "19.1.1",
     "react-dom": "19.1.1",
+    "uuidv7": "^1.0.2",
     "zod": "4.1.11"
   },
   "devDependencies": {
@@ -32,7 +33,7 @@
     "eslint": "9.36.0",
     "eslint-config-next": "15.5.4",
     "prettier": "3.6.2",
-    "typescript": "5.9.3",
-    "tsx": "4.20.6"
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
   }
 }
