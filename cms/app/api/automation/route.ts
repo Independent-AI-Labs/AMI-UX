@@ -269,7 +269,7 @@ async function buildAutomationPayload(rootKey: string, relPath: string, automati
     ok: true,
     root: rootKey,
     path: relPath,
-    metaPath: path.posix.join(relPath + META_SUFFIX, AUTOMATION_DIRNAME),
+    metaPath: automationDir,
     enabled: !!config.enabled,
     activeScenario: active,
     capabilities: { ...defaultConfig().capabilities, ...config.capabilities },
