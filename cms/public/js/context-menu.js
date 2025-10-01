@@ -158,8 +158,26 @@ function hideContextMenu() {
   }
 }
 
+function hasCustomContextMenu(element) {
+  // Check if element or any parent has its own contextmenu handler
+  let current = element
+  while (current && current !== document.body) {
+    // Check for React/Vue event handlers or data attributes indicating custom context menu
+    if (current.oncontextmenu || current.dataset?.hasContextMenu === 'true') {
+      return true
+    }
+    current = current.parentElement
+  }
+  return false
+}
+
 export function initContextMenu() {
   document.addEventListener('contextmenu', (e) => {
+    // Don't override if element has its own context menu
+    if (hasCustomContextMenu(e.target)) {
+      return
+    }
+
     e.preventDefault()
     showContextMenu(e.pageX, e.pageY, e.target)
   })
