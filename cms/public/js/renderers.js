@@ -219,7 +219,6 @@ function createLatexOverlay() {
 }
 
 export function renderMarkdown(md, relPath) {
-  console.log('[renderMarkdown] Called for relPath:', relPath)
   const raw = marked.parse(md)
   const html = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
   const wrapper = document.createElement('div')
@@ -308,7 +307,6 @@ export function renderMarkdown(md, relPath) {
   // Process links: external links open in new tabs, local .md links become navigation
   wrapper.querySelectorAll('a').forEach((link) => {
     const href = link.getAttribute('href')
-    console.log('[Renderer] Processing link:', href)
     if (!href) return
 
     // Skip anchor links (within same page)

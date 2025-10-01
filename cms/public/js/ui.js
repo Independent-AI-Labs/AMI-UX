@@ -1997,7 +1997,6 @@ function createStructureWatcher(state) {
     if (!link) return
     const path = link.dataset?.path || ''
     const type = link.dataset?.type || ''
-    console.log('[Content Click] path:', path, 'type:', type)
     if (!path) {
       watcher.ignoreHashClearUntil = Date.now() + 1200
       return
@@ -2005,9 +2004,7 @@ function createStructureWatcher(state) {
     watcher.ignoreHashClearUntil = Date.now() + 1600
     if (type === 'dir' || type === 'file') {
       e.preventDefault()
-      console.log('[Content Click] Calling ensureDetailsChain for:', path)
       const details = await ensureDetailsChain(path)
-      console.log('[Content Click] ensureDetailsChain returned:', details)
       const anchorId = type === 'dir' ? dirAnchorId(path) : pathAnchor(path)
       if (anchorId) {
         let hashApplied = false
