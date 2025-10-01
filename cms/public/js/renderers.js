@@ -303,6 +303,89 @@ export function renderMarkdown(md, relPath) {
     headings.push({ id, text, level: parseInt(h.tagName.slice(1), 10) })
   })
 
+  // Process links: external links open in new tabs, local .md links become navigation
+  wrapper.querySelectorAll('a').forEach((link) => {
+    const href = link.getAttribute('href')
+    if (!href) return
+
+    // Skip anchor links
+    if (href.startsWith('#')) return
+
+    // Check if external link
+    try {
+      const url = new URL(href, window.location.href)
+      const isExternal = url.origin !== window.location.origin
+
+      if (isExternal) {
+        // External links open in new tab
+        link.setAttribute('target', '_blank')
+        link.setAttribute('rel', 'noopener noreferrer')
+      } else if (href.endsWith('.md') || href.includes('.md#')) {
+        // Local .md links: convert to navigation within the doc viewer
+        link.addEventListener('click', async (e) => {
+          e.preventDefault()
+
+          // Parse the link - could be relative or absolute
+          let targetPath = href
+
+          // If it's a relative path, resolve it relative to the current file
+          if (!href.startsWith('/')) {
+            const currentDir = relPath.split('/').slice(0, -1).join('/')
+            targetPath = currentDir ? `${currentDir}/${href}` : href
+          }
+
+          // Normalize the path (remove .md extension for anchor)
+          const anchorPath = targetPath.replace(/\.md(#.*)?$/, '$1')
+          const pathOnly = anchorPath.split('#')[0]
+          const hashPart = anchorPath.includes('#') ? anchorPath.split('#')[1] : ''
+
+          // Find the tree node link and trigger it, or set the hash
+          const treeLink = document.querySelector(`a[data-path="${pathOnly}"][data-type="file"]`)
+          if (treeLink) {
+            treeLink.click()
+            if (hashPart) {
+              setTimeout(() => {
+                window.location.hash = hashPart
+              }, 100)
+            }
+          } else {
+            // Fallback: just set the hash if we can't find the tree node
+            window.location.hash = pathAnchor(pathOnly) + (hashPart ? `-${hashPart}` : '')
+          }
+        })
+      }
+    } catch {
+      // If URL parsing fails, treat as relative/local link
+      if (href.endsWith('.md') || href.includes('.md#')) {
+        link.addEventListener('click', async (e) => {
+          e.preventDefault()
+
+          let targetPath = href
+          if (!href.startsWith('/')) {
+            const currentDir = relPath.split('/').slice(0, -1).join('/')
+            targetPath = currentDir ? `${currentDir}/${href}` : href
+          }
+
+          const anchorPath = targetPath.replace(/\.md(#.*)?$/, '$1')
+          const pathOnly = anchorPath.split('#')[0]
+          const hashPart = anchorPath.includes('#') ? anchorPath.split('#')[1] : ''
+
+          const treeLink = document.querySelector(`a[data-path="${pathOnly}"][data-type="file"]`)
+          if (treeLink) {
+            treeLink.click()
+            if (hashPart) {
+              setTimeout(() => {
+                window.location.hash = hashPart
+              }, 100)
+            }
+          } else {
+            window.location.hash = pathAnchor(pathOnly) + (hashPart ? `-${hashPart}` : '')
+          }
+        })
+      }
+    }
+  })
+
   return { htmlEl: wrapper, headings }
 }
 
