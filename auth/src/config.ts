@@ -86,21 +86,29 @@ function createGuestProvider(): NextAuthProvider {
 
 async function resolveGuestUser(): Promise<AuthenticatedUser> {
   const email = getGuestEmail()
-  let candidate: AuthenticatedUser | null = null
 
   // First, try to fetch existing guest user from DataOps
   try {
     const existing = await dataOpsClient.getUserByEmail(email)
     if (existing) {
-      candidate = normaliseGuestUser(existing)
+      return normaliseGuestUser(existing)
     }
   } catch (err) {
     // Log warning but continue - we'll try to create the user next
     console.warn(`[ux/auth] Failed to load guest account ${email} from DataOps`, err)
   }
 
-  // Prepare the guest user template
-  const guestTemplate = normaliseGuestUser(candidate)
+  // Prepare the guest user template for creation
+  const guestTemplate: AuthenticatedUser = {
+    id: deriveGuestUserId(email),
+    email,
+    name: getGuestName(),
+    image: null,
+    roles: ['guest'],
+    groups: [],
+    tenantId: null,
+    metadata: { accountType: 'guest', managedBy: 'cms-login' },
+  }
 
   // SECURITY CRITICAL: Attempt to ensure user exists in DataOps
   // If this fails, we MUST NOT use a local template as this bypasses
