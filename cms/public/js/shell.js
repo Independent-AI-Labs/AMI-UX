@@ -24,6 +24,11 @@ window.addEventListener('ami:unauthorized', () => {
 
 ensureDocumentHintLayer(document)
 
+// Disable browser context menu in shell
+document.addEventListener('contextmenu', (e) => {
+  e.preventDefault()
+})
+
 // Prevent the highlight plugin from auto-starting in the shell document itself.
 ;(() => {
   try {

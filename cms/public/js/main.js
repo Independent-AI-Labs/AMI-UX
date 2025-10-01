@@ -380,20 +380,22 @@ function ensureTreeContainer() {
   markIgnoredNode(actions)
 
   const expandBtn = document.createElement('button')
-  expandBtn.className = 'btn btn--ghost'
+  expandBtn.className = 'btn btn--ghost icon-button'
   expandBtn.id = 'treeExpandAll'
   expandBtn.type = 'button'
-  expandBtn.innerHTML = `${iconMarkup('add-box-line', { size: 16 })}<span>Expand All</span>`
-  applyHint(expandBtn, 'Expand all sections in the tree')
+  expandBtn.innerHTML = iconMarkup('add-box-line', { size: 18 })
+  applyHint(expandBtn, 'Expand all sections')
+  expandBtn.setAttribute('aria-label', 'Expand all sections')
   markIgnoredNode(expandBtn)
   expandBtn.addEventListener('click', () => expandCollapseAll(true))
 
   const collapseBtn = document.createElement('button')
-  collapseBtn.className = 'btn btn--ghost'
+  collapseBtn.className = 'btn btn--ghost icon-button'
   collapseBtn.id = 'treeCollapseAll'
   collapseBtn.type = 'button'
-  collapseBtn.innerHTML = `${iconMarkup('checkbox-indeterminate-line', { size: 16 })}<span>Collapse All</span>`
-  applyHint(collapseBtn, 'Collapse all sections in the tree')
+  collapseBtn.innerHTML = iconMarkup('checkbox-indeterminate-line', { size: 18 })
+  applyHint(collapseBtn, 'Collapse all sections')
+  collapseBtn.setAttribute('aria-label', 'Collapse all sections')
   markIgnoredNode(collapseBtn)
   collapseBtn.addEventListener('click', () => expandCollapseAll(false))
 

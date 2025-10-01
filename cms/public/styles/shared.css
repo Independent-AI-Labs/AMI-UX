@@ -803,7 +803,9 @@ body.doc-viewer > main > section#content {
   gap: 6px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.20s ease-in-out;
+  transition:
+    opacity var(--duration-medium) var(--easing-standard),
+    transform var(--duration-medium) var(--easing-standard);
   transition-delay: 0s;
   z-index: 2;
 }
@@ -816,15 +818,26 @@ details:focus-within > summary .row-actions {
   transition-delay: 0.18s;
 }
 .row-actions .act {
-  width: 28px; height: 28px;
+  width: 26px; height: 26px;
   display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border);
-  background: var(--bg);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  background: color-mix(in oklab, var(--panel) 85%, transparent);
   color: var(--muted);
-  border-radius: 14px;
+  border-radius: 13px;
   cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--easing-standard),
+    border-color var(--duration-fast) var(--easing-standard),
+    color var(--duration-fast) var(--easing-standard),
+    transform var(--duration-fast) var(--easing-standard);
 }
-.row-actions .act:hover { color: var(--text); filter: brightness(1.05); }
+.row-actions .act:hover {
+  color: var(--text);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--panel) 92%, transparent);
+  border-color: color-mix(in oklab, var(--border) 85%, transparent);
+}
 .row-actions .act:focus {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 45%, transparent);
@@ -832,9 +845,9 @@ details:focus-within > summary .row-actions {
 .row-actions .act svg,
 .row-actions .act i[class^='ri-'],
 .row-actions .act i[class*=' ri-'] {
-  width: 18px;
-  height: 18px;
-  font-size: 18px;
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
   line-height: 1;
 }
 

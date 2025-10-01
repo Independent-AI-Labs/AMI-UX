@@ -1353,7 +1353,15 @@ export function expandCollapseAll(expand = true) {
   if (treeRoot) {
     treeRoot.querySelectorAll('details').forEach((d) => {
       const isOpen = d.hasAttribute('open')
-      if (expand && !isOpen) d.setAttribute('open', '')
+      if (expand) {
+        if (!isOpen) d.setAttribute('open', '')
+        // Trigger lazy loading for directories when expanding
+        if (typeof d.__lazyLoad === 'function') {
+          try {
+            d.__lazyLoad()
+          } catch {}
+        }
+      }
       if (!expand && isOpen) d.removeAttribute('open')
       if (typeof d.__structToggleUpdate === 'function') d.__structToggleUpdate()
     })
