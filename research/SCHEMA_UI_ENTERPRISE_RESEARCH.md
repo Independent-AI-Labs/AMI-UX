@@ -32,7 +32,7 @@ Establish an enterprise-ready strategy for auditable, testable, modular, on-dema
    - Namespaced schema segments by domain (auth, data streams, compliance) to avoid cross-team collisions.
 
 4. **On-Demand / Runtime Fetching**
-   - Schema delivery API with caching strategy (ETags, version headers) and offline fallback.
+   - Schema delivery API with caching strategy (ETags, version headers) and offline support.
    - Lazy-loading of heavy renderer bundles conditioned on schema presence (e.g., load chart module when `visualization` primitive encountered).
    - Hydration hooks allowing schema updates without full page reload (subscription to schema invalidation events).
 

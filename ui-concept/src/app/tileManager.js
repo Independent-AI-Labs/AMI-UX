@@ -150,7 +150,7 @@ export class TileManager {
             }
         }
         
-        // Fallback: find any available even column
+        // Alternative: find any available even column
         for (let q = 0; q < 40; q += 2) {
             let available = true;
             for (let row = 0; row < 6; row++) {
@@ -163,8 +163,11 @@ export class TileManager {
                 return { q: q, r: 0 };
             }
         }
-        
-        return { q: 0, r: 0 }; // Ultimate fallback
+
+        // No available conversation space found
+        console.error('[tileManager] Cannot find available conversation start position: Grid is full');
+        // TODO: Show user-facing error toast/notification
+        throw new Error('No available conversation space - grid is full');
     }
 
     // Get all tiles in a radius

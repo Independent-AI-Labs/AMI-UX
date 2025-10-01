@@ -9,9 +9,12 @@ async function main() {
   const srcHighlight = path.join(cmsRoot, 'public/js/highlight-plugin')
   const destHighlight = path.join(cmsRoot, 'extension/highlight-plugin/pkg')
   const sharedFiles = ['dialog-controller.js', 'dialog-service.js', 'message-channel.js']
+  const srcEngineLib = path.join(cmsRoot, 'public/js/lib/highlight-engine')
+  const destEngineLib = path.join(cmsRoot, 'extension/highlight-plugin/pkg/lib/highlight-engine')
 
   await mkdir(destHighlight, { recursive: true })
   await cp(srcHighlight, destHighlight, { recursive: true, force: true })
+  await cp(srcEngineLib, destEngineLib, { recursive: true, force: true })
 
   await Promise.all(
     sharedFiles.map(async (name) => {

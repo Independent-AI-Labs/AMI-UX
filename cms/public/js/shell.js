@@ -267,7 +267,7 @@ function ensureHighlightPluginConfig(win) {
       return true
     }
   })()
-  cfg.createFallbackToggle = !isTopWindow
+  cfg.createDefaultToggle = !isTopWindow
   cfg.renderImmediately = true
   cfg.scopeSelector = typeof cfg.scopeSelector === 'string' && cfg.scopeSelector.trim()
     ? cfg.scopeSelector
@@ -689,7 +689,7 @@ const frameLoadingState = {
   overlay: null,
   visibleAt: 0,
   hideTimer: null,
-  fallbackTimer: null,
+  maxWaitTimer: null,
 }
 
 const frameLoadingMessages = {
@@ -866,16 +866,16 @@ function showFrameLoading(intent = 'loading') {
     clearTimeout(frameLoadingState.hideTimer)
     frameLoadingState.hideTimer = null
   }
-  if (frameLoadingState.fallbackTimer) {
-    clearTimeout(frameLoadingState.fallbackTimer)
-    frameLoadingState.fallbackTimer = null
+  if (frameLoadingState.maxWaitTimer) {
+    clearTimeout(frameLoadingState.maxWaitTimer)
+    frameLoadingState.maxWaitTimer = null
   }
   const labelNode = overlay.querySelector('.frame-loading__label')
   if (labelNode) labelNode.textContent = frameLoadingMessages[intent] || frameLoadingMessages.loading
   overlay.setAttribute('aria-hidden', 'false')
   overlay.classList.add('frame-loading--active')
   frameLoadingState.visibleAt = performance.now()
-  frameLoadingState.fallbackTimer = setTimeout(() => hideFrameLoading({ immediate: true }), 1600)
+  frameLoadingState.maxWaitTimer = setTimeout(() => hideFrameLoading({ immediate: true }), 1600)
 }
 
 function hideFrameLoading(options = {}) {
@@ -886,9 +886,9 @@ function hideFrameLoading(options = {}) {
     clearTimeout(frameLoadingState.hideTimer)
     frameLoadingState.hideTimer = null
   }
-  if (frameLoadingState.fallbackTimer) {
-    clearTimeout(frameLoadingState.fallbackTimer)
-    frameLoadingState.fallbackTimer = null
+  if (frameLoadingState.maxWaitTimer) {
+    clearTimeout(frameLoadingState.maxWaitTimer)
+    frameLoadingState.maxWaitTimer = null
   }
   const minVisible = immediate ? 0 : 160
   const elapsed = performance.now() - (frameLoadingState.visibleAt || 0)
@@ -1117,10 +1117,10 @@ function buildDocMessageForDir(tab, cfg) {
     return msg
   }
 
-  const fallbackLabel =
+  const defaultLabel =
     tab.label || humanizeName(normalizedPath.split('/').pop() || normalizedPath, 'dir')
   const msg = { type: 'setDocRoot', rootKey: 'docRoot', path: originalPath }
-  if (fallbackLabel) msg.label = fallbackLabel
+  if (defaultLabel) msg.label = defaultLabel
   return msg
 }
 

@@ -3,8 +3,8 @@ import { CodeView, guessLanguageFromFilename } from './code-view.js'
 
 const registry = []
 
-const FALLBACK_VIEW = {
-  id: 'code-fallback',
+const DEFAULT_VIEW = {
+  id: 'code-default',
   label: 'Code preview',
   contentFormat: 'text',
   priority: -Infinity,
@@ -87,11 +87,11 @@ export function resolveFileView(node) {
       return false
     }
   })
-  return { view: view || FALLBACK_VIEW, meta }
+  return { view: view || DEFAULT_VIEW, meta }
 }
 
-export function getFallbackFileView() {
-  return FALLBACK_VIEW
+export function getDefaultFileView() {
+  return DEFAULT_VIEW
 }
 
 registerFileView({

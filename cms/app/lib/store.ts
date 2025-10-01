@@ -40,13 +40,61 @@ async function ensureDataDir() {
   await fs.mkdir(DATA_DIR, { recursive: true })
 }
 
-async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
+type ReadJsonOptions<T> = {
+  defaultValue?: T
+  required?: boolean
+}
+
+async function readJsonFile<T>(
+  filePath: string,
+  options?: ReadJsonOptions<T>
+): Promise<T> {
+  const { defaultValue, required = false } = options ?? {}
+
   try {
     const raw = await fs.readFile(filePath, 'utf8')
-    const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === 'object' ? (parsed as T) : fallback
-  } catch {
-    return fallback
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch (parseError) {
+      const error = parseError as Error
+      console.error(`[store] JSON parse error in ${filePath}: ${error.message}`)
+      throw new Error(`Invalid JSON in ${filePath}: ${error.message}`)
+    }
+
+    if (parsed === null || parsed === undefined) {
+      if (defaultValue !== undefined) {
+        return defaultValue
+      }
+      throw new Error(`Null or undefined value in ${filePath}`)
+    }
+
+    return parsed as T
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException
+
+    if (err.code === 'ENOENT') {
+      if (!required && defaultValue !== undefined) {
+        console.warn(`[store] File not found, using default: ${filePath}`)
+        return defaultValue
+      }
+      console.error(`[store] Required file not found: ${filePath}`)
+      throw new Error(`File not found: ${filePath}`)
+    }
+
+    if (err.code === 'EACCES') {
+      console.error(`[store] Permission denied reading: ${filePath}`)
+      throw new Error(`Permission denied: ${filePath}`)
+    }
+
+    if (err.code === 'EISDIR') {
+      console.error(`[store] Expected file but found directory: ${filePath}`)
+      throw new Error(`Path is a directory: ${filePath}`)
+    }
+
+    console.error(`[store] Error reading ${filePath}: ${err.message}`)
+    throw error
   }
 }
 
@@ -82,7 +130,7 @@ const CONFIG_DEFAULT: CmsConfig = {
 
 export async function getConfig(): Promise<CmsConfig> {
   await ensureDataDir()
-  const stored = await readJsonFile(CONFIG_FILE, CONFIG_DEFAULT)
+  const stored = await readJsonFile<CmsConfig>(CONFIG_FILE, { defaultValue: CONFIG_DEFAULT })
   const next: CmsConfig = { ...CONFIG_DEFAULT, ...stored }
   if (!Array.isArray(next.openTabs)) next.openTabs = []
   if (!Array.isArray(next.recents)) next.recents = []
@@ -115,7 +163,7 @@ export type LibraryEntry = {
 
 export async function listLibrary(): Promise<LibraryEntry[]> {
   await ensureDataDir()
-  const entries = await readJsonFile<LibraryEntry[]>(LIBRARY_FILE, [])
+  const entries = await readJsonFile<LibraryEntry[]>(LIBRARY_FILE, { defaultValue: [] })
   return Array.isArray(entries) ? entries : []
 }
 
@@ -136,7 +184,7 @@ export type ServeInstance = {
 
 export async function listServed(): Promise<ServeInstance[]> {
   await ensureDataDir()
-  const instances = await readJsonFile<ServeInstance[]>(SERVED_FILE, [])
+  const instances = await readJsonFile<ServeInstance[]>(SERVED_FILE, { defaultValue: [] })
   return Array.isArray(instances) ? instances : []
 }
 
@@ -321,7 +369,7 @@ function ensureGuestAccount(store: AccountStore): AccountStore {
 
 async function loadAccountStore(): Promise<AccountStore> {
   await ensureDataDir()
-  const stored = await readJsonFile<AccountStore | null>(ACCOUNTS_FILE, null)
+  const stored = await readJsonFile<AccountStore | null>(ACCOUNTS_FILE, { defaultValue: null })
   const accounted: AccountStore = stored && stored.version === ACCOUNT_STORE_VERSION
     ? {
         version: ACCOUNT_STORE_VERSION,
@@ -435,10 +483,10 @@ export async function removeAccount(accountId: string): Promise<AccountStoreSnap
 export async function setDefaultAccount(accountId: string): Promise<AccountStoreSnapshot> {
   const store = await loadAccountStore()
   const targetExists = store.accounts.some((entry) => entry.id === accountId)
-  const fallback = createGuestAccountRecord().id
+  const guestAccountId = createGuestAccountRecord().id
   const nextStore = await persistAccountStore({
     ...store,
-    defaultAccountId: targetExists ? accountId : fallback,
+    defaultAccountId: targetExists ? accountId : guestAccountId,
   })
   return snapshotFromStore(nextStore)
 }

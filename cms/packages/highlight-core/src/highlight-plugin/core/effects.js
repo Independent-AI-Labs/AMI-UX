@@ -610,14 +610,14 @@ function createHoverOverlay(doc, selectors, callbacks) {
     return Math.hypot(dx, dy) > REPOSITION_THRESHOLD
   }
 
-  function extractPointer(event, fallbackEl) {
+  function extractPointer(event, targetEl) {
     if (event instanceof MouseEvent || (typeof PointerEvent !== 'undefined' && event instanceof PointerEvent)) {
       if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
         return { x: event.clientX, y: event.clientY }
       }
     }
-    if (fallbackEl && typeof fallbackEl.getBoundingClientRect === 'function') {
-      const rect = fallbackEl.getBoundingClientRect()
+    if (targetEl && typeof targetEl.getBoundingClientRect === 'function') {
+      const rect = targetEl.getBoundingClientRect()
       return {
         x: rect.right,
         y: rect.top + rect.height / 2,
@@ -979,14 +979,14 @@ function createAsyncHighlightRunner(options = {}) {
 
   const elementRecords = new WeakMap()
   const simplePlanCache = new Map()
-  const fallbackPlanCache = new Map()
+  const genericPlanCache = new Map()
 
   const planIndex = {
     byId: new Map(),
     byClass: new Map(),
     byTag: new Map(),
   }
-  const fallbackPlans = []
+  const genericPlans = []
 
   function addToIndex(map, key, planRef) {
     if (!key) return
@@ -1000,7 +1000,7 @@ function createAsyncHighlightRunner(options = {}) {
   function registerSimplePlan(plan, planRef) {
     const compound = plan?.compound
     if (!compound) {
-      fallbackPlans.push(planRef)
+      genericPlans.push(planRef)
       return
     }
     const hasClasses = compound.classes && compound.classes.length > 0
@@ -1031,7 +1031,7 @@ function createAsyncHighlightRunner(options = {}) {
         plan,
       }
       if (plan.simple) registerSimplePlan(plan, planRef)
-      else fallbackPlans.push(planRef)
+      else genericPlans.push(planRef)
     }
   })
 
@@ -1151,7 +1151,7 @@ function createAsyncHighlightRunner(options = {}) {
   }
   const chain = parseSelectorChain(trimmed)
   if (!chain) {
-    if (fallbackPlanCache.has(trimmed)) return fallbackPlanCache.get(trimmed)
+    if (genericPlanCache.has(trimmed)) return genericPlanCache.get(trimmed)
     const plan = {
       selector: trimmed,
       predicate: (el) => safeMatches(el, trimmed),
@@ -1162,7 +1162,7 @@ function createAsyncHighlightRunner(options = {}) {
       attrMask: '',
       compound: null,
     }
-    fallbackPlanCache.set(trimmed, plan)
+    genericPlanCache.set(trimmed, plan)
     return plan
   }
   const key = chain.map((compound) => compoundKey(compound)).join(' ')
@@ -1242,7 +1242,7 @@ function createAsyncHighlightRunner(options = {}) {
     if (tagName) collectPlans(planIndex.byTag.get(tagName), seenPlans, candidates)
     collectPlans(planIndex.byTag.get('*'), seenPlans, candidates)
 
-    if (fallbackPlans.length) collectPlans(fallbackPlans, seenPlans, candidates)
+    if (genericPlans.length) collectPlans(genericPlans, seenPlans, candidates)
 
     for (const planRef of candidates) {
       const bit = planRef.ruleBit

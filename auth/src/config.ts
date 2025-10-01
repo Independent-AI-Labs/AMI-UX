@@ -4,6 +4,8 @@ import type { NextAuthConfig } from 'next-auth'
 
 import { dataOpsClient } from './dataops-client'
 import { getAuthSecret, shouldTrustHost } from './env'
+import { AuthenticationServiceError, MetadataValidationError } from './errors'
+import { logSecurityEvent } from './security-logger'
 import type {
   AuthenticatedUser,
   AuthProviderCatalogEntry,
@@ -85,23 +87,41 @@ function createGuestProvider(): NextAuthProvider {
 async function resolveGuestUser(): Promise<AuthenticatedUser> {
   const email = getGuestEmail()
   let candidate: AuthenticatedUser | null = null
+
+  // First, try to fetch existing guest user from DataOps
   try {
     const existing = await dataOpsClient.getUserByEmail(email)
     if (existing) {
       candidate = normaliseGuestUser(existing)
     }
   } catch (err) {
+    // Log warning but continue - we'll try to create the user next
     console.warn(`[ux/auth] Failed to load guest account ${email} from DataOps`, err)
   }
 
-  const fallback = normaliseGuestUser(candidate)
+  // Prepare the guest user template
+  const guestTemplate = normaliseGuestUser(candidate)
 
+  // SECURITY CRITICAL: Attempt to ensure user exists in DataOps
+  // If this fails, we MUST NOT use a local template as this bypasses
+  // proper authentication and authorization checks.
   try {
-    const ensured = await dataOpsClient.ensureUser(fallback)
+    const ensured = await dataOpsClient.ensureUser(guestTemplate)
     return normaliseGuestUser(ensured)
   } catch (err) {
-    console.error('[ux/auth] Failed to ensure guest account, falling back to local template', err)
-    return fallback
+    // Log security event before throwing
+    logSecurityEvent(
+      'guest_resolution_failure',
+      'Failed to ensure guest account in DataOps service',
+      err,
+      { email, guestUserId: guestTemplate.id },
+    )
+
+    // Throw error to prevent bypass of authentication
+    throw new AuthenticationServiceError(
+      'Guest account resolution failed: DataOps service unavailable',
+      { email, originalError: err instanceof Error ? err.message : String(err) },
+    )
   }
 }
 
@@ -405,45 +425,90 @@ function deriveGuestUserId(email: string): string {
   return `guest-${digest.slice(0, 24)}`
 }
 
-function readMetadataString(source: Record<string, unknown> | undefined, key: string, fallback: string): string {
-  if (!source) return fallback
+/**
+ * Reads a string value from metadata with optional validation
+ *
+ * @param source - The metadata object to read from
+ * @param key - The metadata key to read
+ * @param defaultValue - Default value if key is missing or invalid
+ * @param options - Additional options for validation
+ * @returns The metadata value or defaultValue
+ * @throws MetadataValidationError if field is required but missing/invalid
+ */
+function readMetadataString(
+  source: Record<string, unknown> | undefined,
+  key: string,
+  defaultValue: string,
+  options?: { required?: boolean; context?: Record<string, unknown> },
+): string {
+  if (!source && options?.required) {
+    logSecurityEvent(
+      'metadata_validation_failure',
+      `Required metadata field '${key}' is missing: metadata source is undefined`,
+      undefined,
+      { key, ...options.context },
+    )
+    throw new MetadataValidationError(key, 'metadata source is undefined', options.context)
+  }
+
+  if (!source) return defaultValue
+
   const value = source[key]
-  if (typeof value === 'string' && value.trim()) return value
-  return fallback
+
+  if (typeof value !== 'string' || !value.trim()) {
+    if (options?.required) {
+      logSecurityEvent(
+        'metadata_validation_failure',
+        `Required metadata field '${key}' is missing or invalid`,
+        undefined,
+        { key, valueType: typeof value, hasValue: value !== undefined, ...options.context },
+      )
+      throw new MetadataValidationError(
+        key,
+        value === undefined ? 'field is undefined' : `field has invalid type: ${typeof value}`,
+        options.context,
+      )
+    }
+    return defaultValue
+  }
+
+  return value
 }
 
 function normaliseGuestUser(payload: AuthenticatedUser | null): AuthenticatedUser {
-  const email = (payload?.email || getGuestEmail()).toLowerCase()
-  const fallback: AuthenticatedUser = {
-    id: deriveGuestUserId(email),
-    email,
-    name: payload?.name ?? getGuestName(),
-    image: null,
-    roles: ['guest'],
-    groups: [],
-    tenantId: null,
-    metadata: { accountType: 'guest', managedBy: 'cms-login' },
+  if (!payload) {
+    throw new MetadataValidationError('Cannot normalize null user payload')
   }
 
-  if (!payload) return fallback
+  if (!payload.id || !payload.id.trim()) {
+    throw new MetadataValidationError('User payload missing required field: id')
+  }
 
+  if (!payload.email || !payload.email.trim()) {
+    throw new MetadataValidationError('User payload missing required field: email')
+  }
+
+  if (!Array.isArray(payload.groups)) {
+    throw new MetadataValidationError('User payload has invalid groups field (must be array)')
+  }
+
+  const email = payload.email.toLowerCase()
   const ensuredRoles = Array.from(new Set([...(payload.roles ?? []), 'guest']))
   const metadataBase = (payload.metadata && isRecord(payload.metadata) ? payload.metadata : {}) as Record<string, unknown>
-  const metadata = {
-    ...metadataBase,
-    accountType: readMetadataString(metadataBase, 'accountType', 'guest'),
-    managedBy: readMetadataString(metadataBase, 'managedBy', 'cms-login'),
-  }
 
   return {
-    id: payload.id && payload.id.trim() ? payload.id : fallback.id,
+    id: payload.id.trim(),
     email,
-    name: payload.name ?? fallback.name,
-    image: payload.image ?? fallback.image,
+    name: payload.name ?? null,
+    image: payload.image ?? null,
     roles: ensuredRoles,
-    groups: Array.isArray(payload.groups) ? payload.groups : fallback.groups,
+    groups: payload.groups,
     tenantId: payload.tenantId ?? null,
-    metadata,
+    metadata: {
+      ...metadataBase,
+      accountType: readMetadataString(metadataBase, 'accountType', 'guest'),
+      managedBy: readMetadataString(metadataBase, 'managedBy', 'cms-login'),
+    },
   }
 }
 

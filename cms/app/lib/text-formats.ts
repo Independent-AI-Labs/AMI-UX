@@ -6,7 +6,7 @@ export type TextFormats = {
   basenames: Set<string>
 }
 
-const FALLBACK_EXTENSIONS = [
+const DEFAULT_TEXT_EXTENSIONS = [
   '.md',
   '.markdown',
   '.mdown',
@@ -31,7 +31,7 @@ const FALLBACK_EXTENSIONS = [
   '.tex',
 ]
 
-const FALLBACK_BASENAMES = [
+const DEFAULT_TEXT_BASENAMES = [
   'dockerfile',
   'dockerfile.dev',
   'dockerfile.prod',
@@ -70,11 +70,11 @@ function normalizeEntry(value: string, target: AllowedList) {
   }
 }
 
-function mergeFallbacks(target: AllowedList) {
-  for (const ext of FALLBACK_EXTENSIONS) {
+function mergeDefaults(target: AllowedList) {
+  for (const ext of DEFAULT_TEXT_EXTENSIONS) {
     target.extensions.add(ext)
   }
-  for (const name of FALLBACK_BASENAMES) {
+  for (const name of DEFAULT_TEXT_BASENAMES) {
     target.basenames.add(name)
   }
 }
@@ -114,11 +114,11 @@ async function loadReferenceFromRepo(): Promise<AllowedList> {
       }
     }
   } catch {
-    // Ignore errors and fall back to defaults
+    // Ignore errors and use defaults
   }
-  mergeFallbacks(target)
+  mergeDefaults(target)
   if (!target.extensions.size && !target.basenames.size) {
-    mergeFallbacks(target)
+    mergeDefaults(target)
   }
   return target
 }

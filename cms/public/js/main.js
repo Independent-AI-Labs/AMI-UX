@@ -576,9 +576,9 @@ async function renderStandaloneDocument(state, tree, targetPath) {
       : () => {}
   try {
     const nodeFromTree = desiredPath ? findNodeByPath(tree, desiredPath) : null
-    const fallbackName = desiredPath.split('/').pop() || desiredPath || 'document'
+    const derivedName = desiredPath.split('/').pop() || desiredPath || 'document'
     const node = nodeFromTree || {
-      name: fallbackName,
+      name: derivedName,
       path: desiredPath,
       type: 'file',
     }
@@ -677,9 +677,9 @@ export async function startCms(fromSelect = false) {
       const label = cfg ? cfg.docRootLabel || cfg.docRootAbsolute || cfg.docRoot || '' : ''
       rootLabelEl.textContent = label ? '(' + label + ')' : ''
     } else {
-      const fallbackLabel =
+      const displayLabel =
         state.rootLabelOverride || (activeRootKey === 'uploads' ? 'Uploads' : '')
-      rootLabelEl.textContent = fallbackLabel ? '(' + fallbackLabel + ')' : ''
+      rootLabelEl.textContent = displayLabel ? '(' + displayLabel + ')' : ''
     }
   }
   const treeSubtitleEl = document.getElementById('treeToolbarSubtitle')
@@ -756,15 +756,15 @@ export async function startCms(fromSelect = false) {
     )
   const introIdx = findIntroIdx()
   const intro = introIdx >= 0 ? rootChildren[introIdx] : null
-  const fallbackFile = intro || rootChildren.find((child) => child && child.type === 'file') || null
+  const defaultFile = intro || rootChildren.find((child) => child && child.type === 'file') || null
   const trimmedFocus = (state.pendingFocus || '').trim()
   const hasPendingFocus = Boolean(trimmedFocus)
 
   if (state.fileOnly) {
     const targetPath = hasPendingFocus
       ? trimmedFocus
-      : fallbackFile && fallbackFile.type === 'file'
-        ? fallbackFile.path
+      : defaultFile && defaultFile.type === 'file'
+        ? defaultFile.path
         : ''
     await renderStandaloneDocument(state, tree, targetPath)
     state.pendingFocus = ''
@@ -773,10 +773,10 @@ export async function startCms(fromSelect = false) {
   }
 
   renderTree(state, root, tree)
-  if (!hasPendingFocus && fallbackFile && fallbackFile.type === 'file') {
+  if (!hasPendingFocus && defaultFile && defaultFile.type === 'file') {
     await preloadFileContent(state, {
-      name: fallbackFile.name,
-      path: fallbackFile.path,
+      name: defaultFile.name,
+      path: defaultFile.path,
       type: 'file',
     })
   } else if (!hasPendingFocus) {

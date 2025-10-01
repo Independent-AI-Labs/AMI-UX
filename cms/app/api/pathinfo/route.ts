@@ -24,22 +24,37 @@ async function readJson(p: string): Promise<any | null> {
   }
 }
 
+function isPathWithinBoundary(rootPath: string, targetPath: string): boolean {
+  const relative = path.relative(rootPath, targetPath)
+  return !!relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
 export const GET = withSession(async ({ request }) => {
   const url = new URL(request.url)
   const input = url.searchParams.get('path') || ''
   if (!input) return NextResponse.json({ error: 'path required' }, { status: 400 })
 
   const candidate = path.isAbsolute(input) ? input : path.resolve(repoRoot, input)
-  let abs = candidate
-  let stat = await fs.stat(abs).catch(() => null)
-  if (!stat) {
-    const fallback = path.resolve(process.cwd(), input)
-    if (fallback !== abs) {
-      abs = fallback
-      stat = await fs.stat(abs).catch(() => null)
-    }
+
+  if (!isPathWithinBoundary(repoRoot, candidate)) {
+    console.warn(`[pathinfo] Path rejected (outside boundary): ${input} -> ${candidate}`)
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
+
+  const stat = await fs.stat(candidate).catch((err: NodeJS.ErrnoException) => {
+    if (err.code === 'ENOENT') {
+      console.warn(`[pathinfo] Path not found: ${candidate}`)
+    } else if (err.code === 'EACCES') {
+      console.error(`[pathinfo] Permission denied: ${candidate}`)
+    } else {
+      console.error(`[pathinfo] Error accessing path ${candidate}: ${err.message}`)
+    }
+    return null
+  })
+
   if (!stat) return NextResponse.json({ error: 'not found' }, { status: 404 })
+
+  const abs = candidate
   try {
     if (stat.isFile()) {
       const ext = path.extname(abs).toLowerCase()
@@ -58,7 +73,9 @@ export const GET = withSession(async ({ request }) => {
       return NextResponse.json({ type: 'dir' })
     }
     return NextResponse.json({ error: 'unsupported' }, { status: 400 })
-  } catch {
-    return NextResponse.json({ error: 'not found' }, { status: 404 })
+  } catch (error) {
+    const err = error as Error
+    console.error(`[pathinfo] Unexpected error processing ${abs}: ${err.message}`)
+    return NextResponse.json({ error: 'internal server error' }, { status: 500 })
   }
 })

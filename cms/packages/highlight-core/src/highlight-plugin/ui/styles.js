@@ -1208,7 +1208,7 @@ const STYLE_TEXT = `
 .trigger-dialog__editor {
   position: relative;
 }
-.trigger-dialog__textarea-fallback {
+.trigger-dialog__textarea-basic {
   width: 100%;
   min-height: 160px;
   border-radius: 12px;

@@ -385,7 +385,7 @@ export function renderHTMLDocument(htmlText, relPath) {
       RETURN_DOM_FRAGMENT: true,
     })
   } catch (err) {
-    console.warn('Failed to sanitise HTML document, falling back to raw text', err)
+    console.warn('Failed to sanitise HTML document, using raw text instead', err)
     wrapper.textContent = htmlText
     return { htmlEl: wrapper, headings: [] }
   }
@@ -560,15 +560,15 @@ export async function renderLaTeXDocument(texSource, relPath) {
     const hasPageSibling = page.parentElement === viewport
     if (hasPageSibling) viewport.removeChild(page)
     const notice = document.createElement('div')
-    notice.className = 'latex-document__fallback'
+    notice.className = 'latex-document__error-notice'
     notice.textContent = 'Unable to render this LaTeX document. Showing source.'
     if (err && err.message) {
       const sub = document.createElement('div')
-      sub.className = 'latex-document__fallback-detail'
+      sub.className = 'latex-document__error-detail'
       sub.textContent = err.message
       notice.appendChild(sub)
     }
-    const fallback = new CodeView({
+    const sourceView = new CodeView({
       code: raw,
       language: 'latex',
       showCopy: true,
@@ -577,7 +577,7 @@ export async function renderLaTeXDocument(texSource, relPath) {
     })
     const fragment = document.createDocumentFragment()
     fragment.appendChild(notice)
-    fragment.appendChild(fallback.element)
+    fragment.appendChild(sourceView.element)
     viewport.appendChild(fragment)
     headings = rootAnchorId ? [{ id: rootAnchorId, text: 'Document', level: 1 }] : []
   }

@@ -7,7 +7,6 @@ import type { AuthenticatedUser } from '@ami/auth/types'
 import { withSession } from '../../../lib/auth-guard'
 import {
   addAccount,
-  deriveAccountUserId,
   getAccountSnapshot,
 } from '../../../lib/store'
 
@@ -15,25 +14,20 @@ function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status })
 }
 
-async function resolveUserByEmail(email: string): Promise<AuthenticatedUser | null> {
+async function resolveUserByEmail(email: string): Promise<AuthenticatedUser> {
   try {
     const existing = await dataOpsClient.getUserByEmail(email)
-    if (existing) return existing
+    if (!existing) {
+      console.warn('[account-manager] User not found in DataOps or local store', { email })
+      throw new Error('USER_NOT_FOUND')
+    }
+    return existing
   } catch (err) {
-    console.warn('[account-manager] dataOpsClient.getUserByEmail failed', err)
-  }
-
-  // Fallback: synthesize minimal user aligned with AuthenticatedUser model.
-  const fallbackId = deriveAccountUserId(email)
-  return {
-    id: fallbackId,
-    email,
-    name: null,
-    image: null,
-    roles: [],
-    groups: [],
-    tenantId: null,
-    metadata: { accountSource: 'fallback-local' },
+    if (err instanceof Error && err.message === 'USER_NOT_FOUND') {
+      throw err
+    }
+    console.error('[account-manager] SECURITY: dataOpsClient.getUserByEmail service failure', { email, error: err })
+    throw new Error('USER_SERVICE_UNAVAILABLE')
   }
 }
 
@@ -65,14 +59,26 @@ export const POST = withSession(async ({ request }) => {
   if (!emailRaw) return jsonError('Email is required')
   if (!providerRaw) return jsonError('Provider is required')
 
-  const user = await resolveUserByEmail(emailRaw)
-  if (!user) return jsonError('Unable to resolve user for the requested email', 404)
+  try {
+    const user = await resolveUserByEmail(emailRaw)
 
-  const { snapshot } = await addAccount({
-    provider: providerRaw,
-    label: labelRaw ?? null,
-    user,
-  })
+    const { snapshot } = await addAccount({
+      provider: providerRaw,
+      label: labelRaw ?? null,
+      user,
+    })
 
-  return NextResponse.json(snapshot, { status: 201 })
+    return NextResponse.json(snapshot, { status: 201 })
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message === 'USER_NOT_FOUND') {
+        return jsonError('User not found. Please ensure the user exists in the authentication system.', 404)
+      }
+      if (err.message === 'USER_SERVICE_UNAVAILABLE') {
+        return jsonError('Authentication service temporarily unavailable. Please try again later.', 503)
+      }
+    }
+    console.error('[account-manager] Unexpected error adding account', { email: emailRaw, error: err })
+    return jsonError('An unexpected error occurred', 500)
+  }
 })

@@ -78,13 +78,61 @@ function defaultConfig(): AutomationConfig {
   }
 }
 
-async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
+type ReadJsonOptions<T> = {
+  defaultValue?: T
+  required?: boolean
+}
+
+async function readJsonFile<T>(
+  filePath: string,
+  options?: ReadJsonOptions<T>
+): Promise<T> {
+  const { defaultValue, required = false } = options ?? {}
+
   try {
     const raw = await fs.readFile(filePath, 'utf8')
-    const parsed = JSON.parse(raw)
-    return (parsed ?? fallback) as T
-  } catch {
-    return fallback
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch (parseError) {
+      const error = parseError as Error
+      console.error(`[automation] JSON parse error in ${filePath}: ${error.message}`)
+      throw new Error(`Invalid JSON in ${filePath}: ${error.message}`)
+    }
+
+    if (parsed === null || parsed === undefined) {
+      if (defaultValue !== undefined) {
+        return defaultValue
+      }
+      throw new Error(`Null or undefined value in ${filePath}`)
+    }
+
+    return parsed as T
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException
+
+    if (err.code === 'ENOENT') {
+      if (!required && defaultValue !== undefined) {
+        console.warn(`[automation] File not found, using default: ${filePath}`)
+        return defaultValue
+      }
+      console.error(`[automation] Required file not found: ${filePath}`)
+      throw new Error(`File not found: ${filePath}`)
+    }
+
+    if (err.code === 'EACCES') {
+      console.error(`[automation] Permission denied reading: ${filePath}`)
+      throw new Error(`Permission denied: ${filePath}`)
+    }
+
+    if (err.code === 'EISDIR') {
+      console.error(`[automation] Expected file but found directory: ${filePath}`)
+      throw new Error(`Path is a directory: ${filePath}`)
+    }
+
+    console.error(`[automation] Error reading ${filePath}: ${err.message}`)
+    throw error
   }
 }
 
@@ -94,13 +142,13 @@ async function writeJsonFile(filePath: string, data: unknown) {
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8')
 }
 
-function slugify(name: string, fallback = 'scenario'): string {
+function slugify(name: string, defaultPrefix = 'scenario'): string {
   const base = name
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  return base || `${fallback}-${Math.random().toString(36).slice(2, 8)}`
+  return base || `${defaultPrefix}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function safeTriggerFileName(id: string): string {
@@ -110,7 +158,7 @@ function safeTriggerFileName(id: string): string {
 
 async function readAutomationConfig(automationDir: string): Promise<AutomationConfig> {
   const configPath = path.join(automationDir, CONFIG_FILE)
-  const config = await readJsonFile<AutomationConfig>(configPath, defaultConfig())
+  const config = await readJsonFile<AutomationConfig>(configPath, { defaultValue: defaultConfig() })
   const merged = defaultConfig()
   merged.enabled = config.enabled === true
   merged.activeScenario = typeof config.activeScenario === 'string' && config.activeScenario ? config.activeScenario : 'default'
@@ -146,9 +194,11 @@ async function ensureDefaultScenario(automationDir: string) {
 async function readScenarioMeta(scenarioDir: string, slug: string) {
   const metaPath = path.join(scenarioDir, SCENARIO_META_FILE)
   const meta = await readJsonFile(metaPath, {
-    slug,
-    name: slug,
-    createdAt: Date.now(),
+    defaultValue: {
+      slug,
+      name: slug,
+      createdAt: Date.now(),
+    },
   })
   if (!meta.slug) meta.slug = slug
   if (!meta.name) meta.name = slug
@@ -261,7 +311,7 @@ async function deleteTriggerFile(automationDir: string, scenario: string, trigge
     await fs.rm(path.join(scenarioDir, targetFile), { force: true })
     return
   }
-  // fallback: delete by id metadata match
+  // alternative: delete by id metadata match
   for (const file of files) {
     if (!file.endsWith(TRIGGER_EXTENSION) || file === SCENARIO_META_FILE) continue
     const triggerPath = path.join(scenarioDir, file)

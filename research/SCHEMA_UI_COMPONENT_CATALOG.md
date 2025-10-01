@@ -75,7 +75,7 @@ To keep schemas concise, we define abstract data models the backend emits alongs
 
 
 ## Meta-Platform Considerations
-- Components must declare capability flags so host environments (web, desktop shell, partner portal) can opt-in or supply fallbacks.
+- Components must declare capability flags so host environments (web, desktop shell, partner portal) can opt-in or provide alternatives.
 - Item schemas should reference behaviour adapters (state machines, action modules) via IDs resolved through the schema registry for richer experiences.
 - Container hierarchies map naturally onto BPMN user-task views; ensure each schema segment is tagged with `processRef` so orchestration layers can route tasks accurately.
 - Support composition by allowing schema authors to extend base components with overrides (`extends` semantics) rather than duplicating definitions.

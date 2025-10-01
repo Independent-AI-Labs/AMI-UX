@@ -39,7 +39,7 @@
 - Extend CMS config with meta mappings:
   - New optional `metaRoots` object in `data/config.json` keyed by `MediaRoot.key` (e.g. `{ "docRoot": "../ami-meta/docRoot", "uploads": "../ami-meta/uploads" }`).
   - Environment overrides: `CMS_META_ROOT` (global base) and `CMS_META_ROOT_<KEY>` (per-root).
-  - Fallback when nothing configured: `path.join(appRoot, 'data/meta/<key>')` to keep dev ergonomics.
+  - Default when nothing configured: `path.join(appRoot, 'data/meta/<key>')` to keep dev ergonomics.
 - Update `ux/cms/app/lib/media-roots.ts` to return `{ key, label, path, writable, metaPath }`, where `metaPath` is the resolved absolute meta base for that root.
 
 ### 3. Server-Side Updates
@@ -81,7 +81,7 @@
 ### 6. Operational Considerations
 - Meta store paths must be writable by the CMS process; add health checks in `/api/automation` and `/api/latex` that detect permission errors and return actionable messages.
 - Add a new `scripts/check-meta-store.mjs` that verifies configured paths exist and have read/write access (hook into CI).
-- Ensure `.gitignore` covers the default fallback directory (`data/meta/`).
+- Ensure `.gitignore` covers the default directory (`data/meta/`).
 
 ## Testing & Validation
 - Update existing integration tests to seed `CMS_META_ROOT` and assert relocation:

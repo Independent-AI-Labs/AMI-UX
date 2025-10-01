@@ -498,14 +498,17 @@ const HexagonalMessageGrid = () => {
                         q = baseQ + Math.round(radius * Math.cos(angle));
                         r = baseR + Math.round(radius * Math.sin(angle));
                     }
-                    
+
                     if (!occupiedPositions.has(`${q},${r}`)) {
                         return { q, r };
                     }
                 }
             }
-            
-            return { q: 0, r: 0 }; // Fallback
+
+            // No available position found
+            console.error('[page] Cannot create website: No available positions near clicked location');
+            // TODO: Show user-facing error toast/notification
+            throw new Error('No available position for new website');
         };
 
         const position = findNextAvailablePosition();

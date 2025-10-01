@@ -294,12 +294,12 @@ function copyText(value) {
     return navigator.clipboard
       .writeText(value)
       .then(() => true)
-      .catch(async () => fallbackCopy(value))
+      .catch(async () => legacyCopy(value))
   }
-  return fallbackCopy(value)
+  return legacyCopy(value)
 }
 
-function fallbackCopy(value) {
+function legacyCopy(value) {
   try {
     const textarea = document.createElement('textarea')
     textarea.value = value

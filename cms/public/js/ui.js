@@ -1,6 +1,6 @@
 import { displayName, pathAnchor, normalizeFsPath } from './utils.js'
 import { fetchFile } from './api.js'
-import { resolveFileView, getFallbackFileView } from './file-view-registry.js'
+import { resolveFileView, getDefaultFileView } from './file-view-registry.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { markIgnoredNode, markPluginNode } from './highlight-plugin/core/dom-utils.js'
 
@@ -172,16 +172,16 @@ export async function ensureFileContent(state, node) {
 
     let rendered = await renderWithView(view, primaryContent, baseContext)
     if (!rendered) {
-      const fallback = getFallbackFileView()
-      if (fallback !== view) {
-        const fallbackFormat = fallback?.contentFormat === 'manual' ? null : fallback?.contentFormat || 'text'
-        let fallbackContent = primaryContent
-        if (fallbackFormat && fallbackFormat !== primaryFormat) {
-          fallbackContent = await fetchForFormat(fallbackFormat)
-        } else if (fallbackFormat && fallbackContent == null) {
-          fallbackContent = await fetchForFormat(fallbackFormat)
+      const defaultView = getDefaultFileView()
+      if (defaultView !== view) {
+        const defaultFormat = defaultView?.contentFormat === 'manual' ? null : defaultView?.contentFormat || 'text'
+        let defaultContent = primaryContent
+        if (defaultFormat && defaultFormat !== primaryFormat) {
+          defaultContent = await fetchForFormat(defaultFormat)
+        } else if (defaultFormat && defaultContent == null) {
+          defaultContent = await fetchForFormat(defaultFormat)
         }
-        rendered = await renderWithView(fallback, fallbackContent, baseContext)
+        rendered = await renderWithView(defaultView, defaultContent, baseContext)
       }
     }
 
@@ -589,11 +589,11 @@ function ensureSummaryActions(state, details, node) {
       try {
         let target = btn.__fullscreenTarget
         if (!(target instanceof HTMLElement)) target = fullscreenTarget
-        const fallback = target && typeof target.requestFullscreen === 'function'
+        const element = target && typeof target.requestFullscreen === 'function'
           ? target
           : document.documentElement
-        if (typeof document !== 'undefined' && !isFullscreenForTarget(fallback)) {
-          await fallback?.requestFullscreen?.()
+        if (typeof document !== 'undefined' && !isFullscreenForTarget(element)) {
+          await element?.requestFullscreen?.()
         } else if (typeof document !== 'undefined' && document.exitFullscreen) {
           await document.exitFullscreen()
         }
@@ -877,15 +877,15 @@ function ensureStructurePanelResizer(state, tocEl) {
   }
   const resizeState = state._structureResize
 
-  const readCssDimension = (varName, fallback) => {
-    if (!root || !view || typeof view.getComputedStyle !== 'function') return fallback
+  const readCssDimension = (varName, defaultValue) => {
+    if (!root || !view || typeof view.getComputedStyle !== 'function') return defaultValue
     try {
       const styles = view.getComputedStyle(root)
       const raw = styles.getPropertyValue(varName)
       const numeric = parseFloat(raw)
-      return Number.isFinite(numeric) ? numeric : fallback
+      return Number.isFinite(numeric) ? numeric : defaultValue
     } catch {
-      return fallback
+      return defaultValue
     }
   }
 
@@ -902,8 +902,8 @@ function ensureStructurePanelResizer(state, tocEl) {
       return Math.max(resizeState.min + 80, width - 280)
     })()
     const allowedMax = Math.max(resizeState.max, resizeState.min + 80)
-    const hardMax = Math.max(resizeState.min, Math.min(allowedMax, viewportLimit))
-    return Math.min(Math.max(base, resizeState.min), hardMax)
+    const maxWidth = Math.max(resizeState.min, Math.min(allowedMax, viewportLimit))
+    return Math.min(Math.max(base, resizeState.min), maxWidth)
   }
 
   let handle = resizeState.handle && resizeState.handle.isConnected ? resizeState.handle : null
@@ -1532,16 +1532,16 @@ function setsEqual(a, b) {
 function createStructureWatcher(state) {
   const doc = document
   const tocRoot = doc.querySelector('nav .toc')
-  const fallbackContent = doc.getElementById('content')
-  if (!tocRoot || !fallbackContent) return null
+  const contentElement = doc.getElementById('content')
+  if (!tocRoot || !contentElement) return null
 
   void state
 
-  const ownerDoc = fallbackContent.ownerDocument || document
+  const ownerDoc = contentElement.ownerDocument || document
   const defaultView = ownerDoc.defaultView || window
 
   const resolveTreeRoot = () => ownerDoc.getElementById('treeRoot')
-  const resolveContainer = () => resolveTreeRoot() || ownerDoc.getElementById('content') || fallbackContent
+  const resolveContainer = () => resolveTreeRoot() || ownerDoc.getElementById('content') || contentElement
   const visibilityTracker = state?.visibilityTracker || null
 
   let structureScrollEl = null

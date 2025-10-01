@@ -138,16 +138,18 @@ export class ConversationManager {
     // Get input position for active conversation
     getInputPosition() {
         console.log(`Getting input position - activeConversationId: ${this.activeConversationId}`);
-        
+
         if (!this.activeConversationId) {
-            console.log('No active conversation - returning fallback position');
-            return { q: 0, r: 0 }; // Fallback
+            console.error('[conversationManager] Cannot get input position: No active conversation');
+            // TODO: Show user-facing error toast/notification
+            throw new Error('No active conversation');
         }
 
         const conversation = this.conversations.get(this.activeConversationId);
         if (!conversation) {
-            console.log(`Conversation ${this.activeConversationId} not found - returning fallback`);
-            return { q: 0, r: 0 }; // Fallback
+            console.error(`[conversationManager] Cannot get input position: Conversation ${this.activeConversationId} not found`);
+            // TODO: Show user-facing error toast/notification
+            throw new Error(`Conversation ${this.activeConversationId} not found`);
         }
 
         // Calculate next message position
@@ -170,7 +172,7 @@ export class ConversationManager {
         return conversationId ? this.conversations.get(conversationId) : null;
     }
 
-    // Get position for a message (with fallback for legacy messages)
+    // Get position for a message (with compatibility for legacy messages)
     getMessagePosition(message, index) {
         // If message has direct coordinates, use them
         if (message.q !== undefined && message.r !== undefined) {
@@ -191,14 +193,10 @@ export class ConversationManager {
             }
         }
 
-        // Fallback for legacy messages (all in first conversation)
-        const isLeft = index % 2 === 0;
-        const rowInConversation = Math.floor(index / 2);
-        
-        return {
-            q: isLeft ? 0 : 1,
-            r: rowInConversation
-        };
+        // No valid position found for message
+        console.error(`[conversationManager] Cannot get message position: Message ${message.id} has no coordinates and is not in any conversation`);
+        // TODO: Show user-facing error toast/notification
+        throw new Error(`Message ${message.id} has no valid position`);
     }
 
     // Get active conversation ID

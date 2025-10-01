@@ -4,16 +4,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import process from 'node:process'
 import chokidar from 'chokidar'
 
+import { build as buildHighlightEngine } from './build-highlight-engine.mjs'
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const cmsRoot = path.resolve(__dirname, '..')
 const packageRoot = path.join(cmsRoot, 'packages', 'highlight-core')
+const engineRoot = path.join(cmsRoot, 'packages', 'highlight-engine')
 const srcHighlight = path.join(packageRoot, 'src', 'highlight-plugin')
 const srcLib = path.join(packageRoot, 'src', 'lib')
+const engineDist = path.join(engineRoot, 'dist', 'browser')
 
 const webJsRoot = path.join(cmsRoot, 'public', 'js')
 const extRoot = path.join(cmsRoot, 'extension', 'highlight-plugin')
 const extPkgRoot = path.join(extRoot, 'pkg')
 const vendorSrc = path.join(cmsRoot, 'public', 'vendor', 'highlightjs')
+const webEngineDest = path.join(webJsRoot, 'lib', 'highlight-engine')
+const extEngineDest = path.join(extPkgRoot, 'lib', 'highlight-engine')
 
 const webWrappers = [
   ['icon-pack.js', "export * from './lib/icon-pack.js';\n"],
@@ -63,6 +69,8 @@ async function clean() {
     extPkgRoot,
     path.join(extPkgRoot, 'lib'),
     path.join(extPkgRoot, 'vendor', 'highlightjs'),
+    webEngineDest,
+    extEngineDest,
   ]
 
   await Promise.all(
@@ -77,12 +85,16 @@ async function build() {
   await ensureDir(webJsRoot)
   await ensureDir(extRoot)
 
+  await buildHighlightEngine()
+
   await copyDir(srcHighlight, path.join(webJsRoot, 'highlight-plugin'))
   await copyDir(srcLib, path.join(webJsRoot, 'lib'))
+  await copyDir(engineDist, webEngineDest)
 
   await ensureDir(extPkgRoot)
   await copyDir(srcHighlight, extPkgRoot)
   await copyDir(srcLib, path.join(extPkgRoot, 'lib'))
+  await copyDir(engineDist, extEngineDest)
 
   await rm(path.join(extPkgRoot, 'vendor', 'highlightjs'), { recursive: true, force: true })
   await ensureDir(path.join(extPkgRoot, 'vendor'))
@@ -97,6 +109,7 @@ async function build() {
 async function watch() {
   const watchPaths = [
     path.join(packageRoot, 'src'),
+    path.join(engineRoot, 'src'),
     vendorSrc,
   ]
 

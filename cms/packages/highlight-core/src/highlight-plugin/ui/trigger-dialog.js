@@ -168,15 +168,16 @@ export class TriggerDialog {
 
     const ready = await this.setupEditors()
     if (!ready || !this.SyntaxEditor || !this.ReactDOM || !this.React) {
+      // Progressive enhancement: Use basic textarea when Monaco/React unavailable
       container.innerHTML = ''
-      const fallback = this.document.createElement('textarea')
-      fallback.value = value || ''
-      fallback.dataset.triggerField = `${kind}Code`
-      fallback.className = 'trigger-dialog__textarea-fallback'
-      container.appendChild(fallback)
+      const basicEditor = this.document.createElement('textarea')
+      basicEditor.value = value || ''
+      basicEditor.dataset.triggerField = `${kind}Code`
+      basicEditor.className = 'trigger-dialog__textarea-basic'
+      container.appendChild(basicEditor)
       this.editorRoots[kind] = null
-      this.editorState[kind] = fallback.value
-      fallback.addEventListener('input', (event) => {
+      this.editorState[kind] = basicEditor.value
+      basicEditor.addEventListener('input', (event) => {
         this.editorState[kind] = event.target.value
       })
       return

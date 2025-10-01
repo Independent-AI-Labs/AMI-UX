@@ -177,9 +177,9 @@
 
 ## Implementation Log — 2025-10-01
 - **Shell button removal**: Dropped the legacy header toggle so the CMS shell no longer hosts highlight controls (`ux/cms/public/index.html:183`, `ux/cms/public/js/shell.js:803`). This keeps the iframe contract clean and defers all UI affordances to the plugin runtime.
-- **Auto injection**: Hardened `ensureHighlightPluginConfig` to mandate fallback toggle creation and early panel render on every iframe boot (`ux/cms/public/js/shell.js:32`). The shell now guarantees the plugin loads whenever a docs tab comes online without any manual click path.
+- **Auto injection**: Hardened `ensureHighlightPluginConfig` to mandate default toggle creation and early panel render on every iframe boot (`ux/cms/public/js/shell.js:32`). The shell now guarantees the plugin loads whenever a docs tab comes online without any manual click path.
 - **Toggle isolation**: Marked all plugin toggle buttons as owned/ignored nodes so the floating settings affordance never registers as a highlight target (`ux/cms/public/js/highlight-plugin/ui/panel.js:103`).
-- **Follow-ups**: Re-run the extension sync script after validating in-browser to keep the packaged runtime aligned; add Playwright coverage that asserts the fallback toggle renders on docs activation and remains excluded from highlight overlays.
+- **Follow-ups**: Re-run the extension sync script after validating in-browser to keep the packaged runtime aligned; add Playwright coverage that asserts the default toggle renders on docs activation and remains excluded from highlight overlays.
 
 ## Implementation Log — 2025-10-02
 - **Deterministic bootstrap**: The shell always pushes the highlight runtime into the docs iframe by attaching a `type="module"` script tag (guarded by a fixed id) and refreshing any existing plugin instance rather than relying on DOM heuristics (`ux/cms/public/js/shell.js:39`). This ensures every tab load reuses or spins up the shared runtime without double-mounting.

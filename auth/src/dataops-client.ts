@@ -130,7 +130,7 @@ async function verifyPassword(password: string, descriptor: string): Promise<boo
   if (descriptor.startsWith('plain:')) {
     return timingSafeEqual(Buffer.from(descriptor.slice('plain:'.length)), Buffer.from(password))
   }
-  // Default fallback
+  // Default comparison
   return timingSafeEqual(Buffer.from(descriptor), Buffer.from(password))
 }
 

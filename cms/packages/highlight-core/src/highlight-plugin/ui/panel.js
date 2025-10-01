@@ -174,7 +174,7 @@ export class HighlightSettingsUI {
       if (target) {
         const ownedFlag = target.dataset?.amiHighlightOwned === '1'
         this.attachToggleButton(target, { ownsToggle: ownedFlag })
-      } else if (options.createFallbackToggle !== false) {
+      } else if (options.createDefaultToggle !== false) {
         this.createFloatingToggle()
       }
     }
@@ -303,7 +303,7 @@ export class HighlightSettingsUI {
       try {
         this.document.addEventListener('DOMContentLoaded', onReady, { once: true })
       } catch {
-        // Fallback: schedule microtask
+        // Alternative: schedule microtask
         setTimeout(appendToggle, 0)
       }
     }
@@ -884,7 +884,7 @@ export class HighlightSettingsUI {
         ? { ...initialDraft, scenario: initialDraft.scenario || scenarioSlug }
         : null
 
-    const fallbackToComposer = () => {
+    const useComposerAlternative = () => {
       if (
         this.triggerComposer &&
         typeof this.triggerComposer.open === 'function' &&
@@ -939,11 +939,11 @@ export class HighlightSettingsUI {
         })
         .catch((error) => {
           if (error) console.warn('Failed to create trigger via scenario manager', error)
-          return fallbackToComposer()
+          return useComposerAlternative()
         })
     }
 
-    return fallbackToComposer()
+    return useComposerAlternative()
   }
 
   editAutomationTriggerForElement(element) {

@@ -93,8 +93,8 @@
     pointer-events: none;
 }
 
-/* Video fallback for unsupported browsers */
-.video-fallback {
+/* Video alternative for unsupported browsers */
+.video-alternative {
     position: absolute;
     top: 0;
     left: 0;

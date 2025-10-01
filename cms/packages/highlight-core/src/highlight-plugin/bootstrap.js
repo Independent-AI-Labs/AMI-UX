@@ -317,8 +317,8 @@ export function bootstrapHighlightPlugin(config = {}) {
       }
     })()
     const allowFloatingToggle = (() => {
-      if (config.createFallbackToggle === true) return true
-      if (config.createFallbackToggle === false) return false
+      if (config.createDefaultToggle === true) return true
+      if (config.createDefaultToggle === false) return false
       const body = doc.body || null
       const isShellHost = isTopWindow && !!(body && body.classList && body.classList.contains('shell-app'))
       if (isShellHost) return false
@@ -329,7 +329,7 @@ export function bootstrapHighlightPlugin(config = {}) {
       document: doc,
       manager,
       toggleButton: toggle || null,
-      createFallbackToggle: allowFloatingToggle,
+      createDefaultToggle: allowFloatingToggle,
       renderImmediately: config.renderImmediately === true,
       ownerId: instanceId,
     })

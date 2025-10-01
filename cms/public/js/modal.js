@@ -447,12 +447,12 @@ function createServerDirectoryModalFactory(React, { ModalDialog, FileTreeSelecto
         if (!response.ok || !data?.ok) {
           throw new Error(data?.error || 'Failed to create directory.')
         }
-        const basePath = selectedDetail.node.path || ''
-        const sanitizedBase = basePath ? basePath.replace(/[\\/]+$/g, '') : ''
-        const fallbackPath = sanitizedBase ? `${sanitizedBase}/${folderName}` : folderName
+        if (!data.path) {
+          throw new Error('API failed to return path for created directory')
+        }
         pendingSelectionRef.current = {
           rootKey: data.rootKey || selectedDetail.rootKey,
-          path: data.path || fallbackPath,
+          path: data.path,
         }
         setReloadToken((value) => value + 1)
         showToast('Directory created.', { tone: 'success' })
@@ -1637,10 +1637,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       const repoPaths = []
       const relativeInputs = []
       const uploadedAtValues = []
-      let fallbackAbsolute = ''
-      let fallbackRelative = ''
       const rootKeys = new Set()
-      let fallbackRootKey = typeof job?.root === 'string' ? job.root : ''
       let rootLabel = typeof job?.rootLabel === 'string' ? job.rootLabel : ''
       let rootBaseAbsolute = ''
       let rootBaseRelative = ''
@@ -1655,12 +1652,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           if (typeof file.absolutePath === 'string') absolutePaths.push(file.absolutePath)
           if (typeof file.path === 'string') repoPaths.push(file.path)
           if (typeof file.relativePath === 'string') relativeInputs.push(file.relativePath)
-        }
-        if (typeof data.rootAbsolute === 'string' && !fallbackAbsolute) {
-          fallbackAbsolute = data.rootAbsolute
-        }
-        if (typeof data.rootRelative === 'string' && !fallbackRelative) {
-          fallbackRelative = data.rootRelative
         }
         if (typeof data.rootKey === 'string') {
           rootKeys.add(data.rootKey)
@@ -1680,22 +1671,21 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       }
       if (uniqueFiles.size === 0) return null
       const files = Array.from(uniqueFiles.values())
-      let rootAbsolute = commonDirectory(absolutePaths)
-      if (!rootAbsolute) rootAbsolute = toPosixPath(fallbackAbsolute)
-      let rootRelative = commonDirectory(repoPaths)
+      const rootAbsolute = commonDirectory(absolutePaths)
+      if (!rootAbsolute) {
+        throw new Error('Cannot determine root directory from uploaded files - paths have no common ancestor')
+      }
+      let rootRelative = commonDirectory(repoPaths) || commonDirectory(relativeInputs)
       if (!rootRelative) {
-        rootRelative = commonDirectory(relativeInputs)
+        throw new Error('Cannot determine relative root directory')
       }
-      if (!rootRelative && fallbackRelative) {
-        rootRelative = toPosixPath(fallbackRelative)
+      if (rootKeys.size !== 1) {
+        throw new Error(`Upload contains files from multiple root keys: ${Array.from(rootKeys).join(', ')}`)
       }
+      const rootKey = Array.from(rootKeys)[0]
       const uploadedAt = uploadedAtValues.length ? Math.min(...uploadedAtValues) : Date.now()
       const isDirJob = !!job && job.kind === 'dir'
       const effectiveKind = isDirJob || files.length > 1 ? 'dir' : 'file'
-      const rootKey = rootKeys.size === 1 ? Array.from(rootKeys)[0] : fallbackRootKey || ''
-      if (!rootLabel && fallbackRootKey && typeof job?.rootLabel === 'string') {
-        rootLabel = job.rootLabel
-      }
       return {
         files,
         rootAbsolute,
@@ -1714,9 +1704,9 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       return jobs.find((item) => item.id === id) || null
     }
 
-    function buildTargetPath(prefix, rel, fallbackName) {
+    function buildTargetPath(prefix, rel, defaultName) {
       const cleanPrefix = (prefix || '').replace(/^[\\/]+/, '').replace(/[\\/]+$/, '')
-      const rawRel = (rel || fallbackName || '').toString()
+      const rawRel = (rel || defaultName || '').toString()
       const cleanRel = rawRel.replace(/^[\\/]+/, '')
       if (cleanPrefix && cleanRel) return `${cleanPrefix}/${cleanRel}`
       if (cleanPrefix) return cleanPrefix
@@ -2055,13 +2045,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       let root = explicitRoot || uploadRoot || 'uploads'
       let rootInfo = rootOptionMap.get(root) || null
       if (!rootInfo || rootInfo.writable === false) {
-        const writableFallback =
+        const writableRoot =
           writableRootOptions.find((opt) => opt && opt.key === root) ||
           writableRootOptions.find((opt) => opt && opt.key === 'uploads') ||
           writableRootOptions[0]
-        if (writableFallback) {
-          root = writableFallback.key
-          rootInfo = writableFallback
+        if (writableRoot) {
+          root = writableRoot.key
+          rootInfo = writableRoot
         } else if (rootOptionMap.has('uploads')) {
           root = 'uploads'
           rootInfo = rootOptionMap.get(root) || null
@@ -2382,20 +2372,20 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           finish()
           return
         }
-        const fallback =
+        const selectedRoot =
           writableRootOptions.find((opt) => opt && opt.key === 'docRoot') ||
           writableRootOptions.find((opt) => opt && opt.key === uploadRoot) ||
           writableRootOptions[0] ||
           rootOptions.find((opt) => opt && opt.key === 'docRoot') ||
           activeRoot ||
           rootOptions[0]
-        if (!fallback) {
+        if (!selectedRoot) {
           showToast('No destination roots configured.', { tone: 'danger' })
           setPendingSelection(null)
           return
         }
-        rootKey = fallback.key
-        rootLabel = fallback.label || fallback.key
+        rootKey = selectedRoot.key
+        rootLabel = selectedRoot.label || selectedRoot.key
         prefix = folderName
         finish()
         return

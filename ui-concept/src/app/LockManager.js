@@ -252,20 +252,21 @@ class LockManager {
                 
                 // Get ALL tiles for this conversation to find the actual columns used
                 const conversationTiles = this.viewManagers.tileGrid?.getConversationTiles(conversationId) || [];
-                
+
                 // Find the min and max Q values to determine the column pair
                 let minQ = q;
                 let maxQ = q;
-                
+
                 if (conversationTiles.length > 0) {
                     conversationTiles.forEach(tile => {
                         if (tile.position.q < minQ) minQ = tile.position.q;
                         if (tile.position.q > maxQ) maxQ = tile.position.q;
                     });
                 } else {
-                    // Fallback: assume standard column pair
-                    minQ = Math.floor(q / 2) * 2;
-                    maxQ = minQ + 1;
+                    // No tiles in conversation - cannot determine position
+                    console.error(`[LockManager] Cannot lock to conversation: No tiles found for conversation ${conversationId}`);
+                    // TODO: Show user-facing error toast/notification
+                    throw new Error(`Cannot lock to empty conversation ${conversationId}`);
                 }
                 
                 console.log('[LockManager] Conversation columns:', { conversationId, minQ, maxQ, tileCount: conversationTiles.length });

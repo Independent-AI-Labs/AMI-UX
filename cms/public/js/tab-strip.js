@@ -109,14 +109,23 @@ export function createTabStrip(root, options = {}) {
       button.draggable = previousDraggable
       if (closeEl) closeEl.style.pointerEvents = ''
 
+      const originalLabel = String(tab.label || 'Untitled').trim()
+
+      if (cancelled) {
+        return
+      }
+
       const trimmed = String(nextValue ?? '').trim()
-      const fallback = String(tab.label || '').trim()
-      const finalLabel = cancelled ? fallback : trimmed || fallback || 'Untitled'
-      if (finalLabel !== tab.label) {
-        tab.label = finalLabel
+      if (!trimmed) {
+        console.warn('[tab-strip] Label cannot be empty, keeping original label')
+        return
+      }
+
+      if (trimmed !== tab.label) {
+        tab.label = trimmed
         if (typeof opts.onRename === 'function') {
           try {
-            opts.onRename(tab.id, finalLabel)
+            opts.onRename(tab.id, trimmed)
           } catch (error) {
             console.error('tab-strip onRename handler failed', error)
           }

@@ -94,8 +94,8 @@ export function initShellConsole() {
     const removedActive = consoleState.sessions[index].id === consoleState.activeId
     consoleState.sessions.splice(index, 1)
     if (removedActive) {
-      const fallback = consoleState.sessions[index] || consoleState.sessions[index - 1] || consoleState.sessions[0]
-      consoleState.activeId = fallback ? fallback.id : null
+      const nextSession = consoleState.sessions[index] || consoleState.sessions[index - 1] || consoleState.sessions[0]
+      consoleState.activeId = nextSession ? nextSession.id : null
     }
     syncTabs()
     if (term) renderActiveSession({ reset: true })
