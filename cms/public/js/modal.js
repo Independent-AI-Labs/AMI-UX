@@ -2,35 +2,596 @@
 import { humanizeName, normalizeFsPath } from './utils.js'
 import { createFileTreeToolkit, normalizeTreeFromApi } from './file-tree.js'
 import { createDrawerChrome } from './drawer-chrome.js?v=20250306'
+import { deriveMetaDirectory, openMetadataSettingsDialog } from './metadata-settings.js?v=20250306'
 import { icon as iconMarkup, spinnerIcon as spinnerIconMarkup } from './icon-pack.js?v=20250306'
 import { showToast } from './toast-manager.js?v=20250306'
 import { dialogService } from './dialog-service.js?v=20250306'
-export async function ensureReact() {
-  if (window.React && window.ReactDOM) return { React: window.React, ReactDOM: window.ReactDOM }
-  const load = (src) =>
-    new Promise((resolve, reject) => {
-      const s = document.createElement('script')
-      s.src = src
-      s.crossOrigin = 'anonymous'
-      s.onload = resolve
-      s.onerror = reject
-      document.head.appendChild(s)
-    })
-  // Use CDN consistent with other libs in this app
-  await load('https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js')
-  await load('https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js')
-  return { React: window.React, ReactDOM: window.ReactDOM }
-}
+import { openCreateDirectoryDialog } from './create-directory-dialog.js?v=20250306'
+import { ensureReact as ensureReactRuntime } from './react-loader.js?v=20250306'
+
+export { ensureReactRuntime as ensureReact }
 
 const MODAL_CLOSE_DELAY = 260
 const DRAWER_CLOSE_DELAY = 260
 
+function createModalDialogFactory(React) {
+  const { useEffect, useRef, useCallback, useMemo } = React
+
+  return function ModalDialog({
+    title = '',
+    onClose,
+    actions = [],
+    children,
+    minWidth = '380px',
+    maxWidth = '95vw',
+    contentStyle = {},
+    bodyStyle = {},
+    footerAlign = 'flex-end',
+    allowBackdropClose = true,
+  }) {
+    const overlayRef = useRef(null)
+    const surfaceRef = useRef(null)
+    const dialogHandleRef = useRef(null)
+    const closeCallbackRef = useRef(onClose)
+    const idRef = useRef(null)
+
+    if (!idRef.current) {
+      idRef.current = `react-modal-${Math.random().toString(36).slice(2)}`
+    }
+
+    useEffect(() => {
+      closeCallbackRef.current = onClose
+    }, [onClose])
+
+    useEffect(() => {
+      // allowBackdropClose is captured on mount; changing it mid-flight would require tearing
+      // down the controller, which also dispatches close events. Treat it as static here.
+      const overlayEl = overlayRef.current
+      const surfaceEl = surfaceRef.current
+      if (!overlayEl || !surfaceEl) return
+
+      const dialogId = idRef.current
+      const handle = dialogService.register(dialogId, {
+        overlay: overlayEl,
+        surface: surfaceEl,
+        allowBackdropClose,
+        closeDelay: MODAL_CLOSE_DELAY,
+        onClose: () => {
+          closeCallbackRef.current?.()
+        },
+      })
+      dialogHandleRef.current = handle
+      handle.open()
+
+      return () => {
+        dialogService.unregister(dialogId)
+        dialogHandleRef.current = null
+      }
+    }, [])
+
+    const requestClose = useCallback(
+      (immediate = false) => {
+        const handle = dialogHandleRef.current
+        if (handle) {
+          handle.close(immediate)
+        } else {
+          closeCallbackRef.current?.()
+        }
+      },
+      [],
+    )
+
+    const normalizedActions = useMemo(() => {
+      if (!Array.isArray(actions)) return []
+      return actions
+        .filter(Boolean)
+        .slice(0, 4)
+        .map((action, index) => ({
+          key: action.key || `action_${index}`,
+          label: action.label || `Action ${index + 1}`,
+          onClick: action.onClick,
+          disabled: !!action.disabled,
+          variant:
+            action.variant || (action.dismiss
+              ? 'subtle'
+              : index === 0
+                ? 'primary'
+                : 'subtle'),
+          type: action.type || 'button',
+          dismiss: action.dismiss === true,
+          style: action.style || null,
+          fullWidth: action.fullWidth || false,
+          placement:
+            action.placement === 'start' || action.placement === 'end'
+              ? action.placement
+              : action.dismiss
+                ? 'start'
+                : 'end',
+        }))
+    }, [actions])
+
+    let endPlacementInjected = false
+    const renderAction = (action) => {
+      const variant = action.variant || 'primary'
+      const classes = ['dialog-button']
+      if (variant === 'danger') classes.push('dialog-button--danger')
+      else if (variant === 'ghost') classes.push('dialog-button--ghost')
+      else if (variant === 'outline') classes.push('dialog-button--outline')
+      else if (variant !== 'primary') classes.push('dialog-button--subtle')
+      if (action.fullWidth) classes.push('dialog-button--wide')
+      const label = String(action.label || '').trim() || 'Action'
+      const inlineStyle = action.style ? { ...action.style } : {}
+      if (action.placement === 'end' && !action.fullWidth) {
+        if (!endPlacementInjected) {
+          endPlacementInjected = true
+          if (
+            inlineStyle.marginLeft === undefined &&
+            inlineStyle.marginInlineStart === undefined &&
+            inlineStyle.marginInlineEnd === undefined
+          ) {
+            inlineStyle.marginLeft = 'auto'
+          }
+        }
+      }
+      const styleProp = Object.keys(inlineStyle).length ? inlineStyle : undefined
+      return React.createElement(
+        'button',
+        {
+          key: action.key,
+          className: classes.join(' '),
+          onClick: (event) => {
+            if (action.disabled) return
+            const result = action.onClick ? action.onClick(event, requestClose) : null
+            if (action.dismiss || result === 'close') requestClose()
+          },
+          disabled: action.disabled,
+          type: action.type,
+          style: styleProp,
+        },
+        label,
+      )
+    }
+
+    const surfaceStyle = {
+      '--dialog-min-width': minWidth,
+      '--dialog-max-width': maxWidth,
+      ...contentStyle,
+    }
+
+    return React.createElement(
+      'div',
+      {
+        className: 'dialog-backdrop',
+        ref: overlayRef,
+      },
+      React.createElement(
+        'div',
+        {
+          className: 'dialog-surface',
+          ref: surfaceRef,
+          style: surfaceStyle,
+          onMouseDown: (event) => event.stopPropagation(),
+        },
+        React.createElement(
+          'div',
+          { className: 'dialog-header' },
+          React.createElement(
+            'div',
+            { className: 'dialog-header__titles' },
+            React.createElement('h2', { className: 'dialog-title' }, title || 'Select Item'),
+          ),
+          React.createElement(
+            'button',
+            {
+              className: 'icon-button dialog-close',
+              onClick: (event) => {
+                event.preventDefault()
+                requestClose()
+              },
+              'aria-label': 'Close dialog',
+              type: 'button',
+              dangerouslySetInnerHTML: { __html: iconMarkup('close-line', { size: 20 }) },
+            },
+          ),
+        ),
+        React.createElement(
+          'div',
+          {
+            className: 'dialog-content',
+            style: {
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              ...contentStyle,
+            },
+          },
+          React.createElement(
+            'div',
+            {
+              className: 'dialog-body',
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                ...bodyStyle,
+              },
+            },
+            children,
+          ),
+          normalizedActions.length
+            ? React.createElement(
+                'div',
+                {
+                  className: 'dialog-footer',
+                  style: {
+                    marginTop: 'auto',
+                    display: 'flex',
+                    justifyContent: footerAlign,
+                    gap: 10,
+                    paddingTop: 12,
+                  },
+                },
+                normalizedActions.map(renderAction),
+              )
+            : null,
+        ),
+      ),
+    )
+  }
+}
+
+function createServerDirectoryModalFactory(React, { ModalDialog, FileTreeSelector }) {
+  const { useMemo, useState, useEffect, useRef, useCallback } = React
+
+  const findNodeInTree = (node, targetPath) => {
+    if (!node) return null
+    const normalizedTarget = normalizeFsPath(targetPath || '')
+    const nodePath = normalizeFsPath(node.path || '')
+    if (nodePath === normalizedTarget) return node
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) {
+        const found = findNodeInTree(child, normalizedTarget)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  return function ServerDirectoryModal({
+    title = 'Select Directory',
+    confirmLabel = 'Set',
+    rootOptions = [],
+    selectionMode = 'dir',
+    initialSelection = null,
+    onClose,
+    onConfirm,
+  }) {
+    const effectiveRoots = useMemo(() => {
+      const list = Array.isArray(rootOptions) ? rootOptions.filter((opt) => opt && opt.key) : []
+      if (!list.length) return []
+      const withWritableHint = list.map((opt) => ({
+        ...opt,
+        writable: opt.writable !== false,
+      }))
+      const writableRoots = withWritableHint.filter((opt) => opt.writable)
+      if (writableRoots.length) {
+        return writableRoots.sort((a, b) => {
+          const weight = (value) => {
+            if (value.key === 'docRoot') return 0
+            if (value.key === 'uploads') return 1
+            return 2
+          }
+          return weight(a) - weight(b)
+        })
+      }
+      return withWritableHint
+    }, [rootOptions])
+
+    const [treeRoots, setTreeRoots] = useState([])
+    const [loadingTree, setLoadingTree] = useState(true)
+    const [treeError, setTreeError] = useState('')
+    const [selectedDetail, setSelectedDetail] = useState(null)
+    const [error, setError] = useState('')
+    const [submitting, setSubmitting] = useState(false)
+    const [creating, setCreating] = useState(false)
+    const [reloadToken, setReloadToken] = useState(0)
+
+    const pendingSelectionRef = useRef(null)
+
+    useEffect(() => {
+      let alive = true
+      setLoadingTree(true)
+      setTreeError('')
+      const load = async () => {
+        const accum = []
+        const usedKeys = new Set()
+        for (const opt of effectiveRoots) {
+          if (!opt || !opt.key) continue
+          if (usedKeys.has(opt.key)) continue
+          usedKeys.add(opt.key)
+          try {
+            const query = opt.key === 'docRoot' ? '' : `?root=${encodeURIComponent(opt.key)}`
+            const res = await fetch(`/api/tree${query}`)
+            if (!res.ok) throw new Error('failed')
+            const data = await res.json()
+            const normalized = normalizeTreeFromApi(data, {
+              rootKey: opt.key,
+              label: opt.label || opt.key,
+              rootAbsolute: opt.path,
+              writable: opt.writable !== false,
+            })
+            if (normalized) accum.push(normalized)
+          } catch {
+            // ignore individual root failures
+          }
+        }
+        if (alive) {
+          if (!accum.length) setTreeError('No server paths available.')
+          setTreeRoots(accum)
+        }
+      }
+      load()
+        .catch(() => {
+          if (alive) {
+            setTreeRoots([])
+            setTreeError('Failed to load server tree.')
+          }
+        })
+        .finally(() => {
+          if (alive) setLoadingTree(false)
+        })
+      return () => {
+        alive = false
+      }
+    }, [effectiveRoots, reloadToken])
+
+    const resolveSelection = useCallback(
+      (target) => {
+        if (!target) return null
+        const root = treeRoots.find((item) => item && item.key === target.rootKey)
+        if (!root) return null
+        const node = findNodeInTree(root.node, target.path || '') || null
+        if (!node) return null
+        return {
+          rootKey: root.key,
+          path: node.path || '',
+          node,
+          root,
+        }
+      },
+      [treeRoots],
+    )
+
+    useEffect(() => {
+      if (!treeRoots.length) return
+      if (pendingSelectionRef.current) {
+        const resolved = resolveSelection(pendingSelectionRef.current)
+        if (resolved) {
+          setSelectedDetail(resolved)
+          pendingSelectionRef.current = null
+          return
+        }
+      }
+      if (!selectedDetail && initialSelection) {
+        const resolved = resolveSelection(initialSelection)
+        if (resolved) {
+          setSelectedDetail(resolved)
+          return
+        }
+      }
+      if (!selectedDetail && treeRoots.length) {
+        const first = treeRoots[0]
+        if (first && first.node) {
+          setSelectedDetail({ rootKey: first.key, path: first.node.path || '', node: first.node, root: first })
+        }
+      }
+    }, [treeRoots, selectedDetail, initialSelection, resolveSelection])
+
+    const handleSelectionChange = useCallback((payload) => {
+      if (!payload) {
+        setSelectedDetail(null)
+        return
+      }
+      setSelectedDetail({
+        rootKey: payload.rootKey,
+        path: payload.node.path || '',
+        node: payload.node,
+        root: payload.root,
+      })
+      setError('')
+    }, [])
+
+    const handleCreateDirectory = useCallback(async () => {
+      if (!selectedDetail?.node || selectedDetail.node.type !== 'dir') {
+        setError('Select a directory to create inside.')
+        return
+      }
+      if (selectedDetail.root?.writable === false) {
+        setError('Selected directory is read-only.')
+        return
+      }
+      setError('')
+      const baseLabel = selectedDetail.root?.label || selectedDetail.rootKey
+      const parentDisplay = selectedDetail.node.path
+        ? `${baseLabel}/${selectedDetail.node.path}`
+        : baseLabel
+      const result = await openCreateDirectoryDialog({
+        title: 'Create Directory',
+        description: `Create inside ${parentDisplay}.`,
+        placeholder: 'Directory name',
+        ariaLabel: 'Directory name',
+        validate: (name) => {
+          const trimmed = (name || '').trim()
+          if (!trimmed) return { ok: false, error: 'Folder name is required.' }
+          if (trimmed === '.' || trimmed === '..') return { ok: false, error: 'Folder name is invalid.' }
+          if (/[\\/]/.test(trimmed)) return { ok: false, error: 'Folder name cannot contain slashes.' }
+          return { ok: true, value: trimmed }
+        },
+      })
+      if (!result || result.ok === false) return
+      const folderName = result.name
+      if (!folderName) return
+      setCreating(true)
+      try {
+        const payload = {
+          root: selectedDetail.rootKey,
+          parent: selectedDetail.node.path || '',
+          name: folderName,
+        }
+        const response = await fetch('/api/tree', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || 'Failed to create directory.')
+        }
+        const basePath = selectedDetail.node.path || ''
+        const sanitizedBase = basePath ? basePath.replace(/[\\/]+$/g, '') : ''
+        const fallbackPath = sanitizedBase ? `${sanitizedBase}/${folderName}` : folderName
+        pendingSelectionRef.current = {
+          rootKey: data.rootKey || selectedDetail.rootKey,
+          path: data.path || fallbackPath,
+        }
+        setReloadToken((value) => value + 1)
+        showToast('Directory created.', { tone: 'success' })
+      } catch (creationError) {
+        setError(creationError?.message || 'Failed to create directory.')
+      } finally {
+        setCreating(false)
+      }
+    }, [selectedDetail])
+
+    const confirmDisabled = useMemo(() => {
+      if (!selectedDetail) return true
+      const type = selectedDetail.node?.type
+      if (selectionMode === 'dir') return type !== 'dir'
+      if (selectionMode === 'file') return type !== 'file'
+      return false
+    }, [selectedDetail, selectionMode])
+
+    const handleSubmit = useCallback(async () => {
+      if (confirmDisabled || !selectedDetail) {
+        setError('Select a valid item.')
+        return
+      }
+      setSubmitting(true)
+      setError('')
+      try {
+        const detail = {
+          rootKey: selectedDetail.rootKey,
+          rootLabel: selectedDetail.root?.label || selectedDetail.rootKey,
+          path: selectedDetail.node?.path || '',
+          absolutePath: selectedDetail.node?.absolutePath || '',
+          type: selectedDetail.node?.type || 'dir',
+        }
+        if (onConfirm) {
+          const result = await onConfirm(detail)
+          if (result && result.ok === false) {
+            setError(result.error || 'Action failed.')
+            setSubmitting(false)
+            return
+          }
+        }
+        onClose?.()
+      } catch (submitError) {
+        setError(submitError?.message || 'Action failed.')
+        setSubmitting(false)
+        return
+      }
+      setSubmitting(false)
+    }, [confirmDisabled, onConfirm, onClose, selectedDetail])
+
+    const actions = useMemo(
+      () => [
+        {
+          key: 'cancel',
+          label: 'Cancel',
+          onClick: (_event, requestClose) => {
+            if (typeof requestClose === 'function') requestClose()
+          },
+          variant: 'subtle',
+          dismiss: true,
+        },
+        {
+          key: 'confirm',
+          label: submitting ? `${confirmLabel}…` : confirmLabel,
+          onClick: handleSubmit,
+          disabled: submitting || confirmDisabled,
+          variant: 'primary',
+        },
+      ],
+      [confirmLabel, confirmDisabled, handleSubmit, submitting],
+    )
+
+    const canCreate = !!(
+      selectedDetail &&
+      selectedDetail.node?.type === 'dir' &&
+      selectedDetail.root?.writable !== false &&
+      !creating
+    )
+
+    const toolbar = React.createElement(
+      'div',
+      { className: 'server-directory-modal__toolbar' },
+      React.createElement(
+        'button',
+        {
+          type: 'button',
+          className: 'dialog-button dialog-button--subtle',
+          onClick: handleCreateDirectory,
+          disabled: !canCreate,
+        },
+        creating ? 'Creating…' : 'New Folder',
+      ),
+    )
+
+    const body = React.createElement(
+      React.Fragment,
+      null,
+      toolbar,
+      loadingTree
+        ? React.createElement('div', { className: 'muted', style: { fontSize: '13px' } }, 'Loading server files…')
+        : React.createElement(FileTreeSelector, {
+            roots: treeRoots,
+            selectionMode,
+            selected: selectedDetail
+              ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path }
+              : null,
+            onSelectionChange: handleSelectionChange,
+            allowCreate: false,
+          }),
+      !loadingTree && treeError
+        ? React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, treeError)
+        : null,
+      error ? React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, error) : null,
+    )
+
+    return React.createElement(
+      ModalDialog,
+      {
+        title,
+        onClose,
+        actions,
+        bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
+      },
+      body,
+    )
+  }
+}
+
 // Overhauled: openSelectMediaModal now opens a Library drawer
 export async function openSelectMediaModal({ onSelect } = {}) {
-  const { React, ReactDOM } = await ensureReact()
+  const { React, ReactDOM } = await ensureReactRuntime()
   const { useEffect, useRef, useState, useMemo, useCallback } = React
   const { FileTreeSelector } = createFileTreeToolkit(React)
   const { DrawerHeader, DrawerListItem } = createDrawerChrome(React)
+  const ModalDialogComponent = createModalDialogFactory(React)
+  const ServerDirectoryModal = createServerDirectoryModalFactory(React, {
+    ModalDialog: ModalDialogComponent,
+    FileTreeSelector,
+  })
 
   const ICONS = {
     file: iconMarkup('file-3-line'),
@@ -97,175 +658,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }
   })()
 
-  function ModalDialog({
-    title = '',
-    onClose,
-    actions = [],
-    children,
-    minWidth = '380px',
-    maxWidth = '95vw',
-    contentStyle = {},
-    bodyStyle = {},
-    footerAlign = 'flex-end',
-    allowBackdropClose = true,
-  }) {
-    const overlayRef = useRef(null)
-    const surfaceRef = useRef(null)
-    const dialogHandleRef = useRef(null)
-    const closeCallbackRef = useRef(onClose)
-    const idRef = useRef(null)
-
-    if (!idRef.current) {
-      idRef.current = `react-modal-${Math.random().toString(36).slice(2)}`
-    }
-
-    useEffect(() => {
-      closeCallbackRef.current = onClose
-    }, [onClose])
-
-    useEffect(() => {
-      // allowBackdropClose is captured on mount; changing it mid-flight would require tearing
-      // down the controller, which also dispatches close events. Treat it as static here.
-      const overlayEl = overlayRef.current
-      const surfaceEl = surfaceRef.current
-      if (!overlayEl || !surfaceEl) return
-
-      const dialogId = idRef.current
-      const handle = dialogService.register(dialogId, {
-        overlay: overlayEl,
-        surface: surfaceEl,
-        allowBackdropClose,
-        closeDelay: MODAL_CLOSE_DELAY,
-        onClose: () => {
-          closeCallbackRef.current?.()
-        },
-      })
-      dialogHandleRef.current = handle
-      handle.open()
-
-      return () => {
-        dialogService.unregister(dialogId)
-        dialogHandleRef.current = null
-      }
-    }, [])
-
-    const requestClose = useCallback(
-      (immediate = false) => {
-        const handle = dialogHandleRef.current
-        if (handle) {
-          handle.close(immediate)
-        } else {
-          closeCallbackRef.current?.()
-        }
-      },
-      [],
-    )
-
-    const cappedActions = useMemo(() => {
-      if (!Array.isArray(actions)) return []
-      return actions
-        .filter(Boolean)
-        .slice(0, 3)
-        .map((action, index) => ({
-          key: action.key || `action_${index}`,
-          label: action.label || `Action ${index + 1}`,
-          onClick: action.onClick,
-          disabled: !!action.disabled,
-          variant: action.variant || (index === 0 ? 'primary' : 'default'),
-          type: action.type || 'button',
-          style: action.style || null,
-        }))
-    }, [actions])
-
-    const renderAction = (action) => {
-      const variant = action.variant || 'primary'
-      const classes = ['dialog-button']
-      if (variant === 'danger') classes.push('dialog-button--danger')
-      else if (variant !== 'primary' && variant !== 'accent') classes.push('dialog-button--subtle')
-      if (action.fullWidth) classes.push('dialog-button--wide')
-      const label = String(action.label || '').trim()
-      const displayLabel = label ? label.toUpperCase() : 'ACTION'
-      return React.createElement(
-        'button',
-        {
-          key: action.key,
-          className: classes.join(' '),
-          onClick: (e) => {
-            e.preventDefault()
-            if (action.disabled) return
-            const result = action.onClick?.(e)
-            if (action.dismiss === true || result === 'close') requestClose()
-          },
-          disabled: action.disabled,
-          type: action.type,
-          style: action.style || undefined,
-        },
-        displayLabel,
-      )
-    }
-
-    const closeButton = React.createElement(
-      'button',
-      {
-        className: 'icon-button dialog-close',
-        onClick: (e) => {
-          e.preventDefault()
-          requestClose()
-        },
-        'aria-label': 'Close dialog',
-        type: 'button',
-      },
-      React.createElement('span', {
-        'aria-hidden': 'true',
-        dangerouslySetInnerHTML: { __html: iconMarkup('close-line', { size: 24 }) },
-      }),
-    )
-
-    const surfaceStyle = {
-      '--dialog-min-width': minWidth,
-      '--dialog-max-width': maxWidth,
-      ...contentStyle,
-    }
-
-    return React.createElement(
-      'div',
-      {
-        className: 'dialog-backdrop',
-        ref: overlayRef,
-      },
-      React.createElement(
-        'div',
-        {
-          className: 'dialog-surface',
-          ref: surfaceRef,
-          style: surfaceStyle,
-          onMouseDown: (event) => event.stopPropagation(),
-        },
-        React.createElement(
-          'header',
-          { className: 'dialog-header modal-dialog__header' },
-          React.createElement(
-            'div',
-            { className: 'dialog-header__titles' },
-            title ? React.createElement('h2', { className: 'dialog-title' }, title) : null,
-          ),
-          closeButton,
-        ),
-        React.createElement('div', { style: { overflowY: 'auto', ...bodyStyle } }, children),
-        cappedActions.length
-          ? React.createElement(
-              'div',
-              {
-                className: 'dialog-actions',
-                style: { justifyContent: footerAlign, marginTop: 'auto' },
-              },
-              cappedActions.map(renderAction),
-            )
-          : null,
-      ),
-    )
-  }
-
   function Row({
     entry,
     status,
@@ -289,6 +681,19 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const icon = kind === 'dir' ? ICONS.folder : kind === 'app' ? ICONS.app : ICONS.file
 
     const pathValue = entry?.path || ''
+    const metaPathValue = pathValue ? deriveMetaDirectory(pathValue) : ''
+    const pathNode = metaPathValue
+      ? React.createElement(
+          'span',
+          {
+            className: 'drawer-list-item__path',
+            'data-hint': metaPathValue,
+            'data-hint-tone': 'info',
+            title: metaPathValue,
+          },
+          pathValue,
+        )
+      : pathValue || null
     const base = pathValue.split('/').pop() || pathValue
     const label =
       upload?.label ||
@@ -387,13 +792,19 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     let secondaryLine = null
 
     if (isUpload) {
-      primaryLine = normalizeLine(statusNode) || normalizeLine(detailLine) || normalizeLine(pathValue) || 'Queued upload'
+      const displayPath = pathNode || pathValue
+      primaryLine =
+        normalizeLine(statusNode) ||
+        normalizeLine(detailLine) ||
+        normalizeLine(displayPath) ||
+        'Queued upload'
       const secondaryParts = []
       if (detailLine && detailLine !== primaryLine) secondaryParts.push(detailLine)
-      if (pathValue && pathValue !== primaryLine) secondaryParts.push(pathValue)
+      if (displayPath && displayPath !== primaryLine) secondaryParts.push(displayPath)
       secondaryLine = joinWithBullet(secondaryParts)
     } else {
-      primaryLine = normalizeLine(pathValue) || normalizeLine(statusNode) || normalizeLine(detailLine)
+      const displayPath = pathNode || pathValue
+      primaryLine = normalizeLine(displayPath) || normalizeLine(statusNode) || normalizeLine(detailLine)
       const secondaryParts = []
       if (statusNode && primaryLine !== statusNode) secondaryParts.push(statusNode)
       if (detailLine && detailLine !== primaryLine) secondaryParts.push(detailLine)
@@ -610,11 +1021,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     onStop,
     onRename,
     onCopyPath,
+    onMeta,
     onDeleteLib,
     onDeleteDisk,
   }) {
     const startDisabled = !!serving
     const stopDisabled = !serving
+    const metadataDisabled = typeof onMeta !== 'function'
     const vpW = window.innerWidth || 1200
     const vpH = window.innerHeight || 800
     const left = Math.min(x, vpW - 220)
@@ -664,6 +1077,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       mkItem('stop', 'Stop Serving', onStop, stopDisabled),
       mkItem('rename', 'Rename…', onRename, false),
       mkItem('copy', 'Copy Path', onCopyPath, false),
+      mkItem('meta', 'Metadata Settings…', onMeta, metadataDisabled),
       React.createElement('div', {
         style: { height: 1, background: 'var(--border)', margin: '4px 0' },
       }),
@@ -872,7 +1286,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     )
 
     return React.createElement(
-      ModalDialog,
+      ModalDialogComponent,
       {
         title: 'Choose Destination',
         onClose,
@@ -888,169 +1302,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         maxWidth: '92vw',
         bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
         contentStyle: { maxWidth: '92vw' },
-      },
-      body,
-    )
-  }
-
-  function ServerContentModal({ rootOptions = [], onClose, onConfirm }) {
-    const effectiveRoots = useMemo(() => {
-      const list = Array.isArray(rootOptions) ? rootOptions.filter((opt) => opt && opt.key) : []
-      if (!list.length) return []
-      const repo = list.find((opt) => opt.key === 'repoRoot')
-      if (repo) return [repo]
-      const filtered = list.filter((opt) => opt.key !== 'uploads' && opt.key !== 'docRoot')
-      if (filtered.length) return filtered
-      return list
-    }, [rootOptions])
-    const [treeRoots, setTreeRoots] = useState([])
-    const [loadingTree, setLoadingTree] = useState(true)
-    const [treeError, setTreeError] = useState('')
-    const [selectedDetail, setSelectedDetail] = useState(null)
-    const [error, setError] = useState('')
-    const [submitting, setSubmitting] = useState(false)
-
-    useEffect(() => {
-      let alive = true
-      setLoadingTree(true)
-      setTreeError('')
-      const load = async () => {
-        const accum = []
-        const usedKeys = new Set()
-        if (Array.isArray(effectiveRoots)) {
-          for (const opt of effectiveRoots) {
-            if (!opt || !opt.key) continue
-            if (usedKeys.has(opt.key)) continue
-            usedKeys.add(opt.key)
-            try {
-              const query = opt.key === 'docRoot' ? '' : `?root=${encodeURIComponent(opt.key)}`
-              const res = await fetch(`/api/tree${query}`)
-              if (!res.ok) throw new Error('failed')
-              const data = await res.json()
-              const normalized = normalizeTreeFromApi(data, {
-                rootKey: opt.key,
-                label: opt.label || opt.key,
-                rootAbsolute: opt.path,
-                writable: opt.writable !== false,
-              })
-              if (normalized) accum.push(normalized)
-            } catch {
-              // ignore individual root failures
-            }
-          }
-        }
-        if (!accum.length && alive) setTreeError('No server paths available.')
-        if (alive) setTreeRoots(accum)
-      }
-      load()
-        .catch(() => {
-          if (alive) {
-            setTreeRoots([])
-            setTreeError('Failed to load server tree.')
-          }
-        })
-        .finally(() => {
-          if (alive) setLoadingTree(false)
-        })
-      return () => {
-        alive = false
-      }
-    }, [effectiveRoots])
-
-    useEffect(() => {
-      if (!selectedDetail && treeRoots.length) {
-        const first = treeRoots[0]
-        if (first)
-          setSelectedDetail({ rootKey: first.key, path: '', node: first.node, root: first })
-      }
-    }, [treeRoots, selectedDetail])
-
-    const handleSelectionChange = (payload) => {
-      if (!payload) {
-        setSelectedDetail(null)
-        return
-      }
-      setSelectedDetail({
-        rootKey: payload.rootKey,
-        path: payload.node.path || '',
-        node: payload.node,
-        root: payload.root,
-      })
-      setError('')
-    }
-
-    const handleAdd = async () => {
-      if (!selectedDetail || !selectedDetail.node) {
-        setError('Select an item to add.')
-        return
-      }
-      const abs = selectedDetail.node.absolutePath || ''
-      if (!abs) {
-        setError('Unable to determine path for selection.')
-        return
-      }
-      setSubmitting(true)
-      setError('')
-      try {
-        const result = onConfirm ? await onConfirm(selectedDetail) : { ok: true }
-        if (result && result.ok === false) {
-          setError(result.error || 'Failed to add to library.')
-          setSubmitting(false)
-          return
-        }
-      } catch (err) {
-        setError(err?.message || 'Failed to add to library.')
-        setSubmitting(false)
-        return
-      }
-      setSubmitting(false)
-      onClose()
-    }
-
-    const loadingMessage = loadingTree
-      ? React.createElement(
-          'div',
-          { className: 'muted', style: { fontSize: '13px' } },
-          'Loading server files…',
-        )
-      : null
-
-    const body = React.createElement(
-      React.Fragment,
-      null,
-      loadingMessage ||
-        React.createElement(FileTreeSelector, {
-          roots: treeRoots,
-          selectionMode: 'any',
-          selected: selectedDetail
-            ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path }
-            : null,
-          onSelectionChange: handleSelectionChange,
-          allowCreate: false,
-        }),
-      !loadingTree &&
-        treeError &&
-        React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, treeError),
-      error && React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, error),
-    )
-
-    const actions = [
-      {
-        key: 'add',
-        label: submitting ? 'Adding…' : 'Add',
-        onClick: handleAdd,
-        disabled: submitting || !selectedDetail,
-        variant: 'primary',
-      },
-    ]
-
-    return React.createElement(
-      ModalDialog,
-      {
-        title: 'Add From Server',
-        onClose,
-        actions,
-        bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
       },
       body,
     )
@@ -1314,10 +1565,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     }
 
     async function addServerSelection(detail) {
-      if (!detail || !detail.node) {
-        return { ok: false, error: 'Select an item.' }
-      }
-      const absPath = detail.node.absolutePath || ''
+      const absPath = detail?.absolutePath || detail?.node?.absolutePath || ''
       if (!absPath) {
         return { ok: false, error: 'Unable to determine path.' }
       }
@@ -2559,6 +2807,20 @@ export async function openSelectMediaModal({ onSelect } = {}) {
               await navigator.clipboard.writeText(p)
             } catch {}
           },
+          onMeta: () => {
+            const entryPath = menu.entry.path || ''
+            if (!entryPath) return
+            const metaPath = deriveMetaDirectory(entryPath)
+            const mapping = deriveRootForAbsolutePath(entryPath)
+            openMetadataSettingsDialog({
+              label: menu.entry.label || entryPath.split(/[\\/]/).pop() || entryPath,
+              path: entryPath,
+              metaPath,
+              rootKey: mapping?.root || '',
+              rootLabel: mapping?.rootLabel || '',
+              relativePath: mapping?.prefix || '',
+            })
+          },
           onDeleteLib: () => delLib(menu.entry),
           onDeleteDisk: () => delDisk(menu.entry),
         }),
@@ -2573,7 +2835,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           validateFolderName: validateFolderNameInput,
         }),
       serverPickerOpen &&
-        React.createElement(ServerContentModal, {
+        React.createElement(ServerDirectoryModal, {
+          title: 'Add From Server',
+          confirmLabel: 'Add',
+          selectionMode: 'any',
           rootOptions,
           onClose: () => setServerPickerOpen(false),
           onConfirm: addServerSelection,
@@ -2744,4 +3009,73 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     } catch {}
   }
   root.render(React.createElement(Drawer, { onClose }))
+}
+
+export async function openServerDirectoryPicker(options = {}) {
+  const {
+    title = 'Select Directory',
+    confirmLabel = 'Select',
+    selectionMode = 'dir',
+    rootOptions = null,
+    initialSelection = null,
+  } = options
+
+  const { React, ReactDOM } = await ensureReactRuntime()
+  const { FileTreeSelector } = createFileTreeToolkit(React)
+  const ModalDialogComponent = createModalDialogFactory(React)
+  const ServerDirectoryModal = createServerDirectoryModalFactory(React, {
+    ModalDialog: ModalDialogComponent,
+    FileTreeSelector,
+  })
+
+  let effectiveRoots = Array.isArray(rootOptions) ? rootOptions : null
+  if (!effectiveRoots || !effectiveRoots.length) {
+    try {
+      const res = await fetch('/api/media/list')
+      const data = res.ok ? await res.json() : { roots: [] }
+      effectiveRoots = Array.isArray(data.roots) ? data.roots : []
+    } catch {
+      effectiveRoots = []
+    }
+  }
+
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div')
+    overlay.style.position = 'fixed'
+    overlay.style.inset = '0'
+    overlay.style.zIndex = '1700'
+    document.body.appendChild(overlay)
+
+    const root = ReactDOM.createRoot(overlay)
+    let settled = false
+
+    const finalize = (result) => {
+      if (settled) return
+      settled = true
+      try {
+        root.unmount()
+      } catch {}
+      try {
+        overlay.remove()
+      } catch {}
+      resolve(result)
+    }
+
+    const handleConfirm = async (detail) => {
+      finalize(detail || null)
+      return { ok: true }
+    }
+
+    root.render(
+      React.createElement(ServerDirectoryModal, {
+        title,
+        confirmLabel,
+        selectionMode,
+        rootOptions: effectiveRoots || [],
+        initialSelection,
+        onClose: () => finalize(null),
+        onConfirm: handleConfirm,
+      }),
+    )
+  })
 }

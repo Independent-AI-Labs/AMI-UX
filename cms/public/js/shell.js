@@ -8,6 +8,7 @@ import {
   VisualizerD,
 } from './visualizers.js'
 import { openSelectMediaModal } from './modal.js'
+import { deriveMetaDirectory, openMetadataSettingsDialog } from './metadata-settings.js?v=20250306'
 import { showToast } from './toast-manager.js?v=20250306'
 import { applyHint, humanizeName, normalizeFsPath } from './utils.js'
 import { ensureDocumentHintLayer } from './hints/manager.js'
@@ -699,6 +700,40 @@ const frameLoadingMessages = {
   loading: 'Loading…',
 }
 
+function getMetadataContextForPath(path) {
+  const metaPath = deriveMetaDirectory(path || '')
+  const normalized = normalizeFsPath(path || '')
+  const context = {
+    metaPath,
+    rootKey: '',
+    rootLabel: '',
+    relativePath: '',
+  }
+  if (!normalized) return context
+
+  const uploadsMarker = '/files/uploads'
+  const uploadsIndex = normalized.indexOf(uploadsMarker)
+  if (uploadsIndex !== -1) {
+    const relative = normalized.slice(uploadsIndex + uploadsMarker.length).replace(/^\/+/, '')
+    context.rootKey = 'uploads'
+    context.rootLabel = 'Uploads'
+    context.relativePath = relative
+    return context
+  }
+
+  const docRootAbs = cachedConfig?.docRootAbsolute ? normalizeFsPath(cachedConfig.docRootAbsolute) : ''
+  if (docRootAbs) {
+    if (normalized === docRootAbs || normalized.startsWith(`${docRootAbs}/`)) {
+      context.rootKey = 'docRoot'
+      context.rootLabel = cachedConfig?.docRootLabel || 'Docs'
+      context.relativePath = normalized === docRootAbs ? '' : normalized.slice(docRootAbs.length + 1)
+      return context
+    }
+  }
+
+  return context
+}
+
 const TAB_STORAGE_KEY = 'ami.shell.tabs.v1'
 
 function normalizePersistedTab(entry) {
@@ -1196,17 +1231,23 @@ function renderTabs() {
       : ''
     const classes = ['tab--' + (t.kind || 'unknown')]
     if (showPill) classes.push('served')
+    const metaContext = getMetadataContextForPath(t.path)
+    const metaPath = metaContext.metaPath
+    const tooltipValue = metaPath || t.path || ''
+    const dataset = { tabKind: t.kind || '' }
+    if (metaPath) {
+      dataset.metaPath = metaPath
+      dataset.hintTone = 'info'
+    }
     return {
       id: t.id,
       label: tabLabel,
       leadingHTML: `<span class="icon" aria-hidden="true">${iconForTab(t.kind)}</span>${indicatorHTML}`,
       trailingHTML: '',
-      tooltip: t.path || '',
+      tooltip: tooltipValue,
       classes,
       closable: true,
-      dataset: {
-        tabKind: t.kind || '',
-      },
+      dataset,
     }
   })
   strip.setState({ tabs: tabDescriptors, activeId: tabsState.active })
@@ -1252,11 +1293,26 @@ function openTabContextMenu(x, y, tab) {
   addItem('Open', () => activateTab(tab.id))
   addItem('Start Serving', () => startServingTab(tab, 'tab-menu'), !canStart)
   addItem('Stop Serving', () => stopServingTab(tab, 'tab-menu'), !canStop)
+  addItem('Metadata Settings…', () => openMetadataSettingsForTab(tab), !tab.path)
   addItem('Close Tab', () => closeTab(tab.id))
   document.body.appendChild(menu)
   setTimeout(() => {
     document.addEventListener('click', closeContextMenus, { once: true })
   }, 0)
+}
+
+function openMetadataSettingsForTab(tab) {
+  if (!tab || !tab.path) return
+  const context = getMetadataContextForPath(tab.path)
+  const label = tab.label || tab.path.split(/[\\/]/).pop() || tab.path
+  openMetadataSettingsDialog({
+    label,
+    path: tab.path,
+    metaPath: context.metaPath,
+    rootKey: context.rootKey,
+    rootLabel: context.rootLabel,
+    relativePath: context.relativePath,
+  })
 }
 
 function closeContextMenus() {

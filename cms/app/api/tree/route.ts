@@ -25,6 +25,18 @@ type NodeSummary = {
 const IGNORED_DIRS = new Set(['.git', '.next', 'node_modules'])
 const INTRO_FILENAMES = ['readme.md', 'readme.mdx', 'introduction.md', 'intro.md']
 
+function normalizeRelPath(raw: string): string {
+  const normalized = path.posix.normalize((raw || '').replace(/\\/g, '/')).replace(/^\/+/, '')
+  if (!normalized || normalized === '.' || normalized.startsWith('..')) throw new Error('invalid path')
+  return normalized
+}
+
+function withinRoot(rootAbs: string, targetAbs: string): boolean {
+  const rel = path.relative(rootAbs, targetAbs)
+  if (!rel) return true
+  return !rel.startsWith('..') && !path.isAbsolute(rel)
+}
+
 async function statSafe(p: string) {
   try {
     return await fs.stat(p)
@@ -245,5 +257,74 @@ export const GET = withSession(async ({ request }) => {
     rootKey: rootInfo.key,
     rootAbsolute: rootAbs,
     rootLabel: rootInfo.label,
+  })
+})
+
+function validateDirectoryName(name: string) {
+  const trimmed = name.trim()
+  if (!trimmed) return { ok: false, error: 'Folder name is required.' }
+  if (trimmed === '.' || trimmed === '..') return { ok: false, error: 'Folder name is invalid.' }
+  if (/[\\/]/.test(trimmed)) return { ok: false, error: 'Folder name cannot contain slashes.' }
+  return { ok: true, value: trimmed }
+}
+
+export const POST = withSession(async ({ request }) => {
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  }
+
+  const rootParam = typeof body.root === 'string' && body.root ? body.root : 'docRoot'
+  const parentParam = typeof body.parent === 'string' ? body.parent : ''
+  const nameParam = typeof body.name === 'string' ? body.name : ''
+
+  const validation = validateDirectoryName(nameParam)
+  if (!validation.ok || !validation.value) {
+    return NextResponse.json({ error: validation.error || 'Folder name is invalid.' }, { status: 400 })
+  }
+
+  let parentRel = ''
+  try {
+    parentRel = parentParam ? normalizeRelPath(parentParam) : ''
+  } catch {
+    return NextResponse.json({ error: 'Invalid parent path' }, { status: 400 })
+  }
+
+  const root = await resolveMediaRoot(rootParam)
+  if (!root) return NextResponse.json({ error: 'Unknown root' }, { status: 404 })
+  if (!root.writable) return NextResponse.json({ error: 'Root not writable' }, { status: 403 })
+
+  const combinedRel = parentRel ? `${parentRel}/${validation.value}` : validation.value
+  let normalizedRel: string
+  try {
+    normalizedRel = normalizeRelPath(combinedRel)
+  } catch {
+    return NextResponse.json({ error: 'Invalid directory path' }, { status: 400 })
+  }
+
+  const parentAbs = parentRel ? path.resolve(root.path, parentRel) : root.path
+  const parentStat = await fs.stat(parentAbs).catch(() => null)
+  if (!parentStat || !parentStat.isDirectory()) {
+    return NextResponse.json({ error: 'Parent directory not found' }, { status: 404 })
+  }
+
+  const targetAbs = path.resolve(root.path, normalizedRel)
+  if (!withinRoot(root.path, targetAbs)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const existing = await fs.stat(targetAbs).catch(() => null)
+  if (existing) {
+    return NextResponse.json({ error: 'Directory already exists' }, { status: 409 })
+  }
+
+  await fs.mkdir(targetAbs, { recursive: false })
+
+  return NextResponse.json({
+    ok: true,
+    rootKey: root.key,
+    rootLabel: root.label,
+    path: normalizedRel,
+    absolutePath: targetAbs,
   })
 })

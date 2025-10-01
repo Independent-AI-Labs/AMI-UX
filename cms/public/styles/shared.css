@@ -916,6 +916,155 @@ details:focus-within > summary .row-actions {
   filter: blur(calc(var(--overlay-blur-strength-strong) * 0.4));
 }
 
+.metadata-settings-dialog {
+  --dialog-min-width: 360px;
+  --dialog-max-width: 520px;
+  gap: 18px;
+}
+
+.metadata-settings__body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.metadata-settings__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-settings__label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in oklab, var(--muted) 85%, transparent);
+}
+
+.metadata-settings__value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  background: color-mix(in oklab, var(--panel) 92%, transparent);
+  font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.metadata-settings__value[data-empty='1'] .metadata-settings__value-text {
+  color: color-mix(in oklab, var(--muted) 80%, transparent);
+  font-style: italic;
+}
+
+.metadata-settings__value-text {
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.metadata-settings__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+.metadata-settings__icon-button {
+  flex: 0 0 auto;
+}
+
+.metadata-settings__browse {
+  color: var(--accent);
+}
+
+.metadata-settings__browse:disabled {
+  color: color-mix(in oklab, var(--accent) 30%, var(--muted));
+}
+
+.server-directory-modal__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.metadata-settings__footer {
+  gap: 12px;
+}
+
+.metadata-settings__set {
+  margin-left: auto;
+}
+
+.create-directory-dialog {
+  --dialog-min-width: 320px;
+  --dialog-max-width: 420px;
+  gap: 18px;
+}
+
+.create-directory-dialog__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.create-directory-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-directory-dialog__field-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in oklab, var(--muted) 80%, transparent);
+}
+
+.create-directory-dialog__input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: color-mix(in oklab, var(--panel) 95%, transparent);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.create-directory-dialog__input:focus {
+  outline: none;
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+.create-directory-dialog__error {
+  color: #ef4444;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.metadata-settings__meta-note {
+  font-size: 12px;
+  color: color-mix(in oklab, var(--muted) 80%, transparent);
+  line-height: 1.5;
+}
+
+.metadata-settings__details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: color-mix(in oklab, var(--muted) 76%, transparent);
+}
+
+.metadata-settings__details strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .account-drawer-backdrop {
   align-items: stretch;
   justify-content: flex-end;
@@ -1422,6 +1571,14 @@ details:focus-within > summary .row-actions {
   white-space: nowrap;
 }
 
+.drawer-list-item__path {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
 .drawer-list-item__subtitle--muted {
   color: color-mix(in oklab, var(--muted) 80%, transparent);
 }
@@ -1634,6 +1791,16 @@ details:focus-within > summary .row-actions {
   flex: 1;
 }
 
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
 .dialog-button {
   display: inline-flex;
   align-items: center;
@@ -1652,6 +1819,7 @@ details:focus-within > summary .row-actions {
   cursor: pointer;
   transition: background 0.16s ease, transform 0.16s ease;
   box-shadow: none;
+  box-sizing: border-box;
 }
 .dialog-button:hover {
   background: color-mix(in oklab, var(--accent) 92%, transparent);
@@ -1670,11 +1838,12 @@ details:focus-within > summary .row-actions {
   transform: none;
 }
 .dialog-button--subtle {
-  background: color-mix(in oklab, var(--muted) 65%, var(--panel) 28%);
-  color: #ffffff;
+  background: color-mix(in oklab, var(--panel) 92%, var(--border) 18%);
+  color: color-mix(in oklab, var(--text) 80%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
 }
 .dialog-button--subtle:hover {
-  background: color-mix(in oklab, var(--muted) 72%, var(--panel) 24%);
+  background: color-mix(in oklab, var(--panel) 88%, var(--border) 24%);
 }
 .dialog-button--danger {
   background: color-mix(in oklab, var(--error) 78%, transparent);

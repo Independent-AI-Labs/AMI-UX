@@ -64,7 +64,9 @@ const STYLE_TEXT = `
     filter 210ms cubic-bezier(0.33, 0, 0.2, 1);
 }
 .dialog-backdrop[data-ami-highlight-owned='1'] {
-  background: rgba(11, 12, 15, 0.95);
+  --dialog-backdrop-background-closed: transparent;
+  --dialog-backdrop-background-open: transparent;
+  background: transparent !important;
   backdrop-filter: blur(14px);
 }
 .dialog-surface[data-ami-highlight-owned='1'] {
