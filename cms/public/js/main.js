@@ -1,6 +1,7 @@
 import './auth-fetch.js'
 
 import { applyHint, humanizeName, pathAnchor } from './utils.js'
+import { ensureDocumentHintLayer } from './hints/manager.js'
 import { fetchConfig, fetchTreeChildren, setDocRoot } from './api.js'
 import {
   applyTheme,
@@ -23,6 +24,8 @@ import { createVisibilityTracker } from './visibility-tracker.js'
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
 })
+
+ensureDocumentHintLayer(document)
 
 const bootOptions =
   typeof window !== 'undefined' && window.__CMS_BOOT_OPTIONS__
@@ -420,12 +423,15 @@ function ensureTreeContainer() {
   overlay.dataset.kind = 'idle'
   overlay.setAttribute('aria-hidden', 'true')
   overlay.setAttribute('aria-live', 'polite')
+  applyHint(overlay, '', { clearAriaLabel: true })
   const spinner = document.createElement('span')
   spinner.className = 'loading-indicator__spinner'
   spinner.setAttribute('aria-hidden', 'true')
+  applyHint(spinner, '', { clearAriaLabel: true })
   const label = document.createElement('span')
   label.className = 'tree-root__overlay-label'
   label.textContent = 'Loading…'
+  applyHint(label, '', { clearAriaLabel: true })
   overlay.appendChild(spinner)
   overlay.appendChild(label)
 

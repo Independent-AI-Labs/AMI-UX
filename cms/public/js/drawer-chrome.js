@@ -46,7 +46,7 @@ export function createDrawerChrome(React) {
           if (!disabled) onClick?.(event)
         },
         disabled,
-        title: label,
+        'data-hint': label || undefined,
         'aria-label': label,
       },
       renderIconMarkup(icon),
@@ -326,7 +326,7 @@ export function createDrawerChrome(React) {
               onClose?.(event)
             },
             'aria-label': closeLabel,
-            title: closeLabel,
+            'data-hint': closeLabel || undefined,
           },
           renderIconMarkup(CLOSE_MARKUP) || e('span', { 'aria-hidden': 'true' }, '>'),
         ),

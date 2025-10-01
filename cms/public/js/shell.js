@@ -10,6 +10,7 @@ import {
 import { openSelectMediaModal } from './modal.js'
 import { showToast } from './toast-manager.js?v=20250306'
 import { applyHint, humanizeName, normalizeFsPath } from './utils.js'
+import { ensureDocumentHintLayer } from './hints/manager.js'
 import { createDocMessenger } from './message-channel.js?v=20250310'
 import { openAccountDrawer } from './account-drawer.js?v=20250316'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
@@ -19,6 +20,8 @@ import { initShellConsole } from './shell-console.js?v=20250321'
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
 })
+
+ensureDocumentHintLayer(document)
 
 // Prevent the highlight plugin from auto-starting in the shell document itself.
 ;(() => {

@@ -1,3 +1,5 @@
+import { ensureDocumentHintLayer } from './hints/manager.js'
+
 // Utility helpers for CMS UI
 
 export function slugify(str) {
@@ -101,6 +103,10 @@ export function applyHint(element, text, options = {}) {
       !element.getAttribute('aria-label') ||
       options.replaceAriaLabel
     if (needsAriaLabel) element.setAttribute?.('aria-label', hint)
+    try {
+      const doc = element.ownerDocument || document
+      ensureDocumentHintLayer(doc)
+    } catch {}
   } catch {}
   return element
 }

@@ -952,7 +952,7 @@ function createAddAccountDialog(React) {
             type: 'button',
             onClick: onCancel,
             'aria-label': 'Close add account dialog',
-            title: 'Close add account dialog',
+            'data-hint': 'Close add account dialog',
           },
           e('span', {
             'aria-hidden': 'true',
@@ -975,7 +975,7 @@ function createAddAccountDialog(React) {
                   key: item.id,
                   type: 'button',
                   className: `account-add-dialog__provider${item.id === provider.id ? ' is-active' : ''}`,
-                  title: item.label,
+                  'data-hint': item.label || undefined,
                   'aria-pressed': item.id === provider.id,
                   onClick: () => {
                     setProviderId(item.id)
