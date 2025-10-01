@@ -939,11 +939,11 @@ export class HighlightSettingsUI {
         })
         .catch((error) => {
           if (error) console.warn('Failed to create trigger via scenario manager', error)
-          return useComposerAlternative()
+          return this.useComposerAlternative()
         })
     }
 
-    return useComposerAlternative()
+    return this.useComposerAlternative()
   }
 
   editAutomationTriggerForElement(element) {
