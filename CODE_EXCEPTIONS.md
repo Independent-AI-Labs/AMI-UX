@@ -21,7 +21,7 @@ Video cycling and transition effects may use intervals for smooth playback contr
 ### Demo and Main Pages
 **Location:**
 - `ui-concept/src/app/page-demo.js` - 1348 lines
-- `ui-concept/src/app/page.js` - 969 lines
+- `ui-concept/src/app/page.js` - 972 lines
 
 **Justification:**
 These are main application entry points that orchestrate multiple features. While functional, future refactoring into smaller components would improve maintainability.

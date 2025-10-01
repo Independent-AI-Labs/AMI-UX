@@ -21,7 +21,7 @@ This spec captures how the Live Data Directory CMS inside `ux/cms` delivers the 
 - **Client shell (`public/index.html`, `public/js/**`)**: Vanilla JS controls layout, tab management, and cross-frame messaging. React is loaded lazily for rich surfaces (library drawer, automation composer).
 - **Docs viewer (`public/doc.html`)**: Tree + document renderer supports Markdown, CSV, Mermaid, KaTeX, and media streaming.
 - **Server (`app/api/**`)**: Next.js 15 route handlers deliver filesystem APIs, automation metadata, uploads, account management, and LaTeX rendering.
-- **Automation runtime (`packages/highlight-core`)**: Shared with the highlight browser extension. Handles DOM overlays, comment/trigger actions, scenario persistence, and code execution in response to DOM events.
+- **Automation runtime** (built from `packages/highlight-core` to `public/js/highlight-plugin/`): Shared with the highlight browser extension. Handles DOM overlays, comment/trigger actions, scenario persistence, and code execution in response to DOM events.
 - **Storage**: JSON configs live in `data/`; uploads in `files/uploads/`; every asset carries a dedicated meta directory (`<name>.meta/`) that houses automation state, comments, translations, logs, and other feature data (for example `reports/usage.md.meta/automation/`, `usage.md.meta/comments/<id>.json`, `usage.md.meta/translations/<locale>.json`).
 
 ## 4. Current Capabilities (Detailed)
@@ -36,7 +36,7 @@ This spec captures how the Live Data Directory CMS inside `ux/cms` delivers the 
 - Serving APIs (`app/api/serve/**`) track running assets, ready for future integration with orchestrator-managed runners.
 
 ### 4.3 Automation Authoring
-- Highlight overlay (`packages/highlight-core/src/highlight-plugin/core/effects.js`) exposes “Add Automation Trigger” actions.
+- Highlight overlay (source at `packages/highlight-core/src/highlight-plugin/core/effects.js`, runtime at `public/js/highlight-plugin/core/effects.js`) exposes "Add Automation Trigger" actions.
 - Scenario manager + trigger composer (`packages/highlight-core/src/highlight-plugin/ui/scenario-manager.js`, `trigger-composer.js`, `trigger-dialog.js`) load and persist scenarios through `/api/automation`.
 - Trigger execution pipeline (`packages/highlight-core/src/highlight-plugin/core/automation.js`) compiles target/condition/action scripts, resolves elements, and runs in response to DOM events.
 

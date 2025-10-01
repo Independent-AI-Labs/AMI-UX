@@ -1,5 +1,8 @@
 # Schema UI Component Catalog
 
+**STATUS: ARCHITECTURAL RESEARCH - NOT IMPLEMENTED**
+This document catalogs UI components for a planned schema-driven interface system. No implementation exists as of 2025-10-01.
+
 ## Purpose
 To refactor the CMS and future AMI consoles into schema-driven interfaces, we need an exhaustive catalogue of UI elements, the primitives they rely on, and the metadata required to describe them declaratively. This document inventories current components and anticipates future needs so the schema runtime can render every surface from model definitions alone.
 

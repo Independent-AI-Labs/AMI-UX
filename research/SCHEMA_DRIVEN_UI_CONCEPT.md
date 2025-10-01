@@ -1,5 +1,8 @@
 # Schema-Driven UI Concept
 
+**STATUS: RESEARCH ONLY - NOT IMPLEMENTED**
+This document describes a planned architecture for schema-driven UI generation. No implementation exists as of 2025-10-01.
+
 ## Overview
 We want the CMS and future operator consoles to render account/connector management screens directly from the backend models. The backend (AMI Base) remains the source of truth for provider schemas and behavioural rules, while the frontend consumes portable descriptors to render forms, hints, validation, and dynamic workflows. This doc sketches the mechanism and the interfaces we need to standardise.
 

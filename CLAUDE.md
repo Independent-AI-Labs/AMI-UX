@@ -4,9 +4,9 @@
 
 **ALWAYS USE UV FOR DEPENDENCY MANAGEMENT:**
 - Virtual environment is at `.venv/` (created with `uv venv .venv`)
-- Python executable: `".venv/Scripts/python.exe"` (USE QUOTES!)
+- Python executable: `".venv/bin/python"` on Linux/Unix, `".venv/Scripts/python.exe"` on Windows (USE QUOTES!)
 - Install deps: `uv pip install -r requirements.txt`
-- Run tests: `python run_tests.py [args]` or `".venv/Scripts/python.exe" -m pytest`
+- Run tests: `python run_tests.py [args]` or `".venv/bin/python" -m pytest` (Linux/Unix)
 - NEVER modify requirements.txt without testing the exact version first
 - To add a new dependency:
   1. `uv pip install <package>` (install it first)
