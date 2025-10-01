@@ -317,7 +317,7 @@
       font-size: 18px;
       font-weight: 200;
       letter-spacing: 0.32em;
-      color: rgba(255, 255, 255, 0.86);
+      color: var(--brand-clock-date-color);
       text-transform: uppercase;
       line-height: 1;
       margin-top: 0.4rem;
@@ -327,7 +327,7 @@
       font-size: 15px;
       font-weight: 700;
       letter-spacing: 0.35em;
-      color: rgba(255, 255, 255, 0.98);
+      color: var(--brand-clock-time-color);
       text-transform: uppercase;
       line-height: 1;
       position: relative;
@@ -340,7 +340,7 @@
     .brand-text {
       display: flex;
       align-items: center;
-      color: #fff;
+      color: var(--brand-title-color);
       margin-left: 12px;
     }
     .brand-text__stack {
@@ -355,14 +355,14 @@
       font-size: 20px;
       font-weight: 800;
       letter-spacing: 0.08em;
-      color: #fff;
+      color: inherit;
       text-transform: uppercase;
     }
     .brand-text__subtitle {
       font-size: 13px;
       line-height: 1.1;
       letter-spacing: 0.08em;
-      color: rgba(255, 255, 255, 0.82);
+      color: var(--brand-subtitle-color);
       text-transform: uppercase;
       font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
       display: inline-block;
@@ -378,7 +378,7 @@
     }
     .brand-text__subtitle.is-morphing {
       filter: blur(5px);
-      color: rgba(255, 255, 255, 0.9);
+      color: var(--brand-subtitle-morph-color);
       opacity: 0.55;
     }
     .brand-singularity-dialog {
@@ -505,7 +505,35 @@
     }
     .welcome-card .welcome-hint { font-size: 12px; }
     :root {
-      --chrome-gradient: linear-gradient(135deg, #000 0%, #fff 100%);
+      --brand-palette-dark-clock-date: rgba(255, 255, 255, 0.86);
+      --brand-palette-dark-clock-time: rgba(255, 255, 255, 0.98);
+      --brand-palette-dark-title: rgba(255, 255, 255, 0.98);
+      --brand-palette-dark-subtitle: rgba(255, 255, 255, 0.82);
+      --brand-palette-dark-subtitle-morph: rgba(255, 255, 255, 0.9);
+      --brand-palette-dark-gradient: linear-gradient(135deg, #000 0%, #fff 100%);
+      --brand-palette-light-clock-date: rgba(24, 28, 36, 0.72);
+      --brand-palette-light-clock-time: rgba(15, 18, 28, 0.9);
+      --brand-palette-light-title: rgba(16, 21, 32, 0.96);
+      --brand-palette-light-subtitle: rgba(32, 36, 48, 0.72);
+      --brand-palette-light-subtitle-morph: rgba(24, 28, 38, 0.82);
+      --brand-palette-light-gradient: linear-gradient(135deg, #fff 0%, #000 100%);
+    }
+    :root,
+    :root[data-theme="dark"] {
+      --chrome-gradient: var(--brand-palette-light-gradient);
+      --brand-clock-date-color: var(--brand-palette-light-clock-date);
+      --brand-clock-time-color: var(--brand-palette-light-clock-time);
+      --brand-title-color: var(--brand-palette-light-title);
+      --brand-subtitle-color: var(--brand-palette-light-subtitle);
+      --brand-subtitle-morph-color: var(--brand-palette-light-subtitle-morph);
+    }
+    :root[data-theme="light"] {
+      --chrome-gradient: var(--brand-palette-dark-gradient);
+      --brand-clock-date-color: var(--brand-palette-dark-clock-date);
+      --brand-clock-time-color: var(--brand-palette-dark-clock-time);
+      --brand-title-color: var(--brand-palette-dark-title);
+      --brand-subtitle-color: var(--brand-palette-dark-subtitle);
+      --brand-subtitle-morph-color: var(--brand-palette-dark-subtitle-morph);
     }
     header {
       position: relative;
