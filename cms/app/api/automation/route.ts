@@ -4,12 +4,14 @@ import path from 'path'
 
 import { withSession } from '../../lib/auth-guard'
 import { resolveMediaRoot } from '../../lib/media-roots'
+import { metadataRoot } from '../../lib/store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const META_SUFFIX = '.meta'
 const AUTOMATION_DIRNAME = 'automation'
+const GLOBAL_METADATA_ROOT = metadataRoot
 const CONFIG_FILE = 'automation.json'
 const SCENARIO_META_FILE = 'scenario.json'
 const TRIGGER_EXTENSION = '.json'
@@ -351,10 +353,30 @@ async function saveTriggerFile(automationDir: string, scenario: string, trigger:
   await writeJsonFile(filePath, record)
 }
 
+/**
+ * Determine where to store automation metadata for a given path.
+ * Prefers global metadata root for new content, uses local .meta for existing.
+ */
+async function resolveAutomationDir(rootKey: string, relPath: string, rootAbs: string): Promise<string> {
+  // Generate both possible paths
+  const localMetaAbs = path.join(rootAbs, `${relPath}${META_SUFFIX}`, AUTOMATION_DIRNAME)
+  const globalMetaAbs = path.join(GLOBAL_METADATA_ROOT, rootKey, relPath, AUTOMATION_DIRNAME)
+
+  // Check if local .meta exists
+  const localExists = await fs.stat(localMetaAbs).then(s => s.isDirectory()).catch(() => false)
+
+  // If local exists, continue using it
+  if (localExists) {
+    return localMetaAbs
+  }
+
+  // Otherwise use global metadata root
+  await ensureDir(globalMetaAbs)
+  return globalMetaAbs
+}
+
 async function readAutomationPayloadForRequest(rootKey: string, relPath: string, rootAbs: string) {
-  const metaRel = `${relPath}${META_SUFFIX}`
-  const metaAbs = path.join(rootAbs, metaRel)
-  const automationDir = path.join(metaAbs, AUTOMATION_DIRNAME)
+  const automationDir = await resolveAutomationDir(rootKey, relPath, rootAbs)
   await ensureDir(automationDir)
   return buildAutomationPayload(rootKey, relPath, automationDir)
 }
@@ -410,9 +432,7 @@ export const POST = withSession(async ({ request }) => {
   const targetAbs = path.resolve(root.path, relPath)
   if (!withinRoot(root.path, targetAbs)) return jsonError('Forbidden', 403)
 
-  const metaRel = `${relPath}${META_SUFFIX}`
-  const metaAbs = path.join(root.path, metaRel)
-  const automationDir = path.join(metaAbs, AUTOMATION_DIRNAME)
+  const automationDir = await resolveAutomationDir(root.key, relPath, root.path)
   await ensureDir(automationDir)
   await ensureDefaultScenario(automationDir)
 

@@ -30,6 +30,7 @@ export const appRoot = APP_ROOT
 export const repoRoot = findRepoRoot(APP_ROOT)
 export const DATA_DIR = path.join(APP_ROOT, 'data')
 export const uploadsRoot = path.join(APP_ROOT, 'files/uploads')
+export const metadataRoot = path.join(repoRoot, 'metadata')
 
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json')
 const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json')
