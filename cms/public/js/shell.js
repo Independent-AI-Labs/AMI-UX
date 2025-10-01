@@ -17,6 +17,7 @@ import { openAccountDrawer } from './account-drawer.js?v=20250316'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { createTabStrip } from './tab-strip.js?v=20250321'
 import { initShellConsole } from './shell-console.js?v=20250321'
+import { initContextMenu } from './context-menu.js'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -24,10 +25,8 @@ window.addEventListener('ami:unauthorized', () => {
 
 ensureDocumentHintLayer(document)
 
-// Disable browser context menu in shell
-document.addEventListener('contextmenu', (e) => {
-  e.preventDefault()
-})
+// Initialize custom context menu
+initContextMenu()
 
 // Prevent the highlight plugin from auto-starting in the shell document itself.
 ;(() => {
@@ -124,6 +123,7 @@ function ensureFrameForTab(tabId) {
   frame.dataset.frameVisible = ''
   frame.setAttribute('title', 'Visualizer')
   frame.setAttribute('loading', 'lazy')
+  frame.setAttribute('allow', 'clipboard-read; clipboard-write')
   frame.addEventListener('load', () => {
     if (frame.dataset.tabId === activeFrameId) hideFrameLoading()
     if (frame.dataset.frameVisible === '1' || frame === getActiveFrame()) ensureHighlightPluginInFrame(frame)

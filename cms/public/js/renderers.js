@@ -1,6 +1,7 @@
 import { slugify, pathAnchor } from './utils.js'
 import { CodeView, guessLanguageFromClassName, normaliseLanguageHint } from './code-view.js'
 import { ensureTexLiveCompiler } from './texlive/compiler.js'
+import { ensureDetailsChainForPath, scrollToAnchorWhenReady } from './ui.js'
 
 const DEFAULT_LATEX_PAGE_WIDTH = 816
 
@@ -218,6 +219,7 @@ function createLatexOverlay() {
 }
 
 export function renderMarkdown(md, relPath) {
+  console.log('[renderMarkdown] Called for relPath:', relPath)
   const raw = marked.parse(md)
   const html = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
   const wrapper = document.createElement('div')
@@ -306,21 +308,32 @@ export function renderMarkdown(md, relPath) {
   // Process links: external links open in new tabs, local .md links become navigation
   wrapper.querySelectorAll('a').forEach((link) => {
     const href = link.getAttribute('href')
+    console.log('[Renderer] Processing link:', href)
     if (!href) return
 
     // Skip anchor links (within same page)
     if (href.startsWith('#')) return
 
-    // Check if it's a .md link first (before URL parsing)
+    // Check if it's a .md link (or should be treated as one)
+    // Relative paths without protocol are assumed to be local navigation
     const isMdLink = href.endsWith('.md') || href.includes('.md#')
+    const isRelativePath = !href.match(/^https?:\/\//) && !href.startsWith('/')
+    const isAbsoluteLocalPath = href.startsWith('/')
 
-    // Try to determine if external
+    // Try to determine if external (different domain)
     let isExternal = false
+    let isSameOriginMd = false
     try {
-      // Check if it looks like an absolute URL with protocol
+      // Only check URLs that look like absolute URLs with protocol
       if (href.match(/^https?:\/\//)) {
         const url = new URL(href)
-        isExternal = url.origin !== window.location.origin
+        // If it's a .md link on the same origin, treat as internal navigation
+        if (url.origin === window.location.origin && isMdLink) {
+          isExternal = false
+          isSameOriginMd = true
+        } else {
+          isExternal = url.origin !== window.location.origin
+        }
       }
     } catch {}
 
@@ -328,39 +341,51 @@ export function renderMarkdown(md, relPath) {
       // External links open in new tab
       link.setAttribute('target', '_blank')
       link.setAttribute('rel', 'noopener noreferrer')
-    } else if (isMdLink) {
-      // Local .md links: convert to navigation within the doc viewer
-      link.addEventListener('click', async (e) => {
-        e.preventDefault()
+    } else if (isMdLink || isSameOriginMd || isRelativePath || isAbsoluteLocalPath) {
+      // Local links: convert href to hash-based navigation
+      let targetPath = href
 
-        // Parse the link - could be relative or absolute
-        let targetPath = href
-
-        // If it's a relative path, resolve it relative to the current file
-        if (!href.startsWith('/')) {
-          const currentDir = relPath.split('/').slice(0, -1).join('/')
-          targetPath = currentDir ? `${currentDir}/${href}` : href
+      // If it's an absolute URL (same origin), extract the path
+      try {
+        if (href.match(/^https?:\/\//)) {
+          const url = new URL(href)
+          targetPath = url.pathname
         }
+      } catch {}
 
-        // Normalize the path (remove .md extension for anchor)
-        const anchorPath = targetPath.replace(/\.md(#.*)?$/, '$1')
-        const pathOnly = anchorPath.split('#')[0]
-        const hashPart = anchorPath.includes('#') ? anchorPath.split('#')[1] : ''
-
-        // Find the tree node link and trigger it, or set the hash
-        const treeLink = document.querySelector(`a[data-path="${pathOnly}"][data-type="file"]`)
-        if (treeLink) {
-          treeLink.click()
-          if (hashPart) {
-            setTimeout(() => {
-              window.location.hash = hashPart
-            }, 100)
-          }
-        } else {
-          // Fallback: just set the hash if we can't find the tree node
-          window.location.hash = pathAnchor(pathOnly) + (hashPart ? `-${hashPart}` : '')
+      // If it's a relative path, resolve it relative to the current file
+      if (!targetPath.startsWith('/') && !href.match(/^https?:\/\//)) {
+        // Strip leading ./ from relative paths
+        if (targetPath.startsWith('./')) {
+          targetPath = targetPath.slice(2)
         }
-      })
+        const currentDir = relPath.split('/').slice(0, -1).join('/')
+        targetPath = currentDir ? `${currentDir}/${targetPath}` : targetPath
+      }
+
+      // Remove leading slash if present
+      if (targetPath.startsWith('/')) {
+        targetPath = targetPath.slice(1)
+      }
+
+      // Add .md extension if not present
+      if (!targetPath.endsWith('.md') && !targetPath.includes('.md#')) {
+        targetPath = targetPath + '.md'
+      }
+
+      // Split off any hash fragment
+      const [pathPart, hashFrag] = targetPath.split('#')
+
+      // Keep .md extension for anchor lookup (IDs include the extension)
+      const pathOnly = pathPart
+
+      // Convert to hash-based navigation like STRUCTURE does
+      const newHash = pathAnchor(pathOnly) + (hashFrag ? `-${hashFrag}` : '')
+      link.setAttribute('href', `#${newHash}`)
+
+      // Add data-path and data-type attributes so the centralized click handler in ui.js picks this up
+      link.dataset.path = pathOnly
+      link.dataset.type = 'file'
     }
     // If not external and not .md, leave it as default behavior
   })

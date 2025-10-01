@@ -41,6 +41,7 @@ function createIframe(
   iframe.src = src
   if (title) iframe.setAttribute('aria-label', title)
   iframe.sandbox = sandbox
+  iframe.setAttribute('allow', 'clipboard-read; clipboard-write')
   iframe.style.cssText = 'width:100%;height:100%;border:0; background: transparent;'
   wrapper.appendChild(iframe)
   container.innerHTML = ''

@@ -1387,8 +1387,84 @@ export function restoreHashTarget() {
   if (location.hash) {
     const id = location.hash.slice(1)
     const el = document.getElementById(id)
-    if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    if (el) {
+      try {
+        el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      } catch (err) {
+        console.warn('Failed to scroll to element:', err)
+      }
+    }
   }
+}
+
+function escapeSelector(str) {
+  return String(str || '').replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&')
+}
+
+export async function ensureDetailsChainForPath(path) {
+  const parts = String(path || '')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+  if (!parts.length) return null
+  const scope = document.getElementById('treeRoot') || document.getElementById('content')
+  if (!scope) return null
+  let current = ''
+  let last = null
+  for (let idx = 0; idx < parts.length; idx += 1) {
+    current = current ? `${current}/${parts[idx]}` : parts[idx]
+    const selector = `details[data-path="${escapeSelector(current)}"]`
+    const details = scope.querySelector(selector)
+    if (!details) return last
+    const body = details.querySelector(':scope > .body')
+    const isFile = (details.dataset?.type || details.classList?.contains('file')) === 'file'
+    const wasOpen = details.open
+    if (!wasOpen) {
+      try {
+        details.open = true
+      } catch {}
+      details.setAttribute('open', '')
+    }
+    details.classList.remove('hidden')
+    const needsLoad = isFile && (!body || body.childElementCount === 0)
+    if (!wasOpen || needsLoad) {
+      try {
+        details.dispatchEvent(new Event('toggle'))
+      } catch {}
+    }
+    if (details.__ensureStructureChildren && details.open) {
+      try {
+        await details.__ensureStructureChildren()
+      } catch (error) {
+        console.warn('Structure ensure failed', error)
+      }
+    }
+    last = details
+  }
+  return last
+}
+
+export function scrollToAnchorWhenReady(anchorId, options = {}) {
+  if (!anchorId) return
+  const maxAttempts = Number.isFinite(options.maxAttempts) ? options.maxAttempts : 8
+  const baseDelay = Number.isFinite(options.baseDelay) ? options.baseDelay : 100
+  const behavior = options.behavior || 'smooth'
+  const block = options.block || 'start'
+  let attempt = 0
+  const seek = () => {
+    const anchor = document.getElementById(anchorId)
+    if (anchor) {
+      try {
+        anchor.scrollIntoView({ block, behavior })
+      } catch {}
+      return
+    }
+    attempt += 1
+    if (attempt <= maxAttempts) {
+      setTimeout(seek, baseDelay * Math.max(1, attempt))
+    }
+  }
+  setTimeout(seek, baseDelay)
 }
 
 export function attachEvents(state, setDocRoot, init, applyThemeCb) {
@@ -1512,7 +1588,6 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
       if (search && typeof search.focus === 'function') search.focus()
     }
   })
-  window.addEventListener('hashchange', restoreHashTarget)
 
   // Expand all for print and restore after
   let prevOpen = []
@@ -1858,28 +1933,7 @@ function createStructureWatcher(state) {
         else if (parent && parent !== this.tocRoot) parent.classList.toggle('is-active', isActive)
         if (isActive) lastActiveLink = link
       })
-      if (lastActiveLink) {
-        const scrollContainer = ensureStructureScrollContainer()
-        if (
-          scrollContainer &&
-          typeof scrollContainer.getBoundingClientRect === 'function' &&
-          typeof scrollContainer.scrollTop === 'number'
-        ) {
-          try {
-            const containerRect = scrollContainer.getBoundingClientRect()
-            const linkRect = lastActiveLink.getBoundingClientRect()
-            const margin = 12
-            const below = linkRect.bottom > containerRect.bottom - margin
-            const above = linkRect.top < containerRect.top + margin
-            if (below) scrollContainer.scrollTop += linkRect.bottom - containerRect.bottom + margin
-            else if (above) scrollContainer.scrollTop -= containerRect.top - linkRect.top + margin
-          } catch {}
-        } else {
-          try {
-            lastActiveLink.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-          } catch {}
-        }
-      }
+      // Do not auto-scroll the structure/TOC container
       this.lastActive = new Set(result.visible)
     },
   }
@@ -1936,6 +1990,52 @@ function createStructureWatcher(state) {
     }
     watcher.ignoreHashClearUntil = Date.now() + 1200
   })
+  // Also handle clicks on links in the content area (rendered markdown files)
+  contentElement.addEventListener('click', async (e) => {
+    const link =
+      e.target && typeof e.target.closest === 'function' ? e.target.closest('a[data-path]') : null
+    if (!link) return
+    const path = link.dataset?.path || ''
+    const type = link.dataset?.type || ''
+    console.log('[Content Click] path:', path, 'type:', type)
+    if (!path) {
+      watcher.ignoreHashClearUntil = Date.now() + 1200
+      return
+    }
+    watcher.ignoreHashClearUntil = Date.now() + 1600
+    if (type === 'dir' || type === 'file') {
+      e.preventDefault()
+      console.log('[Content Click] Calling ensureDetailsChain for:', path)
+      const details = await ensureDetailsChain(path)
+      console.log('[Content Click] ensureDetailsChain returned:', details)
+      const anchorId = type === 'dir' ? dirAnchorId(path) : pathAnchor(path)
+      if (anchorId) {
+        let hashApplied = false
+        if (defaultView && defaultView.location) {
+          try {
+            const currentHash = (defaultView.location.hash || '').slice(1)
+            if (currentHash !== anchorId) defaultView.location.hash = anchorId
+            hashApplied = true
+          } catch {}
+        }
+        if (!hashApplied && ownerDoc && ownerDoc.location) {
+          try {
+            const currentHash = (ownerDoc.location.hash || '').slice(1)
+            if (currentHash !== anchorId) ownerDoc.location.hash = anchorId
+            hashApplied = true
+          } catch {}
+        }
+        scrollToAnchorWhenReady(anchorId, { baseDelay: 60 })
+        setTimeout(() => watcher && watcher.scheduleUpdate(true), 220)
+      } else if (details && type === 'file') {
+        scrollToAnchorWhenReady(pathAnchor(path), { baseDelay: 80 })
+        setTimeout(() => watcher && watcher.scheduleUpdate(true), 220)
+      }
+      return
+    }
+    watcher.ignoreHashClearUntil = Date.now() + 1200
+  })
+
   tocRoot.addEventListener('toggle', () => watcher.scheduleUpdate(true), true)
   window.addEventListener('resize', () => watcher.scheduleUpdate(true))
 

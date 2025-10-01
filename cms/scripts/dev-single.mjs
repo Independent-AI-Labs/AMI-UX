@@ -3,8 +3,10 @@ import fsSync from 'fs'
 import net from 'net'
 import path from 'path'
 import { spawn } from 'child_process'
+import { generateCertificate, KEY_FILE, CERT_FILE } from './generate-cert.mjs'
 
 const APP_PORT = Number(process.env.NEXT_DEV_PORT || 3000)
+const USE_HTTPS = process.env.NEXT_DEV_HTTPS !== '0'
 const LOCK_DIR = path.resolve(process.cwd(), '.next')
 const LOCK_FILE = path.join(LOCK_DIR, 'dev-server.lock')
 
@@ -88,6 +90,16 @@ async function main() {
   await writeLock()
 
   const args = ['dev', ...process.argv.slice(2)]
+
+  // Generate or reuse self-signed certificate for HTTPS
+  if (USE_HTTPS) {
+    const { key, cert } = generateCertificate()
+    process.env.NODE_EXTRA_CA_CERTS = cert
+    args.push('--experimental-https')
+    args.push(`--experimental-https-key=${key}`)
+    args.push(`--experimental-https-cert=${cert}`)
+  }
+
   const child = spawn('next', args, {
     stdio: 'inherit',
     env: process.env,

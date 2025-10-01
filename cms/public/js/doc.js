@@ -1,4 +1,8 @@
 import { startCms } from './main.js?v=20250306'
+import { initContextMenu } from './context-menu.js'
+
+// Initialize custom context menu in doc viewer
+initContextMenu()
 
 function syncDocHeaderHeight() {
   try {
