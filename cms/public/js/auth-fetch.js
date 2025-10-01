@@ -15,7 +15,7 @@ window.fetch = async function authFetch(input, init = {}) {
   }
 
   const response = await originalFetch(input, finalInit)
-  if (response.status === 401) {
+  if (response.status === 401 && !window.location.pathname.includes('/auth/')) {
     window.dispatchEvent(new CustomEvent('ami:unauthorized', { detail: { url: typeof input === 'string' ? input : input.toString() } }))
   }
   return response

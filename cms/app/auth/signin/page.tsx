@@ -7,15 +7,22 @@ import { auth } from '@ami/auth/server'
 
 import { SignInForm } from './SignInForm'
 
-export default async function SignInPage({ searchParams }: { searchParams?: Record<string, string | string[]> }) {
-  const session = await auth()
-  const callback = typeof searchParams?.callbackUrl === 'string' ? searchParams?.callbackUrl : '/'
-  const prefill = typeof searchParams?.prefill === 'string' ? searchParams.prefill : null
+export default async function SignInPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[]>> | Record<string, string | string[]> }) {
+  let session = null
+  try {
+    session = await auth()
+  } catch (err) {
+    console.warn('[signin] Failed to read session, clearing cookies', err)
+  }
+  const params = await Promise.resolve(searchParams)
+  const rawCallback = typeof params?.callbackUrl === 'string' ? params?.callbackUrl : '/'
+  const callback = rawCallback === '/index.html' ? '/' : rawCallback
+  const prefill = typeof params?.prefill === 'string' ? params.prefill : null
   if (session?.user) {
     redirect(callback || '/')
   }
 
-  const errorParam = typeof searchParams?.error === 'string' ? searchParams.error : null
+  const errorParam = typeof params?.error === 'string' ? params.error : null
 
   return (
     <div className="auth-layout">
