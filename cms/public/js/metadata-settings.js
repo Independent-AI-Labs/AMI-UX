@@ -117,7 +117,7 @@ function ensureDialog() {
   closeButton.type = 'button'
   closeButton.className = 'icon-button dialog-close'
   closeButton.setAttribute('aria-label', 'Close metadata settings')
-  closeButton.innerHTML = iconMarkup('close-large-line')
+  closeButton.innerHTML = iconMarkup('close-line', { size: 20 })
   closeButton.addEventListener('click', () => {
     if (dialogHandle) dialogHandle.close()
   })
@@ -125,8 +125,12 @@ function ensureDialog() {
 
   surfaceEl.appendChild(header)
 
+  const dialogContent = document.createElement('div')
+  dialogContent.className = 'dialog-content'
+  surfaceEl.appendChild(dialogContent)
+
   const body = document.createElement('div')
-  body.className = 'metadata-settings__body'
+  body.className = 'dialog-body metadata-settings__body'
 
   function createValueSection(labelText, key, copyHint) {
     const section = document.createElement('section')
@@ -240,7 +244,7 @@ function ensureDialog() {
   fields.relativeValue = relativeLine.querySelector('span.metadata-settings__relative-text')
   fields.relativeSection = relativeLine
 
-  surfaceEl.appendChild(body)
+  dialogContent.appendChild(body)
 
   const footer = document.createElement('div')
   footer.className = 'dialog-footer metadata-settings__footer'
@@ -262,7 +266,7 @@ function ensureDialog() {
   setButton.addEventListener('click', handleConfirm)
   footer.appendChild(setButton)
 
-  surfaceEl.appendChild(footer)
+  dialogContent.appendChild(footer)
 
   fields.footer = footer
   fields.cancelButton = cancelButton
@@ -391,10 +395,10 @@ function updateDetails(context) {
     const relativeMeta = relative ? deriveMetaDirectory(relative) : ''
     if (relativeMeta) {
       fields.relativeValue.textContent = relativeMeta
-      fields.relativeSection.style.display = ''
+      fields.relativeSection.hidden = false
     } else {
       fields.relativeValue.textContent = '—'
-      fields.relativeSection.style.display = 'none'
+      fields.relativeSection.hidden = true
     }
   }
 }

@@ -60,10 +60,14 @@ export function openCreateDirectoryDialog(options = {}) {
     closeButton.type = 'button'
     closeButton.className = 'icon-button dialog-close'
     closeButton.setAttribute('aria-label', 'Close dialog')
-    closeButton.innerHTML = iconMarkup('close-line')
+    closeButton.innerHTML = iconMarkup('close-line', { size: 20 })
 
     header.appendChild(closeButton)
     surface.appendChild(header)
+
+    const dialogContent = document.createElement('div')
+    dialogContent.className = 'dialog-content'
+    surface.appendChild(dialogContent)
 
     const form = document.createElement('form')
     form.className = 'create-directory-dialog__form'
@@ -107,8 +111,8 @@ export function openCreateDirectoryDialog(options = {}) {
     footer.appendChild(cancelButton)
     footer.appendChild(confirmButton)
 
-    surface.appendChild(form)
-    surface.appendChild(footer)
+    dialogContent.appendChild(form)
+    dialogContent.appendChild(footer)
 
     let resolved = false
     let handle = null

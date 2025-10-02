@@ -930,6 +930,18 @@ details:focus-within > summary .row-actions {
   filter: blur(calc(var(--overlay-blur-strength-strong) * 0.4));
 }
 
+.dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .metadata-settings-dialog {
   --dialog-min-width: 360px;
   --dialog-max-width: 520px;
