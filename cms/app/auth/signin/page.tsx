@@ -15,8 +15,8 @@ export default async function SignInPage({ searchParams }: { searchParams?: Prom
     console.warn('[signin] Failed to read session, clearing cookies', err)
   }
   const params = await Promise.resolve(searchParams)
-  const rawCallback = typeof params?.callbackUrl === 'string' ? params?.callbackUrl : '/'
-  const callback = rawCallback === '/index.html' ? '/' : rawCallback
+  const rawCallback = typeof params?.callbackUrl === 'string' ? params?.callbackUrl : '/index.html'
+  const callback = rawCallback === '/' ? '/index.html' : rawCallback
   const prefill = typeof params?.prefill === 'string' ? params.prefill : null
   if (session?.user) {
     redirect(callback || '/')

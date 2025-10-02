@@ -3,15 +3,16 @@ import { NextResponse } from 'next/server'
 import { signIn } from '@ami/auth/server'
 
 function toRedirectUrl(base: URL, target: string | null | undefined): URL {
-  if (!target) return new URL('/', base)
+  if (!target) return new URL('/index.html', base)
+  if (target === '/') return new URL('/index.html', base)
   try {
     const resolved = new URL(target, base)
     if (resolved.origin !== base.origin) {
-      return new URL('/', base)
+      return new URL('/index.html', base)
     }
     return resolved
   } catch {
-    return new URL('/', base)
+    return new URL('/index.html', base)
   }
 }
 
@@ -32,7 +33,7 @@ export async function handleGuestSignIn(request: Request, signInFn: typeof signI
   const callbackUrl = typeof formCallback === 'string' && formCallback.trim() ? formCallback : queryCallback
 
   try {
-    const result = await signInFn('guest', { callbackUrl: callbackUrl || '/', redirect: false })
+    const result = await signInFn('guest', { callbackUrl: callbackUrl || '/index.html', redirect: false })
 
     if (!result) {
       return NextResponse.redirect(buildFailureRedirect(origin, callbackUrl))

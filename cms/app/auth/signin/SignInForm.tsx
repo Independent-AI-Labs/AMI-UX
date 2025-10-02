@@ -64,7 +64,10 @@ export function SignInForm({ callbackUrl, prefillEmail, initialErrorCode }: Sign
   }, [initialErrorCode])
 
   const pending = credentialsPending || guestPending
-  const effectiveCallback = useMemo(() => callbackUrl || '/', [callbackUrl])
+  const effectiveCallback = useMemo(() => {
+    if (!callbackUrl || callbackUrl === '/') return '/index.html'
+    return callbackUrl
+  }, [callbackUrl])
 
   const continueAsGuest = useCallback(
     (options?: { remember?: boolean; skipPreferenceUpdate?: boolean }) => {
