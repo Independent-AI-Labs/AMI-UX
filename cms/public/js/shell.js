@@ -480,23 +480,76 @@ function ensureHighlightPluginInFrame(frame) {
       }
     }
 
-    // Just ensure parent plugin exists and refresh it
-    const pluginApi = window.__AMI_HIGHLIGHT_PLUGIN__
-    if (pluginApi && typeof pluginApi.refresh === 'function') {
-      logHighlightShell('ensure-refresh-existing')
+    // Get iframe's document
+    const iframeDoc = frame.contentDocument || frame.contentWindow?.document
+    if (!iframeDoc) {
+      logHighlightShell('ensure-no-iframe-doc')
+      return false
+    }
+
+    // Check if plugin already exists in iframe
+    const iframeApi = frame.contentWindow?.__AMI_HIGHLIGHT_PLUGIN__
+    if (iframeApi && typeof iframeApi.refresh === 'function') {
+      logHighlightShell('ensure-iframe-refresh')
       try {
-        pluginApi.refresh({ rebuild: true })
+        iframeApi.refresh({ rebuild: true })
       } catch (err) {
-        console.warn('Highlight plugin refresh failed', err)
-        logHighlightShell('ensure-refresh-error', { error: err?.message || String(err) })
+        console.warn('Iframe highlight plugin refresh failed', err)
+        logHighlightShell('ensure-iframe-refresh-error', { error: err?.message || String(err) })
       }
       return true
     }
 
-    // Plugin not loaded yet, ensure it loads
-    return ensureHighlightPluginInParent()
+    // Check if iframe already has the bootstrap script
+    const existingScript = iframeDoc.getElementById(HIGHLIGHT_BOOTSTRAP_ID)
+    if (existingScript) {
+      logHighlightShell('ensure-iframe-script-exists')
+      return true
+    }
+
+    // Inject plugin into iframe
+    logHighlightShell('ensure-iframe-inject')
+    const script = iframeDoc.createElement('script')
+    script.type = 'module'
+    script.id = HIGHLIGHT_BOOTSTRAP_ID
+    const cacheBuster = `t=${Date.now()}`
+    script.src = HIGHLIGHT_PLUGIN_SRC.includes('?')
+      ? `${HIGHLIGHT_PLUGIN_SRC}&${cacheBuster}`
+      : `${HIGHLIGHT_PLUGIN_SRC}?${cacheBuster}`
+    script.crossOrigin = 'anonymous'
+
+    // Configure plugin for iframe
+    frame.contentWindow.__AMI_HIGHLIGHT_CONFIG__ = {
+      document: iframeDoc,
+      scopeSelector: 'body',
+      autoStart: true,
+      debug: true,
+      forceStart: true,
+      createDefaultToggle: false,
+    }
+
+    script.addEventListener('load', () => {
+      logHighlightShell('ensure-iframe-script-loaded')
+    })
+
+    script.addEventListener('error', (event) => {
+      console.error('Iframe highlight plugin script failed', event?.error || event)
+      logHighlightShell('ensure-iframe-script-error', { error: event?.error || String(event) })
+      try {
+        script.remove()
+      } catch {}
+    })
+
+    const target = iframeDoc.head || iframeDoc.documentElement || iframeDoc.body
+    if (target) {
+      target.appendChild(script)
+      logHighlightShell('ensure-iframe-script-appended')
+      return true
+    }
+
+    return false
   } catch (err) {
-    console.warn('Failed to ensure highlight plugin', err)
+    console.warn('Failed to ensure highlight plugin in iframe', err)
     logHighlightShell('ensure-error', { error: err?.message || String(err) })
     return false
   }

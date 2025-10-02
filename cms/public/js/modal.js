@@ -162,6 +162,7 @@ function createModalDialogFactory(React) {
       'div',
       {
         className: 'dialog-backdrop',
+        'data-ami-highlight-ignore': '1',
         ref: overlayRef,
       },
       React.createElement(
@@ -1315,7 +1316,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     )
   }
 
-  function Drawer({ onClose }) {
+  function Drawer({ onClose, onSelect }) {
     const [entries, setEntries] = useState([])
     const [loadingEntries, setLoadingEntries] = useState(true)
     const [filter, setFilter] = useState('')
@@ -2565,7 +2566,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
     const drawerContent = React.createElement(
       'div',
-      { className: 'drawer-shell content-drawer-shell' },
+      { className: 'drawer-shell content-drawer-shell', 'data-ami-highlight-ignore': '1' },
       React.createElement(DrawerHeader, {
         title: 'Content Directory',
         description: 'Serve, upload, and manage workspace resources without leaving the shell.',
@@ -2758,6 +2759,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       {
         className:
           'dialog-backdrop dialog-backdrop--right account-drawer-backdrop content-drawer-backdrop',
+        'data-ami-highlight-ignore': '1',
         ref: overlayRef,
       },
       surfaceNode,
@@ -3000,13 +3002,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
   overlay.style.zIndex = '1600'
   document.body.appendChild(overlay)
   const root = ReactDOM.createRoot(overlay)
-  const onClose = () => {
+  const onCloseHandler = () => {
     try {
       root.unmount()
       overlay.remove()
     } catch {}
   }
-  root.render(React.createElement(Drawer, { onClose }))
+  root.render(React.createElement(Drawer, { onClose: onCloseHandler, onSelect }))
 }
 
 export async function openServerDirectoryPicker(options = {}) {
