@@ -1292,9 +1292,9 @@ const STYLE_TEXT = `
   gap: 0.25rem;
   padding: 2px 0.375rem;
   border-radius: 8px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  background-color: rgba(12, 16, 26, 0.25);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  background-color: rgba(12, 16, 26, 0.4);
   background-image: var(
       --highlight-shell-gradient,
       var(--chrome-gradient, linear-gradient(110deg, rgba(122, 162, 247, 0.25) 0%, rgba(244, 114, 182, 0.25) 100%))
