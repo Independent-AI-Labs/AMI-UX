@@ -379,6 +379,94 @@ function scheduleHighlightRetry(frame, delay = HIGHLIGHT_RETRY_BASE) {
   }, Math.max(delay, 60))
 }
 
+// Loads highlight plugin ONCE in parent window
+function ensureHighlightPluginInParent() {
+  try {
+    // Destroy any existing plugin from old architecture
+    const existingApi = window.__AMI_HIGHLIGHT_PLUGIN__
+    if (existingApi) {
+      logHighlightShell('parent-plugin-destroy-old')
+      try {
+        if (typeof existingApi.destroy === 'function') {
+          existingApi.destroy()
+        }
+      } catch (err) {
+        console.warn('Failed to destroy old highlight plugin', err)
+      }
+      delete window.__AMI_HIGHLIGHT_PLUGIN__
+      delete window.__amiHighlightPlugin
+    }
+
+    // Clear any active flags
+    const root = document.documentElement || document.body
+    if (root) {
+      try {
+        root.removeAttribute(HIGHLIGHT_ACTIVE_ATTR)
+        root.removeAttribute(HIGHLIGHT_ACTIVE_OWNER_ATTR)
+      } catch {}
+    }
+
+    // Remove any existing scripts
+    const existingScript = document.getElementById(HIGHLIGHT_BOOTSTRAP_ID)
+    if (existingScript) {
+      logHighlightShell('parent-script-remove-old')
+      try {
+        existingScript.remove()
+      } catch {}
+    }
+
+    // Load script in parent window with cache buster
+    const script = document.createElement('script')
+    script.type = 'module'
+    script.id = HIGHLIGHT_BOOTSTRAP_ID
+    const cacheBuster = `t=${Date.now()}`
+    script.src = HIGHLIGHT_PLUGIN_SRC.includes('?')
+      ? `${HIGHLIGHT_PLUGIN_SRC}&${cacheBuster}`
+      : `${HIGHLIGHT_PLUGIN_SRC}?${cacheBuster}`
+    script.crossOrigin = 'anonymous'
+
+    // Configure to use parent document for everything
+    window.__AMI_HIGHLIGHT_CONFIG__ = {
+      document: document,
+      scopeSelector: 'body',
+      autoStart: true,
+      debug: true,
+      forceStart: true,
+      createDefaultToggle: true,
+    }
+
+    script.addEventListener('load', () => {
+      logHighlightShell('parent-script-load')
+      // Check if config is visible to module
+      console.log('[highlight-shell] Config set:', window.__AMI_HIGHLIGHT_CONFIG__)
+      // Check after a delay if API was created
+      setTimeout(() => {
+        const api = window.__AMI_HIGHLIGHT_PLUGIN__
+        console.log('[highlight-shell] Plugin API after load:', api ? 'exists' : 'missing')
+        if (!api) {
+          console.error('[highlight-shell] Bootstrap did not create API - check for errors above')
+        }
+      }, 500)
+    })
+    script.addEventListener('error', (event) => {
+      console.error('Highlight plugin script failed to load', event?.error || event)
+      logHighlightShell('parent-script-error', { error: event?.error || String(event) })
+      try {
+        script.remove()
+      } catch {}
+    })
+
+    const target = document.head || document.documentElement || document.body
+    target.appendChild(script)
+    logHighlightShell('parent-script-appended')
+    return true
+  } catch (err) {
+    console.error('Failed to inject highlight plugin in parent', err)
+    logHighlightShell('parent-ensure-error', { error: err?.message || String(err) })
+    return false
+  }
+}
+
 function ensureHighlightPluginInFrame(frame) {
   try {
     if (!frame) return false
@@ -391,92 +479,10 @@ function ensureHighlightPluginInFrame(frame) {
         return false
       }
     }
-    const win = frame.contentWindow
-    const doc = win?.document
-    if (!win || !doc) return false
-    const state = getHighlightBootstrapState(frame, win)
-    if (!state) return false
-    logHighlightShell('ensure', {
-      attempts: state.attempts,
-      polls: state.polls,
-      ready: state.ready,
-    })
-    if (isAboutBlankWindow(win)) {
-      logHighlightShell('ensure-about-blank')
-      scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * Math.max(state.attempts || 1, 1))
-      return false
-    }
-    ensureHighlightPluginConfig(win)
-    ensureHighlightPluginInWindowFrames(win)
 
-    if (isHighlightProxyDocument(doc)) {
-      const proxyFrame = findProxyTargetFrame(doc)
-      if (proxyFrame) {
-        try {
-          ensureHighlightPluginConfig(proxyFrame.contentWindow)
-        } catch {}
-        ensureHighlightPluginInFrame(proxyFrame)
-      }
-      state.ready = true
-      state.attempts = 0
-      state.polls = 0
-      if (state.retryHandle) {
-        clearTimeout(state.retryHandle)
-        state.retryHandle = null
-      }
-      logHighlightShell('ensure-proxy-skip')
-      return true
-    }
-    if (doc.readyState === 'loading' || !doc.body) {
-      logHighlightShell('ensure-wait-dom', { readyState: doc.readyState })
-      doc.addEventListener(
-        'DOMContentLoaded',
-        () => {
-          ensureHighlightPluginInFrame(frame)
-        },
-        { once: true },
-      )
-      scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * Math.max(state.attempts || 1, 1))
-      return false
-    }
-    const existingApi = (() => {
-      try {
-        return win.__AMI_HIGHLIGHT_PLUGIN__
-      } catch {
-        return null
-      }
-    })()
-    if (existingApi && existingApi.manager && existingApi.manager.document && existingApi.manager.document !== doc) {
-      try {
-        existingApi.destroy?.()
-      } catch (err) {
-        console.warn('Highlight plugin teardown before rebootstrap failed', err)
-      }
-      resetHighlightState(frame, state)
-    }
-    const pluginApi = (() => {
-      try {
-        return win.__AMI_HIGHLIGHT_PLUGIN__
-      } catch {
-        return null
-      }
-    })()
-    const root = doc.documentElement || doc.body
-    const hasDomActiveFlag = (() => {
-      try {
-        return root ? root.getAttribute(HIGHLIGHT_ACTIVE_ATTR) === '1' : false
-      } catch {
-        return false
-      }
-    })()
+    // Just ensure parent plugin exists and refresh it
+    const pluginApi = window.__AMI_HIGHLIGHT_PLUGIN__
     if (pluginApi && typeof pluginApi.refresh === 'function') {
-      state.ready = true
-      state.attempts = 0
-      state.polls = 0
-      if (state.retryHandle) {
-        clearTimeout(state.retryHandle)
-        state.retryHandle = null
-      }
       logHighlightShell('ensure-refresh-existing')
       try {
         pluginApi.refresh({ rebuild: true })
@@ -486,66 +492,11 @@ function ensureHighlightPluginInFrame(frame) {
       }
       return true
     }
-    if (!pluginApi && hasDomActiveFlag) {
-      state.ready = true
-      state.attempts = 0
-      state.polls = 0
-      if (state.retryHandle) {
-        clearTimeout(state.retryHandle)
-        state.retryHandle = null
-      }
-      logHighlightShell('ensure-external-active')
-      return true
-    }
-    if (state.attempts >= HIGHLIGHT_MAX_ATTEMPTS) {
-      if (!state.warned) {
-        state.warned = true
-        console.warn('Highlight plugin bootstrap exceeded retry limit')
-        logHighlightShell('retry-limit-exceeded')
-      }
-      state.polls = 0
-      return false
-    }
-    const existingScript = doc.getElementById(HIGHLIGHT_BOOTSTRAP_ID)
-    if (existingScript) {
-      state.polls = (state.polls || 0) + 1
-      if (state.polls >= HIGHLIGHT_MAX_ATTEMPTS) {
-        try {
-          existingScript.remove()
-        } catch {}
-        state.polls = 0
-        logHighlightShell('stale-script-removed')
-      } else {
-        scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * (state.attempts + 1))
-        return true
-      }
-    }
-    state.attempts += 1
-    state.polls = 0
-    const script = doc.createElement('script')
-    script.type = 'module'
-    script.id = HIGHLIGHT_BOOTSTRAP_ID
-    script.src = HIGHLIGHT_PLUGIN_SRC
-    script.crossOrigin = 'anonymous'
-    script.addEventListener('load', () => {
-      logHighlightShell('script-load')
-      scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE)
-    })
-    script.addEventListener('error', (event) => {
-      console.warn('Highlight plugin script failed to load', event?.error || event)
-      logHighlightShell('script-error', { error: event?.error || event })
-      try {
-        script.remove()
-      } catch {}
-      scheduleHighlightRetry(frame, HIGHLIGHT_RETRY_BASE * (state.attempts + 1))
-    })
-      const target = doc.head || doc.documentElement || doc.body
-      target.appendChild(script)
-      logHighlightShell('script-appended')
-      ensureHighlightPluginInWindowFrames(win)
-      return true
+
+    // Plugin not loaded yet, ensure it loads
+    return ensureHighlightPluginInParent()
   } catch (err) {
-    console.warn('Failed to inject highlight plugin', err)
+    console.warn('Failed to ensure highlight plugin', err)
     logHighlightShell('ensure-error', { error: err?.message || String(err) })
     return false
   }
@@ -1678,6 +1629,9 @@ async function boot() {
     document.documentElement.setAttribute('data-theme', theme)
     setThemeIcon(theme)
   } catch {}
+
+  // Initialize highlight plugin in parent window
+  ensureHighlightPluginInParent()
 
   const cfg = await loadConfig()
   let pathInfo = null
