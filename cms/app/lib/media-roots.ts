@@ -44,7 +44,8 @@ export async function collectMediaRoots(): Promise<MediaRoot[]> {
   }
 
   if (await pathExists(repoRoot)) {
-    addRoot('repoRoot', 'Repository', repoRoot, false)
+    const repoWritable = process.env.REPO_ROOT_WRITABLE === 'true'
+    addRoot('repoRoot', 'Repository', repoRoot, repoWritable)
   }
 
   const envRoots = (process.env.MEDIA_ROOTS || '')

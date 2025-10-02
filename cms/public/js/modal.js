@@ -551,17 +551,21 @@ function createServerDirectoryModalFactory(React, { ModalDialog, FileTreeSelecto
       React.Fragment,
       null,
       toolbar,
-      loadingTree
-        ? React.createElement('div', { className: 'muted', style: { fontSize: '13px' } }, 'Loading server files…')
-        : React.createElement(FileTreeSelector, {
-            roots: treeRoots,
-            selectionMode,
-            selected: selectedDetail
-              ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path }
-              : null,
-            onSelectionChange: handleSelectionChange,
-            allowCreate: false,
-          }),
+      React.createElement(
+        'div',
+        { style: { flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' } },
+        loadingTree
+          ? React.createElement('div', { className: 'muted', style: { fontSize: '13px' } }, 'Loading server files…')
+          : React.createElement(FileTreeSelector, {
+              roots: treeRoots,
+              selectionMode,
+              selected: selectedDetail
+                ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path }
+                : null,
+              onSelectionChange: handleSelectionChange,
+              allowCreate: false,
+            }),
+      ),
       !loadingTree && treeError
         ? React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, treeError)
         : null,
@@ -574,7 +578,7 @@ function createServerDirectoryModalFactory(React, { ModalDialog, FileTreeSelecto
         title,
         onClose,
         actions,
-        bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
+        bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4, minHeight: 0 },
       },
       body,
     )
@@ -1265,20 +1269,24 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         { className: 'muted', style: { fontSize: '13px', marginBottom: 6 } },
         `${fileCount} item${fileCount === 1 ? '' : 's'} • ${formatBytes(totalBytes)}`,
       ),
-      loadingMessage ||
-        React.createElement(FileTreeSelector, {
-          roots: treeRoots,
-          selectionMode: 'dir',
-          selected: selectedDetail
-            ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path }
-            : null,
-          onSelectionChange: handleSelectionChange,
-          allowCreate:
-            !loadingTree && (selectedRootWritable || (!selectedDetail && hasWritableRoots)),
-          onCreateRequest: handleCreateRequest,
-          validateName: validateFolderName,
-          onErrorMessage: (msg) => setError(msg || ''),
-        }),
+      React.createElement(
+        'div',
+        { style: { flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' } },
+        loadingMessage ||
+          React.createElement(FileTreeSelector, {
+            roots: treeRoots,
+            selectionMode: 'dir',
+            selected: selectedDetail
+              ? { rootKey: selectedDetail.rootKey, path: selectedDetail.path }
+              : null,
+            onSelectionChange: handleSelectionChange,
+            allowCreate:
+              !loadingTree && (selectedRootWritable || (!selectedDetail && hasWritableRoots)),
+            onCreateRequest: handleCreateRequest,
+            validateName: validateFolderName,
+            onErrorMessage: (msg) => setError(msg || ''),
+          }),
+      ),
       !loadingTree &&
         treeError &&
         React.createElement('div', { style: { color: '#ef4444', fontSize: '12px' } }, treeError),
@@ -1300,7 +1308,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           },
         ],
         maxWidth: '92vw',
-        bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 },
+        bodyStyle: { display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4, minHeight: 0 },
         contentStyle: { maxWidth: '92vw' },
       },
       body,

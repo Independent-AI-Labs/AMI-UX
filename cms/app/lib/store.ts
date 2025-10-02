@@ -112,8 +112,6 @@ export type RecentEntry = {
 }
 
 export type CmsConfig = {
-  docRoot?: string
-  docRootLabel?: string
   selected?: unknown
   openTabs?: unknown[]
   activeTabId?: string | null

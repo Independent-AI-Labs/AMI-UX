@@ -52,44 +52,10 @@ async function handlePost(req: Request) {
   const body = await req.json().catch(() => ({}) as Partial<CmsConfig>)
   const current = await getConfig()
   const next: CmsConfig = { ...current }
-  let docRootChanged = false
-  let targetAbsolute: string | null = null
 
-  // Backward-compatible docRoot update (existing UI)
-  if (typeof (body as any).docRoot === 'string') {
-    const candidate = String((body as any).docRoot)
-    // Validate exists and is a directory
-    try {
-      const abs = path.resolve(repoRoot, candidate)
-      const st = await fs.stat(abs)
-      if (!st.isDirectory()) throw new Error('Not a directory')
-      const stored = normalizeDocRootForStorage(abs)
-      const prev = current.docRoot
-        ? path.resolve(repoRoot, current.docRoot)
-        : path.resolve(repoRoot, defaultDocRoot())
-      docRootChanged = path.resolve(abs) !== path.resolve(prev)
-      next.docRoot = stored
-      targetAbsolute = abs
-      if (docRootChanged && !('docRootLabel' in body)) {
-        next.docRootLabel = deriveDocRootLabel(abs)
-      }
-    } catch (e: any) {
-      return NextResponse.json(
-        { error: `Invalid directory: ${e?.message || 'stat failed'}` },
-        { status: 400 },
-      )
-    }
-  }
-
-  if (typeof (body as any).docRootLabel === 'string') {
-    const label = (body as any).docRootLabel.trim()
-    if (label) next.docRootLabel = label
-    else delete next.docRootLabel
-  } else if ((body as any).docRootLabel === null) {
-    delete next.docRootLabel
-  } else if (docRootChanged && targetAbsolute) {
-    next.docRootLabel = deriveDocRootLabel(targetAbsolute)
-  }
+  // docRoot and docRootLabel are SERVER-SIDE CONFIG ONLY
+  // Set via DOC_ROOT environment variable or in .env.local
+  // Client cannot modify these values
 
   if (body.selected !== undefined) next.selected = body.selected as any
   if (Array.isArray(body.openTabs)) next.openTabs = body.openTabs as any
