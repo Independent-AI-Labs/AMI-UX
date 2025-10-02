@@ -1292,6 +1292,8 @@ const STYLE_TEXT = `
   gap: 0.25rem;
   padding: 2px 0.375rem;
   border-radius: 8px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   background-color: rgba(12, 16, 26, 0.25);
   background-image: var(
       --highlight-shell-gradient,
