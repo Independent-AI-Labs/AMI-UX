@@ -1289,13 +1289,13 @@ const STYLE_TEXT = `
   position: fixed;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-radius: 14px;
-  background-color: rgba(12, 16, 26, 0.82);
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background-color: rgba(12, 16, 26, 0.25);
   background-image: var(
       --highlight-shell-gradient,
-      var(--chrome-gradient, linear-gradient(110deg, rgba(122, 162, 247, 0.82) 0%, rgba(244, 114, 182, 0.78) 100%))
+      var(--chrome-gradient, linear-gradient(110deg, rgba(122, 162, 247, 0.25) 0%, rgba(244, 114, 182, 0.25) 100%))
     );
   background-size: 260% 260%;
   animation: highlight-hover-gradient 24s ease-in-out infinite;

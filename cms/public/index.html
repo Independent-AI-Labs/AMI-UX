@@ -314,19 +314,19 @@
       text-align: center;
     }
     .brand-clock__date {
-      font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
       font-size: 18px;
-      font-weight: 200;
-      letter-spacing: 0.28em;
+      font-weight: 600;
+      letter-spacing: 0.08em;
       color: var(--brand-clock-date-color);
       text-transform: uppercase;
       line-height: 1;
       margin-top: 0.4rem;
     }
     .brand-clock__time {
-      font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
-      font-size: 15px;
-      font-weight: 700;
+      font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      font-weight: 800;
       letter-spacing: 0.35em;
       color: var(--brand-clock-time-color);
       text-transform: uppercase;
@@ -334,6 +334,7 @@
       position: relative;
       display: inline-flex;
       align-items: center;
+      text-shadow: 0 0 0.5px currentColor;
     }
     .brand-clock__time .blink {
       transition: opacity 0.2s ease-in-out;
@@ -360,12 +361,12 @@
       text-transform: uppercase;
     }
     .brand-text__subtitle {
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.1;
       letter-spacing: 0.08em;
       color: var(--brand-subtitle-color);
       text-transform: uppercase;
-      font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
       display: inline-block;
       white-space: nowrap;
       font-variant-ligatures: none;
@@ -547,7 +548,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;500;600;700;900&display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css">
 </head>
 <body class="shell-app">
@@ -785,7 +786,8 @@
           measure.textContent = text
           const natural = measure.getBoundingClientRect().width
           const slots = Math.max(Array.from(text).length - 1, 1)
-          return { text, natural, slots }
+          const zhCount = (text.match(/Ж/g) || []).length
+          return { text, natural, slots, zhCount }
         })
         document.body.removeChild(measure)
         const baselineWidth = Math.max(
@@ -795,8 +797,10 @@
         const titleWidth = titleElement?.getBoundingClientRect().width || 0
         const widthTargetBase = titleWidth ? titleWidth * 0.94 : baselineWidth
         const targetWidth = Math.max(baselineWidth, widthTargetBase)
-        const phraseData = metrics.map(({ text, natural, slots }) => {
-          const extraPerSlot = (targetWidth - (natural + minSpacingPx * slots)) / slots
+        const phraseData = metrics.map(({ text, natural, slots, zhCount }) => {
+          const zhExtraWidth = zhCount * (fontSizePx * 0.5)
+          const adjustedTargetWidth = targetWidth - zhExtraWidth
+          const extraPerSlot = (adjustedTargetWidth - (natural + minSpacingPx * slots)) / slots
           const spacingPx = Math.max(minSpacingPx * 0.5, minSpacingPx + extraPerSlot)
           return { text, spacingEm: spacingPx / fontSizePx }
         })
