@@ -26,10 +26,10 @@
   --easing-emphasis: cubic-bezier(0.4, 0, 0, 1);
   --overlay-blur-strength: 8px;
   --overlay-blur-strength-strong: 18px;
-  --doc-header-height: 64px;
-  --structure-panel-width: 320px;
-  --structure-panel-min-width: 240px;
-  --structure-panel-max-width: 520px;
+  --doc-header-height: 4rem;
+  --structure-panel-width: 20rem;
+  --structure-panel-min-width: 15rem;
+  --structure-panel-max-width: 32.5rem;
   --structure-panel-handle-hit-area: 12px;
   --doc-toc-width: var(--structure-panel-width);
 }
@@ -60,7 +60,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Montserrat', -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -75,7 +75,7 @@ textarea {
 /* Ensure positioning context for row actions regardless of glow toggle */
 details > summary {
   position: relative;
-  padding-right: 56px;
+  padding-right: 3.5rem;
 }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -87,24 +87,24 @@ header {
   z-index: 10;
   background: var(--panel);
   border-bottom: none;
-  padding: 8px 12px;
+  padding: 0.5rem 0.75rem;
   display: flex;
-  gap: 12px;
+  gap: 0.75rem;
   align-items: center;
-  min-height: 44px;
+  min-height: 2.75rem;
 }
-header h1 { font-size: 16px; margin: 0 8px 0 0; font-weight: 600; }
+header h1 { font-size: 1rem; margin: 0 0.5rem 0 0; font-weight: 600; }
 header input[type="search"] {
   flex: 1;
-  min-width: 120px;
-  padding: 6px 8px;
+  min-width: 7.5rem;
+  padding: 0.375rem 0.5rem;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
   border-radius: 6px;
 }
 header .btn {
-  padding: 6px 10px;
+  padding: 0.375rem 0.625rem;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
@@ -113,7 +113,7 @@ header .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0.375rem;
   line-height: 1;
 }
 header .btn:focus {
@@ -126,7 +126,7 @@ header .btn:hover { filter: brightness(1.05); }
 
 /* Generic button style (matches header buttons) */
 .btn {
-  padding: 6px 10px;
+  padding: 0.375rem 0.625rem;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
@@ -135,7 +135,7 @@ header .btn:hover { filter: brightness(1.05); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0.375rem;
   line-height: 1;
 }
 .btn svg,
@@ -150,7 +150,7 @@ header .btn i[class*=' ri-'] {
 .btn i[class*=' ri-'],
 header .btn i[class^='ri-'],
 header .btn i[class*=' ri-'] {
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
   color: inherit;
 }
@@ -195,7 +195,7 @@ body.doc-viewer > main > nav {
   min-width: var(--structure-panel-min-width);
   max-width: var(--structure-panel-max-width);
   box-sizing: border-box;
-  padding-right: calc(16px + var(--structure-panel-handle-hit-area));
+  padding-right: calc(1rem + var(--structure-panel-handle-hit-area));
 }
 
 body.doc-viewer > main > nav .structure-resize-handle {
@@ -226,7 +226,7 @@ body.doc-viewer > main > nav .structure-resize-handle::before {
   content: '';
   display: block;
   width: 2px;
-  height: 32px;
+  height: 2rem;
   border-radius: 999px;
   background: color-mix(in oklab, var(--border) 85%, transparent);
   transition: background var(--duration-medium) var(--easing-standard);
@@ -243,7 +243,7 @@ body.doc-viewer > main > section#content {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  padding: 16px 24px;
+  padding: 1rem 1.5rem;
 }
 
 .html-document {
@@ -261,14 +261,14 @@ body.doc-viewer > main > section#content {
 #toc {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px calc(16px + var(--structure-panel-handle-hit-area, 0px)) 32px 16px;
-  font-size: 13px;
+  gap: 1.25rem;
+  padding: 1.25rem calc(1rem + var(--structure-panel-handle-hit-area, 0px)) 2rem 1rem;
+  font-size: 0.8125rem;
 }
 #toc h3 {
   margin: 0;
-  padding: 0 4px;
-  font-size: 12px;
+  padding: 0 0.25rem;
+  font-size: 0.75rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -276,11 +276,11 @@ body.doc-viewer > main > section#content {
 #toc .structure-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
 }
 #toc .structure-nav a {
   display: block;
-  padding: 6px 8px 6px var(--struct-indent, 36px);
+  padding: 0.375rem 0.5rem 0.375rem var(--struct-indent, 2.25rem);
   border-radius: 6px;
   color: var(--muted);
   transition: color var(--duration-medium) var(--easing-standard),
@@ -299,11 +299,11 @@ body.doc-viewer > main > section#content {
 }
 #toc .structure-nav details summary {
   position: relative;
-  padding: 6px 8px 6px var(--struct-indent, 36px);
+  padding: 0.375rem 0.5rem 0.375rem var(--struct-indent, 2.25rem);
   border: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   font-weight: 600;
   color: var(--muted);
   border-radius: 6px;
@@ -329,7 +329,7 @@ body.doc-viewer > main > section#content {
   padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
 }
 #toc .structure-nav details summary .struct-toggle {
   position: absolute;
@@ -349,7 +349,7 @@ body.doc-viewer > main > section#content {
   content: none;
 }
 #toc .structure-nav details summary .struct-toggle i {
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1;
 }
 #toc .structure-nav details > div {
@@ -361,11 +361,11 @@ body.doc-viewer > main > section#content {
 #toc .toc-headings {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
 }
 #toc .toc-headings a {
   display: block;
-  padding: 6px 8px;
+  padding: 0.375rem 0.5rem;
   border-radius: 6px;
   color: var(--muted);
   transition: color var(--duration-medium) var(--easing-standard),
@@ -378,10 +378,10 @@ body.doc-viewer > main > section#content {
 .toc-progress {
   display: none;
   align-items: center;
-  gap: 8px;
-  margin: 12px 8px 0;
+  gap: 0.5rem;
+  margin: 0.75rem 0.5rem 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .toc-progress.is-active {
   display: flex;
@@ -392,21 +392,21 @@ body.doc-viewer > main > section#content {
   justify-content: center;
 }
 .toc-progress__icon i {
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1;
 }
 .latex-document {
   position: relative;
   width: 100%;
-  --latex-page-height: 960px;
-  --latex-page-width: 816px;
+  --latex-page-height: 60rem;
+  --latex-page-width: 51rem;
 }
 .latex-document__viewport {
   position: relative;
-  height: min(var(--latex-page-height), calc(100vh - 160px));
+  height: min(var(--latex-page-height), calc(100vh - 10rem));
   max-height: var(--latex-page-height);
   overflow: auto;
-  padding: 32px;
+  padding: 2rem;
   border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
   border-radius: 12px;
   background: color-mix(in oklab, var(--surface) 92%, transparent);
@@ -420,11 +420,11 @@ body.doc-viewer > main > section#content {
   position: relative;
   margin: 0 auto;
   width: min(100%, var(--latex-page-width));
-  min-height: calc(var(--latex-page-height) - 64px);
+  min-height: calc(var(--latex-page-height) - 4rem);
   background: var(--surface);
   color: var(--text);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--border) 70%, transparent);
-  padding: 24px 36px 48px;
+  padding: 1.5rem 2.25rem 3rem;
   border-radius: 8px;
 }
 .latex-document__page--pdf {
@@ -438,14 +438,14 @@ body.doc-viewer > main > section#content {
 .latex-document__pages {
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  padding: 16px 0 24px;
+  gap: 2rem;
+  padding: 1rem 0 1.5rem;
 }
 .latex-document__page-canvas {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.75rem;
 }
 .latex-document__page-canvas canvas {
   display: block;
@@ -465,17 +465,17 @@ body.doc-viewer > main > section#content {
   height: 0;
 }
 .latex-document__error-notice {
-  margin: 0 0 16px;
-  padding: 12px 16px;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
   border-radius: 8px;
   border: 1px dashed color-mix(in oklab, var(--border) 70%, transparent);
   background: color-mix(in oklab, var(--panel) 30%, transparent);
   color: color-mix(in oklab, var(--text) 72%, transparent);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .latex-document__error-detail {
-  margin-top: 6px;
-  font-size: 12px;
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
   color: color-mix(in oklab, var(--text) 58%, transparent);
 }
 .latex-document__overlay {
@@ -485,8 +485,8 @@ body.doc-viewer > main > section#content {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 24px;
+  gap: 0.75rem;
+  padding: 1.5rem;
   border-radius: 12px;
   background: color-mix(in oklab, var(--surface) 80%, transparent);
   border: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
@@ -501,15 +501,15 @@ body.doc-viewer > main > section#content {
   transform: scale(0.98);
 }
 .latex-document__spinner {
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
   border: 4px solid color-mix(in oklab, var(--text) 12%, transparent);
   border-top-color: var(--accent);
   animation: latex-spin 0.9s linear infinite;
 }
 .latex-document__status {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   text-align: center;
   color: color-mix(in oklab, var(--text) 85%, transparent);
@@ -526,46 +526,46 @@ body.doc-viewer > main > section#content {
 .latex-document__page h2,
 .latex-document__page h3,
 .latex-document__page h4 {
-  scroll-margin-top: 64px;
+  scroll-margin-top: 4rem;
 }
 .latex-document--empty {
-  padding: 32px;
+  padding: 2rem;
   border-radius: 12px;
   border: 1px dashed color-mix(in oklab, var(--border) 70%, transparent);
   color: color-mix(in oklab, var(--text) 65%, transparent);
   text-align: center;
   font-style: italic;
 }
-@media (max-width: 960px) {
+@media (max-width: 60rem) {
   .latex-document__viewport {
-    height: min(var(--latex-page-height), calc(100vh - 120px));
-    padding: 24px;
+    height: min(var(--latex-page-height), calc(100vh - 7.5rem));
+    padding: 1.5rem;
   }
   .latex-document__page {
-    padding: 24px;
+    padding: 1.5rem;
   }
 }
-@media (max-width: 640px) {
+@media (max-width: 40rem) {
   .latex-document__viewport {
-    padding: 18px;
+    padding: 1.125rem;
   }
   .latex-document__page {
-    padding: 18px;
+    padding: 1.125rem;
   }
 }
 .btn--ghost:hover {
   background: color-mix(in oklab, var(--panel) 35%, transparent);
 }
 
-@media (max-width: 960px) { header { flex-wrap: wrap; } }
+@media (max-width: 60rem) { header { flex-wrap: wrap; } }
 
 @media print {
   header, nav { display: none; }
 }
 
 .tree-toolbar.drawer-shell-header {
-  padding-right: 52px;
-  margin: 0 0 12px;
+  padding-right: 3.25rem;
+  margin: 0 0 0.75rem;
 }
 
 .tree-root-shell {
@@ -583,11 +583,11 @@ body.doc-viewer > main > section#content {
 
 .tree-root {
   flex: 1 1 auto;
-  min-height: 140px;
-  padding: 8px 0 20px;
+  min-height: 8.75rem;
+  padding: 0.5rem 0 1.25rem;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scroll-padding-top: 56px;
+  scroll-padding-top: 3.5rem;
 }
 
 .tree-root details.file > summary {
@@ -604,15 +604,15 @@ body.doc-viewer > main > section#content {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
   font-weight: 600;
 }
 
 .tree-root details > summary .tree-title {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -633,9 +633,9 @@ body.doc-viewer > main > section#content {
 
 .tree-root details > summary .meta {
   flex: 0 1 auto;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: color-mix(in oklab, var(--muted) 85%, transparent 15%);
-  margin-left: 6px;
+  margin-left: 0.375rem;
   word-break: break-all;
 }
 
@@ -644,13 +644,13 @@ body.doc-viewer > main > section#content {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .tree-root details > summary .tree-actions__btn {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
   border-radius: 10px;
   background: transparent;
   color: var(--muted);
@@ -683,7 +683,7 @@ body.doc-viewer > main > section#content {
 }
 
 .tree-root details.file > .body {
-  padding-top: 14px;
+  padding-top: 0.875rem;
 }
 
 .tree-root details.file > .body:fullscreen,
@@ -701,8 +701,8 @@ body.doc-viewer > main > section#content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 0 16px;
+  gap: 0.75rem;
+  padding: 0 1rem;
   background: color-mix(in srgb, var(--bg) 70%, transparent);
   backdrop-filter: blur(6px);
   opacity: 0;
@@ -716,8 +716,8 @@ body.doc-viewer > main > section#content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 0 20px;
+  gap: 0.75rem;
+  padding: 0 1.25rem;
   background: color-mix(in srgb, var(--bg) 78%, transparent);
   backdrop-filter: blur(4px);
   opacity: 0;
@@ -739,7 +739,7 @@ body.doc-viewer > main > section#content {
 }
 
 .doc-viewer__overlay-spinner i {
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1;
 }
 
@@ -768,8 +768,8 @@ body.doc-viewer > main > section#content {
 .tree-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 8px 20px;
+  gap: 0.625rem;
+  padding: 0.75rem 0.5rem 1.25rem;
 }
 
 .tree-skeleton__row {
@@ -800,7 +800,7 @@ body.doc-viewer > main > section#content {
   top: 50%;
   transform: translateY(-50%) scale(0.85);
   display: inline-flex;
-  gap: 6px;
+  gap: 0.375rem;
   opacity: 0;
   pointer-events: none;
   transition:
@@ -819,7 +819,7 @@ details:focus-within > summary .row-actions {
   transition-delay: 0.5s;
 }
 .row-actions .act {
-  width: 26px; height: 26px;
+  width: 1.625rem; height: 1.625rem;
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
   background: color-mix(in oklab, var(--panel) 85%, transparent);
@@ -848,7 +848,7 @@ details:focus-within > summary .row-actions {
 .row-actions .act i[class*=' ri-'] {
   width: 16px;
   height: 16px;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1;
 }
 
@@ -863,7 +863,7 @@ details:focus-within > summary .row-actions {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 1.5rem;
   background: var(--dialog-backdrop-background-closed);
   backdrop-filter: blur(0px);
   z-index: 1600;
@@ -891,19 +891,19 @@ details:focus-within > summary .row-actions {
 .dialog-backdrop--right {
   justify-content: flex-end;
   align-items: flex-start;
-  padding: 28px 32px 32px;
+  padding: 1.75rem 2rem 2rem;
 }
 
 .dialog-surface {
-  --dialog-min-width: 320px;
-  --dialog-max-width: 420px;
+  --dialog-min-width: 20rem;
+  --dialog-max-width: 26.25rem;
   min-width: var(--dialog-min-width);
   max-width: var(--dialog-max-width);
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 22px;
+  gap: 1rem;
+  padding: 1.375rem;
   border-radius: 14px;
   border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
   background: color-mix(in oklab, var(--panel) 94%, transparent);
@@ -933,35 +933,35 @@ details:focus-within > summary .row-actions {
 .dialog-content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .metadata-settings-dialog {
-  --dialog-min-width: 360px;
-  --dialog-max-width: 520px;
-  gap: 18px;
+  --dialog-min-width: 22.5rem;
+  --dialog-max-width: 32.5rem;
+  gap: 1.125rem;
 }
 
 .metadata-settings__body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 1.125rem;
 }
 
 .metadata-settings__section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .metadata-settings__label {
-  font-size: 12px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: color-mix(in oklab, var(--muted) 85%, transparent);
@@ -970,13 +970,13 @@ details:focus-within > summary .row-actions {
 .metadata-settings__value {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
   border-radius: 12px;
   border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
   background: color-mix(in oklab, var(--panel) 92%, transparent);
   font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -996,7 +996,7 @@ details:focus-within > summary .row-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   margin-inline-start: auto;
 }
 
@@ -1015,11 +1015,11 @@ details:focus-within > summary .row-actions {
 .server-directory-modal__toolbar {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .metadata-settings__footer {
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .metadata-settings__set {
@@ -1027,37 +1027,37 @@ details:focus-within > summary .row-actions {
 }
 
 .create-directory-dialog {
-  --dialog-min-width: 320px;
-  --dialog-max-width: 420px;
-  gap: 18px;
+  --dialog-min-width: 20rem;
+  --dialog-max-width: 26.25rem;
+  gap: 1.125rem;
 }
 
 .create-directory-dialog__form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .create-directory-dialog__field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .create-directory-dialog__field-label {
-  font-size: 12px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: color-mix(in oklab, var(--muted) 80%, transparent);
 }
 
 .create-directory-dialog__input {
-  padding: 10px 12px;
+  padding: 0.625rem 0.75rem;
   border-radius: 10px;
   border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
   background: color-mix(in oklab, var(--panel) 95%, transparent);
   color: var(--text);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .create-directory-dialog__input:focus {
@@ -1068,12 +1068,12 @@ details:focus-within > summary .row-actions {
 
 .create-directory-dialog__error {
   color: #ef4444;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
 .metadata-settings__meta-note {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: color-mix(in oklab, var(--muted) 80%, transparent);
   line-height: 1.5;
 }
@@ -1081,8 +1081,8 @@ details:focus-within > summary .row-actions {
 .metadata-settings__details {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
+  gap: 0.375rem;
+  font-size: 0.75rem;
   color: color-mix(in oklab, var(--muted) 76%, transparent);
 }
 
@@ -1114,8 +1114,8 @@ details:focus-within > summary .row-actions {
 
 .drawer-surface,
 .account-drawer-surface {
-  --dialog-min-width: min(420px, 96vw);
-  --dialog-max-width: min(540px, 96vw);
+  --dialog-min-width: min(26.25rem, 96vw);
+  --dialog-max-width: min(33.75rem, 96vw);
   max-height: 100vh;
   height: 100vh;
   border-radius: 0;
@@ -1137,8 +1137,8 @@ details:focus-within > summary .row-actions {
   will-change: transform, opacity, filter;
 }
 .account-drawer-surface {
-  --dialog-min-width: min(480px, 96vw);
-  --dialog-max-width: min(560px, 96vw);
+  --dialog-min-width: min(30rem, 96vw);
+  --dialog-max-width: min(35rem, 96vw);
   filter: blur(var(--overlay-blur-strength-strong));
 }
 .account-drawer-surface[data-state="enter"],
@@ -1163,8 +1163,8 @@ details:focus-within > summary .row-actions {
   --dialog-backdrop-background-open: color-mix(in srgb, var(--bg) 55%, transparent);
 }
 .content-drawer-surface {
-  width: min(560px, 96vw);
-  max-width: min(560px, 96vw);
+  width: min(35rem, 96vw);
+  max-width: min(35rem, 96vw);
 }
 .content-drawer__list {
   flex: 1;
@@ -1193,7 +1193,7 @@ details:focus-within > summary .row-actions {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 1.125rem;
   min-height: 0;
   overflow: hidden;
 }
@@ -1201,8 +1201,8 @@ details:focus-within > summary .row-actions {
 .drawer-shell-header {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 22px 28px 12px;
+  gap: 0.5rem;
+  padding: 1.375rem 1.75rem 0.75rem;
   border-radius: 0;
   border: none;
   background: none;
@@ -1210,7 +1210,7 @@ details:focus-within > summary .row-actions {
 .drawer-shell-header__row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.75rem;
   min-width: 0;
 }
 .drawer-shell-header__titles {
@@ -1222,7 +1222,7 @@ details:focus-within > summary .row-actions {
 }
 .drawer-shell-header__title {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -1231,7 +1231,7 @@ details:focus-within > summary .row-actions {
 }
 .drawer-shell-header__subtitle {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--muted);
   width: 100%;
   line-height: 1.45;
@@ -1240,20 +1240,20 @@ details:focus-within > summary .row-actions {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   flex-wrap: nowrap;
   justify-content: flex-end;
   min-width: 0;
 }
 .drawer-shell-header__filter {
-  min-width: 130px;
+  min-width: 8.125rem;
   flex: 0 1 220px;
-  margin-left: 20px;
+  margin-left: 1.25rem;
 }
 .drawer-shell-header__search-input {
   width: 100%;
-  max-width: 210px;
-  padding: 6px 10px;
+  max-width: 13.125rem;
+  padding: 0.375rem 0.625rem;
   border-radius: 10px;
   border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
   background: var(--bg);
@@ -1268,10 +1268,10 @@ details:focus-within > summary .row-actions {
 .drawer-shell-header__actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
 }
 .drawer-shell-header__actions .icon-button {
-  min-width: 36px;
+  min-width: 2.25rem;
 }
 
 /* Document tree header overrides */
@@ -1279,17 +1279,17 @@ details:focus-within > summary .row-actions {
   flex: 0 0 auto;
 }
 .drawer-shell-header.tree-toolbar .drawer-shell-header__controls.tree-toolbar__controls {
-  margin-left: 20px;
+  margin-left: 1.25rem;
   flex: 1 1 auto;
   display: flex;
   align-items: stretch;
-  gap: 16px;
+  gap: 1rem;
   flex-wrap: nowrap;
   justify-content: flex-start;
 }
 .drawer-shell-header.tree-toolbar .tree-toolbar__filter {
   flex: 1 1 auto;
-  min-width: 200px;
+  min-width: 12.5rem;
   display: flex;
 }
 .drawer-shell-header.tree-toolbar .tree-toolbar__filter .drawer-shell-header__search-input {
@@ -1299,16 +1299,16 @@ details:focus-within > summary .row-actions {
 .drawer-shell-header.tree-toolbar .tree-toolbar__actions {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   flex: 0 0 auto;
 }
 .drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 6px 16px;
-  font-size: 13px;
+  gap: 0.5rem;
+  padding: 0.375rem 1rem;
+  font-size: 0.8125rem;
   white-space: nowrap;
 }
 .drawer-shell-header.tree-toolbar .tree-toolbar__actions .btn svg,
@@ -1350,7 +1350,7 @@ details:focus-within > summary .row-actions {
 .drawer-icon-button__icon i {
   width: 18px;
   height: 18px;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
   color: inherit;
   transition: transform 0.2s ease;
@@ -1375,8 +1375,8 @@ details:focus-within > summary .row-actions {
 
 .account-drawer__alert {
   border-radius: 10px;
-  padding: 12px 14px;
-  font-size: 13px;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 .account-drawer__alert--info {
@@ -1396,11 +1396,11 @@ details:focus-within > summary .row-actions {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0.875rem;
 }
 .account-drawer__section > h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 700;
 }
 .account-drawer__section--stretch {
@@ -1443,8 +1443,8 @@ details:focus-within > summary .row-actions {
 .drawer-list-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
   background: transparent;
   transition:
@@ -1477,27 +1477,27 @@ details:focus-within > summary .row-actions {
 .account-drawer__badge-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0.5rem;
 }
 .account-drawer__badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 0.25rem 0.625rem;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: 11.0.3125rem;
   border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
   background: color-mix(in oklab, var(--panel) 92%, transparent);
-  gap: 6px;
+  gap: 0.375rem;
 }
 .account-drawer__badge i {
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1;
 }
 
 .drawer-list-item__icon,
 .account-drawer__provider-icon {
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 12px;
   border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
   display: inline-flex;
@@ -1513,7 +1513,7 @@ details:focus-within > summary .row-actions {
 .account-drawer__provider-icon i {
   width: 20px;
   height: 20px;
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -1522,11 +1522,11 @@ details:focus-within > summary .row-actions {
 }
 
 .account-drawer__pill {
-  font-size: 10.5px;
+  font-size: 10.0.3125rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 0.25rem 0.5rem;
   border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
 }
 .account-drawer__pill--accent {
@@ -1539,13 +1539,13 @@ details:focus-within > summary .row-actions {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
 }
 
 .drawer-list-item__title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   min-width: 0;
   flex-wrap: wrap;
 }
@@ -1553,7 +1553,7 @@ details:focus-within > summary .row-actions {
 .drawer-list-item__title-main {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -1569,9 +1569,9 @@ details:focus-within > summary .row-actions {
 .drawer-list-item__badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  padding: 4px 9px;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  padding: 0.25rem 0.5625rem;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
   background: color-mix(in oklab, var(--panel) 92%, transparent);
@@ -1590,7 +1590,7 @@ details:focus-within > summary .row-actions {
 }
 
 .drawer-list-item__subtitle {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: color-mix(in oklab, var(--text) 55%, var(--muted));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1610,10 +1610,10 @@ details:focus-within > summary .row-actions {
 }
 
 .drawer-list-item__footer {
-  margin-top: 6px;
+  margin-top: 0.375rem;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .drawer-list-item__progress {
@@ -1632,7 +1632,7 @@ details:focus-within > summary .row-actions {
 
 .drawer-list-item__progress-bar.is-indeterminate {
   width: 40%;
-  min-width: 90px;
+  min-width: 5.625rem;
   background-image: linear-gradient(90deg, rgba(255,255,255,0.16) 0%, var(--accent) 50%, rgba(255,255,255,0.16) 100%);
   background-size: 200% 100%;
   animation: upload-indeterminate 1s linear infinite;
@@ -1641,8 +1641,8 @@ details:focus-within > summary .row-actions {
 .drawer-list-item__actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-left: 12px;
+  gap: 0.5rem;
+  margin-left: 0.75rem;
 }
 
 .drawer-icon-button--accent {
@@ -1681,7 +1681,7 @@ details:focus-within > summary .row-actions {
 }
 
 .drawer-list-item__separator {
-  padding: 0 4px;
+  padding: 0 0.25rem;
   color: color-mix(in oklab, var(--muted) 80%, transparent);
 }
 
@@ -1707,46 +1707,46 @@ details:focus-within > summary .row-actions {
 }
 
 .account-add-dialog__surface {
-  --dialog-min-width: min(460px, 94vw);
-  --dialog-max-width: min(460px, 94vw);
+  --dialog-min-width: min(28.75rem, 94vw);
+  --dialog-max-width: min(28.75rem, 94vw);
 }
 
 .account-add-dialog {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 1.25rem;
 }
 
 .account-add-dialog__title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
 }
 .account-add-dialog__title-row .dialog-title {
-  font-size: 18px;
+  font-size: 1.125rem;
   letter-spacing: -0.01em;
 }
 
 .account-add-dialog__content {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 1.125rem;
 }
 
 .account-add-dialog__section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.625rem;
 }
 .account-add-dialog__section > h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: color-mix(in oklab, var(--text) 78%, transparent);
 }
 .account-add-dialog__section input {
-  padding: 10px 12px;
+  padding: 0.625rem 0.75rem;
   border-radius: 8px;
   border: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
   background: color-mix(in oklab, var(--bg) 95%, transparent);
@@ -1760,14 +1760,14 @@ details:focus-within > summary .row-actions {
 .account-add-dialog__providers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
-  gap: 12px;
+  gap: 0.75rem;
 }
 .account-add-dialog__provider {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 14px 10px;
+  gap: 0.625rem;
+  padding: 0.875rem 0.625rem;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -1786,12 +1786,12 @@ details:focus-within > summary .row-actions {
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 45%, transparent);
 }
 .account-add-dialog__provider .drawer-list-item__icon {
-  width: 40px;
-  height: 40px;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 12px;
 }
 .account-add-dialog__provider-label {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text);
@@ -1799,20 +1799,20 @@ details:focus-within > summary .row-actions {
 
 .account-add-dialog__error {
   color: #ef4444;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .account-add-dialog__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.625rem;
   justify-content: flex-end;
   flex: 1;
 }
@@ -1822,25 +1822,25 @@ details:focus-within > summary .row-actions {
   align-items: center;
   justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.625rem;
   margin-top: auto;
-  padding-top: 12px;
+  padding-top: 0.75rem;
 }
 
 .dialog-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-width: 112px;
-  padding: 12px 20px;
+  gap: 0.5rem;
+  min-width: 7rem;
+  padding: 0.75rem 1.25rem;
   border: none;
   border-radius: 10px;
   background: color-mix(in oklab, var(--accent) 82%, transparent);
   color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.16s ease, transform 0.16s ease;
@@ -1882,7 +1882,7 @@ details:focus-within > summary .row-actions {
   justify-content: flex-start;
   text-align: left;
   min-width: 0;
-  padding: 14px 16px;
+  padding: 0.875rem 1rem;
   letter-spacing: 0.1em;
   background: color-mix(in oklab, var(--accent) 10%, transparent);
   white-space: normal;
@@ -1897,13 +1897,13 @@ details:focus-within > summary .row-actions {
   min-width: 0;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 45rem) {
   .drawer-shell-header {
     flex-wrap: wrap;
-    padding: 12px;
+    padding: 0.75rem;
   }
   .account-drawer-surface {
-    padding: 22px 18px 18px;
+    padding: 1.375rem 1.125rem 1.125rem;
   }
 }
 
@@ -1911,21 +1911,21 @@ details:focus-within > summary .row-actions {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
   background: transparent;
 }
 
 .dialog-header__titles {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
   flex: 1;
   min-width: 0;
 }
 
 .dialog-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   background: none;
   animation: none;
@@ -1933,7 +1933,7 @@ details:focus-within > summary .row-actions {
 
 .dialog-subtitle {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
@@ -1941,9 +1941,9 @@ details:focus-within > summary .row-actions {
   border: none;
   background: transparent;
   color: var(--muted);
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
   border-radius: 10px;
   padding: 0;
   display: inline-flex;
@@ -1981,7 +1981,7 @@ details:focus-within > summary .row-actions {
 .icon-button i {
   width: 18px;
   height: 18px;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -2009,7 +2009,7 @@ details:focus-within > summary .row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 1.375rem;
   line-height: 1;
 }
 
@@ -2038,7 +2038,7 @@ details:focus-within > summary .row-actions {
 .serve-dot i {
   width: 10px;
   height: 10px;
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1;
 }
 
@@ -2088,15 +2088,15 @@ details:focus-within > summary .row-actions {
 
 .hint-layer__bubble {
   position: fixed;
-  padding: 8px 12px;
+  padding: 0.5rem 0.75rem;
   border-radius: 10px;
   border: 1px solid var(--hint-border);
   background: var(--hint-bg);
   color: var(--hint-color);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.35;
-  min-width: 140px;
-  max-width: 240px;
+  min-width: 8.75rem;
+  max-width: 15rem;
   box-shadow: 0 12px 26px rgba(12, 20, 33, 0.24);
   white-space: pre-line;
   opacity: 0;
@@ -2127,7 +2127,7 @@ details:focus-within > summary .row-actions {
   transform: rotate(45deg);
   bottom: -6px;
   left: var(--hint-arrow-x, 50%);
-  margin-left: -6px;
+  margin-left: -0.375rem;
 }
 
 .hint-layer[data-position='bottom'] .hint-layer__bubble::after {
@@ -2177,8 +2177,8 @@ details:focus-within > summary .row-actions {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 24px;
+  gap: 0.75rem;
+  padding: 1.5rem;
   color: var(--muted);
   text-align: center;
 }
@@ -2193,7 +2193,7 @@ details:focus-within > summary .row-actions {
 }
 
 .loading-indicator--compact {
-  padding: 16px;
+  padding: 1rem;
 }
 
 .loading-indicator--error {
@@ -2205,7 +2205,7 @@ details:focus-within > summary .row-actions {
 }
 
 .tree-loading {
-  min-height: 120px;
+  min-height: 7.5rem;
   flex-direction: column;
 }
 
@@ -2216,7 +2216,7 @@ details:focus-within > summary .row-actions {
 
 /* Code view component */
 .code-view {
-  margin: 18px 0;
+  margin: 1.125rem 0;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--panel);
@@ -2235,11 +2235,11 @@ details:focus-within > summary .row-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
   border-bottom: 1px solid var(--border);
   background: color-mix(in oklab, var(--panel) 85%, transparent);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -2247,7 +2247,7 @@ details:focus-within > summary .row-actions {
 .code-view__header-right {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.625rem;
   min-width: 0;
 }
 
@@ -2264,9 +2264,9 @@ details:focus-within > summary .row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 8px;
+  padding: 2px 0.5rem;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--accent);
@@ -2274,8 +2274,8 @@ details:focus-within > summary .row-actions {
 }
 
 .code-view__copy {
-  width: 30px;
-  height: 30px;
+  width: 1.875rem;
+  height: 1.875rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg);
@@ -2291,7 +2291,7 @@ details:focus-within > summary .row-actions {
 .code-view__copy i[class*=' ri-'] {
   width: 16px;
   height: 16px;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1;
 }
 .code-view__copy:hover { color: var(--text); filter: brightness(1.05); }
@@ -2318,7 +2318,7 @@ details:focus-within > summary .row-actions {
 
 .code-view__gutter {
   margin: 0;
-  padding: 14px 0;
+  padding: 0.875rem 0;
   list-style: none;
   background: color-mix(in oklab, var(--panel) 75%, var(--bg) 25%);
   border-right: 1px solid var(--border);
@@ -2327,8 +2327,8 @@ details:focus-within > summary .row-actions {
   user-select: none;
 }
 .code-view__gutter li {
-  padding: 0 14px;
-  min-width: 36px;
+  padding: 0 0.875rem;
+  min-width: 2.25rem;
   text-align: right;
   opacity: 0.75;
   line-height: 1.6;
@@ -2336,7 +2336,7 @@ details:focus-within > summary .row-actions {
 
 .code-view__pre {
   margin: 0;
-  padding: 14px 18px;
+  padding: 0.875rem 1.125rem;
   background: transparent;
   overflow: auto;
 }
@@ -2430,9 +2430,9 @@ details:focus-within > summary .row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 20px 28px;
+  padding: 1.25rem 1.75rem;
   border-radius: 20px;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 500;
   line-height: 1.35;
   --toast-ink: #ffffff;
@@ -2445,9 +2445,9 @@ details:focus-within > summary .row-actions {
   background-size: cover;
   border: none;
   box-shadow: 0 40px 120px rgba(8, 12, 26, 0.55);
-  min-width: min(280px, calc(100vw - 64px));
-  max-width: min(540px, calc(100vw - 64px));
-  width: min(540px, calc(100vw - 64px));
+  min-width: min(17.5rem, calc(100vw - 4rem));
+  max-width: min(33.75rem, calc(100vw - 4rem));
+  width: min(33.75rem, calc(100vw - 4rem));
   transform: translate(-50%, 16px);
   opacity: 0;
   transition:
@@ -2455,7 +2455,7 @@ details:focus-within > summary .row-actions {
     transform 200ms cubic-bezier(0.33, 0, 0.2, 1),
     background 220ms ease,
     color 220ms ease;
-  gap: 16px;
+  gap: 1rem;
   overflow: hidden;
 }
 
@@ -2475,8 +2475,8 @@ details:focus-within > summary .row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 2rem;
+  height: 2rem;
   flex-shrink: 0;
   color: inherit;
 }
@@ -2516,8 +2516,8 @@ details:focus-within > summary .row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 2.625rem;
+  height: 2.625rem;
   border-radius: 10px;
   color: inherit;
   opacity: 0.72;
@@ -2560,18 +2560,18 @@ details:focus-within > summary .row-actions {
 }
 
 .shell-console__inner {
-  height: min(48vh, 420px);
-  width: min(1080px, 96%);
+  height: min(48vh, 26.25rem);
+  width: min(67.5rem, 96%);
   margin: 0 auto;
   background: rgba(10, 14, 22, 0.94);
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
   border: 1px solid rgba(138, 155, 191, 0.18);
   border-top: none;
-  padding: 20px 22px 22px;
+  padding: 1.25rem 1.375rem 1.375rem;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0.875rem;
   backdrop-filter: blur(12px);
 }
 
@@ -2579,7 +2579,7 @@ details:focus-within > summary .row-actions {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 18px;
+  gap: 1.125rem;
   letter-spacing: 0.16em;
 }
 
@@ -2587,20 +2587,20 @@ details:focus-within > summary .row-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .tab-strip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   max-width: 100%;
 }
 
 .tab-strip__track {
   display: inline-flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 0.5rem;
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
@@ -2616,12 +2616,12 @@ details:focus-within > summary .row-actions {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  padding: 0 12px;
-  height: 36px;
+  gap: 0.5rem;
+  padding: 0 0.75rem;
+  height: 2.25rem;
   flex: 0 0 var(--tab-strip-width, 176px);
-  min-width: var(--tab-strip-width, 176px);
-  max-width: var(--tab-strip-width, 176px);
+  min-width: var(--tab-strip-width, 11rem);
+  max-width: var(--tab-strip-width, 11rem);
   overflow: hidden;
 }
 
@@ -2651,7 +2651,7 @@ details:focus-within > summary .row-actions {
   background: color-mix(in oklab, var(--panel) 88%, transparent 12%);
   color: var(--text);
   font: inherit;
-  padding: 4px 8px;
+  padding: 0.25rem 0.5rem;
   outline: none;
   box-shadow: none;
 }
@@ -2665,14 +2665,14 @@ details:focus-within > summary .row-actions {
 }
 
 .shell-console__title {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.88);
   letter-spacing: 0.18em;
 }
 
 .shell-console__hint {
-  font-size: 12px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.62);
   letter-spacing: 0.16em;
@@ -2706,13 +2706,13 @@ details:focus-within > summary .row-actions {
 }
 
 .shell-console .xterm {
-  padding: 6px 8px;
+  padding: 0.375rem 0.5rem;
 }
 
 .shell-console .tab-strip__add {
-  height: 30px;
-  min-width: 30px;
-  font-size: 18px;
+  height: 1.875rem;
+  min-width: 1.875rem;
+  font-size: 1.125rem;
   line-height: 1;
   background: rgba(0, 0, 0, 0.48);
 }
@@ -2730,12 +2730,12 @@ details:focus-within > summary .row-actions {
 }
 
 .console-tab-strip .tab {
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
 }
 
 .console-tab-strip .tab.active {
-  padding: 6px 12px;
+  padding: 0.375rem 0.75rem;
 }
 
 .console-tab-strip .tab.console-tab {
@@ -2779,12 +2779,12 @@ body.shell-console-active > :not(#shellConsole) {
   user-select: none;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 61.25rem) {
   .shell-console__inner {
-    width: calc(100% - 24px);
+    width: calc(100% - 1.5rem);
     border-bottom-left-radius: 16px;
     border-bottom-right-radius: 16px;
-    padding: 16px;
+    padding: 1rem;
   }
 }
 html[data-ami-highlight-proxy] {

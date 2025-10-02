@@ -249,8 +249,8 @@ ${scopeSelector} .${HIGHLIGHT_CLASSES.tree}.${HIGHLIGHT_CLASSES.ancestor}::after
   z-index: 2600;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
   border-radius: 12px;
   border: none;
   background: transparent;
@@ -274,8 +274,8 @@ ${scopeSelector} .${HIGHLIGHT_CLASSES.tree}.${HIGHLIGHT_CLASSES.ancestor}::after
 }
 .${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS} {
   pointer-events: auto;
-  width: 32px;
-  height: 32px;
+  width: 2rem;
+  height: 2rem;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -301,7 +301,7 @@ ${scopeSelector} .${HIGHLIGHT_CLASSES.tree}.${HIGHLIGHT_CLASSES.ancestor}::after
   pointer-events: none;
 }
 .${HOVER_OVERLAY_CLASS} .${HOVER_BTN_CLASS} i {
-  font-size: 19px;
+  font-size: 1.1875rem;
   line-height: 1;
 }
 

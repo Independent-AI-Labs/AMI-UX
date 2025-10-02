@@ -884,7 +884,7 @@ function createAccountDrawerComponent(React) {
                     className: 'muted',
                     style: {
                       textAlign: 'center',
-                      padding: '40px 20px',
+                      padding: '2.5rem 1.25rem',
                     },
                   },
                   filter.trim()

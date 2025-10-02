@@ -22,15 +22,15 @@ const STYLE_RULES = `
 
 .hint-layer__bubble {
   position: fixed;
-  padding: 8px 12px;
+  padding: 0.5rem 0.75rem;
   border-radius: 10px;
   border: 1px solid var(--hint-border);
   background: var(--hint-bg);
   color: var(--hint-color);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.35;
-  min-width: 140px;
-  max-width: 240px;
+  min-width: 8.75rem;
+  max-width: 15rem;
   box-shadow: 0 12px 26px rgba(12, 20, 33, 0.24);
   white-space: pre-line;
   opacity: 0;
@@ -61,7 +61,7 @@ const STYLE_RULES = `
   transform: rotate(45deg);
   bottom: -6px;
   left: var(--hint-arrow-x, 50%);
-  margin-left: -6px;
+  margin-left: -0.375rem;
 }
 
 .hint-layer[data-position='bottom'] .hint-layer__bubble::after {

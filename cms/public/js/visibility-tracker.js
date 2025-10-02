@@ -29,7 +29,7 @@ export function createVisibilityTracker(options = {}) {
   const visibleElements = new Set()
 
   let root = options.root || null
-  let rootMargin = typeof options.rootMargin === 'string' ? options.rootMargin : '96px 0px'
+  let rootMargin = typeof options.rootMargin === 'string' ? options.rootMargin : '6rem 0px'
   let threshold = Array.isArray(options.threshold) ? options.threshold : [0, 0.25, 0.5, 0.75, 1]
   let observer = null
 

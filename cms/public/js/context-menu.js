@@ -13,8 +13,8 @@ function createContextMenu(target) {
     border: 1px solid var(--border);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    padding: 4px;
-    min-width: 140px;
+    padding: 0.25rem;
+    min-width: 8.75rem;
     display: none;
   `
 
@@ -41,12 +41,12 @@ function createContextMenu(target) {
       width: 100%;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
       border: none;
       background: transparent;
       color: var(--text);
-      font-size: 13px;
+      font-size: 0.8125rem;
       cursor: pointer;
       border-radius: 6px;
       transition: background 0.15s var(--easing-standard);

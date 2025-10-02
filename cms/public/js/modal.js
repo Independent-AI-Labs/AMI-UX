@@ -1050,7 +1050,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             }
           },
           style: {
-            padding: '8px 10px',
+            padding: '0.5rem 0.625rem',
             cursor: disabled ? 'default' : 'pointer',
             opacity: disabled ? 0.5 : 1,
           },
@@ -2695,7 +2695,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
                     className: 'no-results-blur',
                     style: {
                       margin: 'auto',
-                      padding: '40px',
+                      padding: '2.5rem',
                       textAlign: 'center',
                       color: 'var(--muted)',
                     },
@@ -2878,7 +2878,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           {
             key: i,
             className: 'dialog-button dialog-button--list',
-            style: { margin: '6px 0' },
+            style: { margin: '0.375rem 0' },
             title: e.path,
             onClick: () => onPick(e),
           },
@@ -2912,14 +2912,14 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     return React.createElement(
       'div',
       null,
-      React.createElement('div', { className: 'muted', style: { marginBottom: '6px' } }, 'Roots'),
+      React.createElement('div', { className: 'muted', style: { marginBottom: '0.375rem' } }, 'Roots'),
       ...roots.map((e, i) =>
         React.createElement(
           'button',
           {
             key: i,
             className: 'dialog-button dialog-button--list',
-            style: { margin: '6px 0' },
+            style: { margin: '0.375rem 0' },
             title: e.path,
             onClick: () => onPick({ type: 'dir', path: e.path, mode: 'C' }),
           },
@@ -2961,7 +2961,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           placeholder: 'Enter absolute or repo-relative path',
           style: {
             flex: 1,
-            padding: '6px 8px',
+            padding: '0.375rem 0.5rem',
             border: '1px solid var(--border)',
             background: 'var(--bg)',
             color: 'var(--text)',
@@ -2972,7 +2972,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       ),
       React.createElement(
         'div',
-        { style: { marginTop: '12px' }, className: 'muted' },
+        { style: { marginTop: '0.75rem' }, className: 'muted' },
         info.kind === 'info' && info.text,
         info.kind === 'err' && info.text,
         info.kind === 'ok' &&

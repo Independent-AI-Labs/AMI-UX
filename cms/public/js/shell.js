@@ -1272,14 +1272,14 @@ function openTabContextMenu(x, y, tab) {
     color: 'var(--text)',
     border: '1px solid var(--border)',
     borderRadius: '6px',
-    minWidth: '180px',
+    minWidth: '11.25rem',
     boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
   })
   function addItem(label, handler, disabled = false) {
     const it = document.createElement('div')
     it.textContent = label
     Object.assign(it.style, {
-      padding: '8px 10px',
+      padding: '0.5rem 0.625rem',
       cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? '0.5' : '1',
     })

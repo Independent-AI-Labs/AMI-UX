@@ -36,7 +36,7 @@ function createIframe(
   { sandbox = 'allow-scripts allow-same-origin', title = 'Visualizer' } = {},
 ) {
   const wrapper = document.createElement('div')
-  wrapper.style.cssText = 'position:relative; height: calc(100vh - 44px); background: transparent;'
+  wrapper.style.cssText = 'position:relative; height: calc(100vh - 2.75rem); background: transparent;'
   const iframe = document.createElement('iframe')
   iframe.src = src
   if (title) iframe.setAttribute('aria-label', title)
@@ -146,7 +146,7 @@ export const VisualizerD = {
     const sel = opts?.pathInfo || opts?.selected || {}
     const path = sel.path || ''
     const div = document.createElement('div')
-    div.style.cssText = 'padding:16px;'
+    div.style.cssText = 'padding:1rem;'
     div.textContent = `Selected Next.js app: ${path}`
     container.innerHTML = ''
     container.appendChild(div)

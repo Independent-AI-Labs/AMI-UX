@@ -463,7 +463,7 @@ function ensureTreeContainer() {
     }
   }
   if (state.visibilityTracker && typeof state.visibilityTracker.setOptions === 'function') {
-    state.visibilityTracker.setOptions({ rootMargin: '160px 0px' })
+    state.visibilityTracker.setOptions({ rootMargin: '10rem 0px' })
   }
   ensureDocOverlay()
   if (typeof state.registerTreeFilterInput === 'function') {
