@@ -430,7 +430,7 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
         const docEl = (manager?.document || (typeof document !== 'undefined' ? document : null))?.documentElement || null
         const pathAttr = docEl?.getAttribute('data-ami-doc-path') || ''
         if (!pathAttr) return false
-        const rootAttr = docEl?.getAttribute('data-ami-doc-root') || 'docRoot'
+        const rootAttr = docEl?.getAttribute('data-ami-doc-root') || 'contentRoot'
         if (typeof manager.setDocumentContext === 'function') {
           await manager.setDocumentContext({ path: pathAttr, root: rootAttr })
           return true

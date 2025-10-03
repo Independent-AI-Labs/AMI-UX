@@ -2,11 +2,11 @@ import { promises as fs } from 'fs'
 import path from 'path'
 
 export type RuntimeConfig = {
-  docRoot: string
+  contentRoot: string
   allowed?: string | null
 }
 
-const DEFAULT_DOC_ROOT = process.env.DOC_ROOT || 'docs'
+const DEFAULT_CONTENT_ROOT = process.env.CONTENT_ROOT || 'docs'
 
 function sanitizeString(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -20,11 +20,11 @@ export async function loadRuntimeConfig(): Promise<RuntimeConfig> {
 
   try {
     const raw = await fs.readFile(dataPath, 'utf8')
-    const cfg = JSON.parse(raw) as { docRoot?: unknown; allowed?: unknown }
-    const docRoot = sanitizeString(cfg.docRoot) || DEFAULT_DOC_ROOT
+    const cfg = JSON.parse(raw) as { contentRoot?: unknown; allowed?: unknown }
+    const contentRoot = sanitizeString(cfg.contentRoot) || DEFAULT_CONTENT_ROOT
     const allowed = sanitizeString(cfg.allowed) ?? envAllowed
-    return { docRoot, allowed }
+    return { contentRoot, allowed }
   } catch {
-    return { docRoot: DEFAULT_DOC_ROOT, allowed: envAllowed }
+    return { contentRoot: DEFAULT_CONTENT_ROOT, allowed: envAllowed }
   }
 }

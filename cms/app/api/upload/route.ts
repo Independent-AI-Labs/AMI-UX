@@ -6,8 +6,7 @@ import { Readable } from 'stream'
 import { Transform } from 'stream'
 import { pipeline } from 'stream/promises'
 import { createHash } from 'crypto'
-import { loadDocRootInfo, repoRoot as sharedRepoRoot } from '../../lib/doc-root'
-import { appRoot, uploadsRoot as sharedUploadsRoot } from '../../lib/store'
+import { appRoot, repoRoot, uploadsRoot as sharedUploadsRoot } from '../../lib/store'
 import { withSession } from '../../lib/auth-guard'
 
 export const runtime = 'nodejs'
@@ -21,11 +20,10 @@ type UploadMeta = {
   updatedAt: number
 }
 
-const repoRoot = sharedRepoRoot
 const uploadsRoot = sharedUploadsRoot
 
 type RootTarget = {
-  key: 'uploads' | 'docRoot'
+  key: 'uploads'
   base: string
   label: string
   metaBase: string
@@ -37,29 +35,19 @@ async function ensureDir(p: string) {
 }
 
 async function resolveRootTarget(rootParam: string | null | undefined): Promise<RootTarget> {
-  if (rootParam === 'docRoot') {
-    const info = await loadDocRootInfo()
-    if (!info) throw new Error('DOC_ROOT not found')
-    const metaBase = path.resolve(appRoot, 'data/upload-meta/docRoot')
-    await ensureDir(metaBase)
-    return {
-      key: 'docRoot',
-      base: info.absolute,
-      label: info.label,
-      metaBase,
-      relativeBase: info.relative,
-    }
+  if (rootParam && rootParam !== 'uploads') {
+    throw new Error('Only uploads root is supported')
   }
-  const base = uploadsRoot
-  const metaBase = path.resolve(base, '.upload-meta')
-  await ensureDir(base)
+  const metaBase = path.resolve(appRoot, 'data/upload-meta/uploads')
   await ensureDir(metaBase)
+  await ensureDir(uploadsRoot)
+  const relativeBase = path.relative(repoRoot, uploadsRoot)
   return {
     key: 'uploads',
-    base,
+    base: uploadsRoot,
     label: 'Uploads',
     metaBase,
-    relativeBase: path.relative(repoRoot, base),
+    relativeBase,
   }
 }
 
@@ -168,7 +156,7 @@ export const GET = withSession(async ({ request }) => {
     target = await resolveRootTarget(rootParam)
   } catch (err) {
     console.error('[api/upload] resolve root failed:', err)
-    const message = rootParam === 'docRoot' ? 'docRoot unavailable' : 'invalid root'
+    const message = rootParam === 'contentRoot' ? 'contentRoot unavailable' : 'invalid root'
     return NextResponse.json({ error: message }, { status: 400 })
   }
 
@@ -228,7 +216,7 @@ export const PUT = withSession(async ({ request }) => {
     target = await resolveRootTarget(rootParam)
   } catch (err) {
     console.error('[api/upload] resolve root failed:', err)
-    const message = rootParam === 'docRoot' ? 'docRoot unavailable' : 'invalid root'
+    const message = rootParam === 'contentRoot' ? 'contentRoot unavailable' : 'invalid root'
     return NextResponse.json({ error: message }, { status: 400 })
   }
 

@@ -124,9 +124,11 @@ function ensureLayer(doc, state) {
     const layer = doc.createElement('div')
     layer.className = 'hint-layer'
     layer.setAttribute('aria-hidden', 'true')
+    layer.setAttribute('data-ami-highlight-ignore', '1')
     const bubble = doc.createElement('div')
     bubble.className = 'hint-layer__bubble'
     bubble.setAttribute('role', 'tooltip')
+    bubble.setAttribute('data-ami-highlight-ignore', '1')
     layer.appendChild(bubble)
     doc.body.appendChild(layer)
     state.layer = layer

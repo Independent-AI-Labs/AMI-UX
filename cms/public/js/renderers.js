@@ -118,7 +118,7 @@ async function renderPdfDocument({ pdfjsLib, container, pdfBytes, perPageHeading
 }
 
 const LATEX_API_ROOT = '/api/latex'
-const DEFAULT_ROOT_KEY = 'docRoot'
+const DEFAULT_ROOT_KEY = 'contentRoot'
 
 async function fetchLatexCache(relPath, root = DEFAULT_ROOT_KEY) {
   try {

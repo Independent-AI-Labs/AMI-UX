@@ -160,10 +160,36 @@ export type LibraryEntry = {
   }
 }
 
+async function ensureDefaultLibraryEntry(entries: LibraryEntry[]): Promise<LibraryEntry[]> {
+  const docsPath = path.resolve(repoRoot, 'docs')
+  const docsId = createHash('sha1').update(docsPath).digest('hex').slice(0, 12)
+
+  const hasDocsEntry = entries.some(e => e.id === docsId)
+  if (!hasDocsEntry) {
+    try {
+      const stat = await fs.stat(docsPath)
+      if (stat.isDirectory()) {
+        const newEntry: LibraryEntry = {
+          id: docsId,
+          path: docsPath,
+          kind: 'dir',
+          label: 'Docs',
+          createdAt: Date.now()
+        }
+        return [newEntry, ...entries]
+      }
+    } catch {
+      // docs directory doesn't exist, skip default entry
+    }
+  }
+  return entries
+}
+
 export async function listLibrary(): Promise<LibraryEntry[]> {
   await ensureDataDir()
   const entries = await readJsonFile<LibraryEntry[]>(LIBRARY_FILE, { defaultValue: [] })
-  return Array.isArray(entries) ? entries : []
+  const validated = Array.isArray(entries) ? entries : []
+  return await ensureDefaultLibraryEntry(validated)
 }
 
 export async function saveLibrary(entries: LibraryEntry[]): Promise<void> {

@@ -7,19 +7,6 @@ import { withSession } from '../../../../../lib/auth-guard'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-type Cfg = { docRoot: string }
-
-async function loadCfg(): Promise<Cfg> {
-  const p = path.resolve(process.cwd(), 'data/config.json')
-  try {
-    const raw = await fs.readFile(p, 'utf8')
-    const cfg = JSON.parse(raw)
-    return { docRoot: cfg.docRoot || process.env.DOC_ROOT || 'docs' }
-  } catch {
-    return { docRoot: process.env.DOC_ROOT || 'docs' }
-  }
-}
-
 function withinRoot(rootAbs: string, targetAbs: string) {
   const rel = path.relative(rootAbs, targetAbs)
   return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel)
@@ -44,13 +31,13 @@ const MIME: Record<string, string> = {
 
 export const GET = withSession(async ({ context }: { context: { params: Promise<{ root: string; path?: string[] }> } }) => {
   const { root, path: pathParts } = await context.params
-  const { docRoot } = await loadCfg()
   const cwd = process.cwd()
   const roots: Record<string, string> = {
-    docRoot: path.resolve(cwd, docRoot),
     uploads: path.resolve(cwd, 'files/uploads'),
   }
-  const baseRoot = roots[root] || roots.docRoot
+  const baseRoot = roots[root]
+  if (!baseRoot) return new NextResponse('Invalid root', { status: 400 })
+
   const relPath = (pathParts || []).join('/')
   const targetAbs = path.resolve(baseRoot, relPath)
   if (!withinRoot(baseRoot, targetAbs)) return new NextResponse('Forbidden', { status: 403 })

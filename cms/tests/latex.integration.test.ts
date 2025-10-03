@@ -16,7 +16,7 @@ type JsonBody<T> = T extends Response ? Awaited<ReturnType<T['json']>> : never
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const DOC_ROOT_RELATIVE = 'docs'
+const CONTENT_ROOT_RELATIVE = 'docs'
 const REPO_ROOT = path.resolve(__dirname, '../../..')
 const REAL_TEX_SOURCE_PATH = path.join(
   REPO_ROOT,
@@ -24,8 +24,8 @@ const REAL_TEX_SOURCE_PATH = path.join(
 )
 const REAL_TEX_BASENAME = 'open-ami-chapters.tex'
 const CONFIG_TEMPLATE = {
-  docRoot: DOC_ROOT_RELATIVE,
-  docRootLabel: 'Docs',
+  contentRoot: CONTENT_ROOT_RELATIVE,
+  contentRootLabel: 'Docs',
 }
 
 const SAMPLE_PDF_BYTES = Buffer.from(
@@ -38,14 +38,14 @@ let latexModule: LatexModule
 let mediaModule: MediaModule
 let complianceTexSource: string
 
-function latexUrl(relPath: string, root = 'docRoot') {
+function latexUrl(relPath: string, root = 'contentRoot') {
   const url = new URL('http://localhost/api/latex')
   url.searchParams.set('path', relPath)
   url.searchParams.set('root', root)
   return url
 }
 
-function mediaUrl(relPath: string, root = 'docRoot') {
+function mediaUrl(relPath: string, root = 'contentRoot') {
   const url = new URL('http://localhost/api/media')
   url.searchParams.set('path', relPath)
   url.searchParams.set('root', root)
@@ -57,12 +57,12 @@ async function writeConfig() {
   await writeFile(cfgPath, JSON.stringify(CONFIG_TEMPLATE, null, 2))
 }
 
-async function ensureDocRoot() {
-  await mkdir(path.join(tempRepoRoot, DOC_ROOT_RELATIVE), { recursive: true })
+async function ensureContentRoot() {
+  await mkdir(path.join(tempRepoRoot, CONTENT_ROOT_RELATIVE), { recursive: true })
 }
 
 async function writeTexSource(relPath: string, contents: string) {
-  const target = path.join(tempRepoRoot, DOC_ROOT_RELATIVE, relPath)
+  const target = path.join(tempRepoRoot, CONTENT_ROOT_RELATIVE, relPath)
   await mkdir(path.dirname(target), { recursive: true })
   await writeFile(target, contents)
   return target
@@ -78,7 +78,7 @@ before(async () => {
   tempRepoRoot = await mkdtemp(path.join(os.tmpdir(), 'latex-tests-'))
   process.chdir(tempRepoRoot)
   await mkdir(path.join(tempRepoRoot, 'data'), { recursive: true })
-  await ensureDocRoot()
+  await ensureContentRoot()
   await writeConfig()
 
   complianceTexSource = await readFile(REAL_TEX_SOURCE_PATH, 'utf8')
@@ -92,8 +92,8 @@ before(async () => {
 
 beforeEach(async () => {
   await rm(path.join(tempRepoRoot, 'files'), { recursive: true, force: true })
-  await rm(path.join(tempRepoRoot, DOC_ROOT_RELATIVE), { recursive: true, force: true })
-  await ensureDocRoot()
+  await rm(path.join(tempRepoRoot, CONTENT_ROOT_RELATIVE), { recursive: true, force: true })
+  await ensureContentRoot()
   await writeConfig()
 })
 
@@ -130,7 +130,7 @@ test('POST stores rendered PDF artefacts and GET reuses the cache', { concurrenc
 
   const form = new FormData()
   form.set('path', texRel)
-  form.set('root', 'docRoot')
+  form.set('root', 'contentRoot')
   form.set('headings', JSON.stringify([{ id: 'a', text: 'Intro', level: 1, page: 1 }]))
   form.set('log', 'stub log output')
 
@@ -144,7 +144,7 @@ test('POST stores rendered PDF artefacts and GET reuses the cache', { concurrenc
   assert.equal(typeof postJson.pdfPath, 'string')
   assert.equal(postJson.pdfPath, `${texRel}.meta/render.pdf`)
 
-  const metaDir = path.join(tempRepoRoot, DOC_ROOT_RELATIVE, `${texRel}.meta`)
+  const metaDir = path.join(tempRepoRoot, CONTENT_ROOT_RELATIVE, `${texRel}.meta`)
   const pdfPath = path.join(metaDir, 'render.pdf')
   const manifestPath = path.join(metaDir, 'manifest.json')
   const logPath = path.join(metaDir, 'compile.log')
@@ -181,7 +181,7 @@ test('GET reports cached renders as stale when the source file changes', { concu
 
   const form = new FormData()
   form.set('path', texRel)
-  form.set('root', 'docRoot')
+  form.set('root', 'contentRoot')
   form.set('headings', JSON.stringify([]))
   const pdfFile = new File([SAMPLE_PDF_BYTES], 'render.pdf', { type: 'application/pdf' })
   form.append('pdf', pdfFile)

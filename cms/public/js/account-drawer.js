@@ -1,5 +1,5 @@
 import { dialogService } from './dialog-service.js?v=20250306'
-import { ensureReact } from './modal.js?v=20251002'
+import { ensureReact, createThemedOverlay } from './modal.js?v=20251002'
 import { createDrawerChrome } from './drawer-chrome.js?v=20250306'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 
@@ -157,11 +157,13 @@ function createSlidingDrawerPortal(React) {
           zIndex: 1600,
         },
         'data-dialog-id': idRef.current,
+        'data-ami-highlight-ignore': '1',
       },
       e(
         'div',
         {
           className: 'dialog-backdrop dialog-backdrop--right account-drawer-backdrop',
+          'data-ami-highlight-ignore': '1',
           ref: overlayRef,
         },
         e(
@@ -1058,7 +1060,7 @@ async function ensureReactLibs() {
 async function ensureAddDialog() {
   await ensureReactLibs()
   if (!addDialogOverlay) {
-    addDialogOverlay = document.createElement('div')
+    addDialogOverlay = createThemedOverlay({ zIndex: '1650' })
     addDialogOverlay.className = 'dialog-backdrop account-add-dialog__backdrop'
     addDialogOverlay.setAttribute('aria-hidden', 'true')
     addDialogSurface = document.createElement('div')
@@ -1104,7 +1106,7 @@ export async function openAccountDrawer(options = {}) {
     activeDrawerHandle.close(true)
   }
 
-  const container = document.createElement('div')
+  const container = createThemedOverlay({ zIndex: '1600' })
   container.className = 'account-drawer-portal'
   document.body.appendChild(container)
   const root = ReactDOMLib.createRoot(container)

@@ -46,7 +46,7 @@ async function boot() {
       }
     } catch {}
   } else {
-    pathInfo = { type: 'dir', path: cfg?.docRoot || '' }
+    pathInfo = { type: 'dir', path: cfg?.contentRoot || '' }
   }
 
   // Choose visualizer: prefer selected.mode when set
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!btn) return
   btn.addEventListener('click', async () => {
     try {
-      const mod = await import('./modal.js?v=20251002')
+      const mod = await import('./modal.js?v=20251003j')
       const openSelectMediaModal = mod && mod.openSelectMediaModal
       if (typeof openSelectMediaModal !== 'function') throw new Error('modal not loaded')
       openSelectMediaModal({

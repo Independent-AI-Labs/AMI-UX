@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import { loadDocRootInfo, repoRoot } from './doc-root'
-import { appRoot, uploadsRoot } from './store'
+import { appRoot, repoRoot, uploadsRoot } from './store'
 
 export type MediaRoot = {
   key: string
@@ -29,11 +28,6 @@ export async function collectMediaRoots(): Promise<MediaRoot[]> {
     if (seen.has(normalized)) return
     seen.add(normalized)
     roots.push({ key, label, path: normalized, writable })
-  }
-
-  const docInfo = await loadDocRootInfo().catch(() => null)
-  if (docInfo) {
-    addRoot('docRoot', docInfo.label, docInfo.absolute, true)
   }
 
   try {
@@ -70,5 +64,21 @@ export async function collectMediaRoots(): Promise<MediaRoot[]> {
 
 export async function resolveMediaRoot(key: string): Promise<MediaRoot | null> {
   const roots = await collectMediaRoots()
-  return roots.find((root) => root.key === key) || null
+  const found = roots.find((root) => root.key === key)
+  if (found) return found
+
+  // Check if key is a library entry ID
+  const { listLibrary } = await import('./store')
+  const entries = await listLibrary()
+  const entry = entries.find((e) => e.id === key)
+  if (entry) {
+    return {
+      key: entry.id,
+      label: entry.label || entry.path.split('/').pop() || 'Content',
+      path: entry.path,
+      writable: true,
+    }
+  }
+
+  return null
 }

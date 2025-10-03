@@ -279,12 +279,43 @@ export function createTabStrip(root, options = {}) {
       }
       btn.removeAttribute('title')
       if (tab.ariaLabel) btn.setAttribute('aria-label', tab.ariaLabel)
-      if (tab.dataset) {
-        for (const [key, value] of Object.entries(tab.dataset)) {
-          if (value === undefined || value === null) continue
-          btn.dataset[key] = value
-        }
+      const descriptorData = { ...(tab.dataset || {}) }
+      const menuTokens = new Set()
+      const flagTokens = new Set()
+
+      const descriptorMenu = descriptorData.menu
+      if (descriptorMenu != null) {
+        String(descriptorMenu)
+          .split(/\s+/)
+          .filter(Boolean)
+          .forEach((token) => menuTokens.add(token))
+        delete descriptorData.menu
       }
+
+      const descriptorMenuFlags = descriptorData.menuFlags
+      if (descriptorMenuFlags != null) {
+        String(descriptorMenuFlags)
+          .split(/\s+/)
+          .filter(Boolean)
+          .forEach((token) => flagTokens.add(token))
+        delete descriptorData.menuFlags
+      }
+
+      Object.entries(descriptorData).forEach(([key, value]) => {
+        if (value === undefined || value === null) return
+        btn.dataset[key] = value
+      })
+
+      menuTokens.add('shell-tab')
+      flagTokens.add('tab')
+      const descriptorKind = descriptorData.tabKind || descriptorData.tabkind || ''
+      if (descriptorKind) flagTokens.add(`tab-kind-${descriptorKind}`)
+      if (Array.isArray(tab.classes) && tab.classes.includes('served')) flagTokens.add('tab-served')
+      if (state.activeId === tab.id) flagTokens.add('tab-active')
+
+      if (menuTokens.size) btn.dataset.menu = Array.from(menuTokens).join(' ')
+      if (flagTokens.size) btn.dataset.menuFlags = Array.from(flagTokens).join(' ')
+      btn.dataset.menuZone = 'cms-shell-tabs'
       btn.innerHTML = buildTabHTML(tab)
 
       btn.addEventListener('click', (event) => {

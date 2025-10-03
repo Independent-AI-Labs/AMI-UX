@@ -41,19 +41,19 @@ after(async () => {
 })
 
 test('Doc tree exposes extended text formats and serves their contents', { concurrency: false }, async () => {
-  const docRootDir = path.join(tempRepoRoot, 'docs')
-  await mkdir(docRootDir, { recursive: true })
+  const contentRootDir = path.join(tempRepoRoot, 'docs')
+  await mkdir(contentRootDir, { recursive: true })
   await mkdir(path.join(tempRepoRoot, 'data'), { recursive: true })
 
   const configPath = path.join(tempRepoRoot, 'data', 'config.json')
-  const docRootRelative = path.relative(tempRepoRoot, docRootDir)
-  await writeFile(configPath, JSON.stringify({ docRoot: docRootRelative }, null, 2))
+  const contentRootRelative = path.relative(tempRepoRoot, contentRootDir)
+  await writeFile(configPath, JSON.stringify({ contentRoot: contentRootRelative }, null, 2))
 
-  const jsonPath = path.join(docRootDir, 'metadata', 'info.json')
+  const jsonPath = path.join(contentRootDir, 'metadata', 'info.json')
   await mkdir(path.dirname(jsonPath), { recursive: true })
   await writeFile(jsonPath, JSON.stringify({ ok: true }, null, 2))
 
-  const yamlPath = path.join(docRootDir, 'configs', 'app.yaml')
+  const yamlPath = path.join(contentRootDir, 'configs', 'app.yaml')
   await mkdir(path.dirname(yamlPath), { recursive: true })
   await writeFile(yamlPath, 'name: sample\nreplicas: 3\n')
 

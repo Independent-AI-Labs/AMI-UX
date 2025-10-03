@@ -163,7 +163,7 @@ async function listDirectoryEntries(
 
 export const GET = withSession(async ({ request }) => {
   const url = new URL(request.url)
-  const requestedRoot = url.searchParams.get('root') || 'docRoot'
+  const requestedRoot = url.searchParams.get('root') || 'contentRoot'
   const rootInfo = await resolveMediaRoot(requestedRoot)
 
   if (!rootInfo) {
@@ -178,10 +178,10 @@ export const GET = withSession(async ({ request }) => {
     return NextResponse.json({ error: 'Root not found', root: rootInfo.key }, { status: 404 })
   }
 
-  const isDocRoot = rootInfo.key === 'docRoot'
+  const isContentRoot = rootInfo.key === 'contentRoot'
 
-  const allowlist = isDocRoot ? formats : null
-  const includeEmpty = !isDocRoot
+  const allowlist = isContentRoot ? formats : null
+  const includeEmpty = !isContentRoot
   const mode = url.searchParams.get('mode') || 'full'
   const requestedPath = url.searchParams.get('path') || ''
   const normalizedRel = path.posix
@@ -194,7 +194,7 @@ export const GET = withSession(async ({ request }) => {
     return NextResponse.json({ error: 'Path not found', path: safeRel }, { status: 404 })
   }
 
-  const docRootSetting = isDocRoot ? cfg.docRoot : undefined
+  const contentRootSetting = isContentRoot ? cfg.contentRoot : undefined
 
   if (mode === 'children') {
     let children: NodeSummary[] = []
@@ -205,7 +205,7 @@ export const GET = withSession(async ({ request }) => {
       rootKey: rootInfo.key,
       rootLabel: rootInfo.label,
       rootAbsolute: rootAbs,
-      docRoot: docRootSetting,
+      contentRoot: contentRootSetting,
       node: {
         name: safeRel ? path.posix.basename(safeRel) : path.basename(rootAbs) || rootInfo.label,
         path: safeRel,
@@ -253,7 +253,7 @@ export const GET = withSession(async ({ request }) => {
 
   return NextResponse.json({
     ...payload,
-    docRoot: docRootSetting,
+    contentRoot: contentRootSetting,
     rootKey: rootInfo.key,
     rootAbsolute: rootAbs,
     rootLabel: rootInfo.label,
@@ -274,7 +274,7 @@ export const POST = withSession(async ({ request }) => {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  const rootParam = typeof body.root === 'string' && body.root ? body.root : 'docRoot'
+  const rootParam = typeof body.root === 'string' && body.root ? body.root : 'contentRoot'
   const parentParam = typeof body.parent === 'string' ? body.parent : ''
   const nameParam = typeof body.name === 'string' ? body.name : ''
 

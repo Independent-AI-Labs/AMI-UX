@@ -3,31 +3,31 @@
 import { normalizeFsPath } from './utils.js'
 
 // ============================================================================
-// DOC ROOT CONTEXT - SINGLE SOURCE OF TRUTH
+// CONTENT ROOT CONTEXT - LIBRARY ENTRIES AS SOURCE OF TRUTH
 // ============================================================================
 
 const UPLOADS_MARKER = '/files/uploads'
 
 /**
- * Create doc root context from server config
+ * Create content root context from library entry
  */
-export function createDocRootFromConfig(config) {
+export function createContextFromLibraryEntry(entry) {
   return {
-    rootKey: 'docRoot',
-    path: config.docRoot || '',
-    absolutePath: config.docRootAbsolute || '',
-    label: config.docRootLabel || 'Docs',
+    rootKey: entry.id,
+    path: entry.path,
+    absolutePath: entry.path,
+    label: entry.label || entry.path.split('/').filter(Boolean).pop() || 'Content',
     focus: '',
   }
 }
 
 /**
- * Create doc root context from message
+ * Create content root context from message
  */
-export function createDocRootFromMessage(message) {
-  const rootKey = message.rootKey || 'docRoot'
+export function createContextFromMessage(message) {
+  const rootKey = message.rootKey || ''
   const path = message.path || ''
-  const label = message.label || (rootKey === 'uploads' ? 'Uploads' : 'Docs')
+  const label = message.label || (rootKey === 'uploads' ? 'Uploads' : 'Content')
   const focus = message.focus || ''
 
   return {
@@ -40,9 +40,9 @@ export function createDocRootFromMessage(message) {
 }
 
 /**
- * Derive doc root context from a filesystem path
+ * Derive content root context from a filesystem path
  */
-export function deriveDocRootFromPath(path, config) {
+export function deriveContextFromPath(path) {
   const normalized = normalizeFsPath(path)
 
   // Check if path is in uploads
@@ -60,41 +60,21 @@ export function deriveDocRootFromPath(path, config) {
     }
   }
 
-  // Check if path is within configured doc root
-  if (config) {
-    const docRootNormalized = normalizeFsPath(config.docRootAbsolute || config.docRoot || '')
-    if (docRootNormalized) {
-      if (normalized === docRootNormalized || normalized.startsWith(`${docRootNormalized}/`)) {
-        const relativePath = normalized === docRootNormalized
-          ? ''
-          : normalized.slice(docRootNormalized.length + 1)
-
-        return {
-          rootKey: 'docRoot',
-          path: config.docRoot || '',
-          absolutePath: config.docRootAbsolute || '',
-          label: config.docRootLabel || 'Docs',
-          focus: relativePath,
-        }
-      }
-    }
-  }
-
   // Standalone path
   const lastSegment = normalized.split('/').filter(Boolean).pop() || normalized
   return {
-    rootKey: 'docRoot',
+    rootKey: '',
     path: normalized,
     absolutePath: normalized,
-    label: lastSegment || 'Docs',
+    label: lastSegment || 'Content',
     focus: '',
   }
 }
 
 /**
- * Build subtitle text from doc root context
+ * Build subtitle text from content root context
  */
-export function buildDocRootSubtitle(context) {
+export function buildContextSubtitle(context) {
   if (context.rootKey === 'uploads') {
     return context.label ? `Uploads workspace sourced from ${context.label}` : 'Uploads workspace'
   }
@@ -110,18 +90,19 @@ export function buildDocRootSubtitle(context) {
   }
 
   if (parts.length === 0) {
-    return 'Explore and inspect structured documentation.'
+    return 'Explore and inspect structured content.'
   }
 
-  return `Docs sourced from ${parts.join(' · ')}`
+  return `Content sourced from ${parts.join(' · ')}`
 }
 
 /**
- * Build message to send to doc viewer iframe
+ * Build message to send to content viewer iframe
  */
-export function buildDocMessage(context) {
+export function buildContentMessage(context) {
+  console.log('[models] buildContentMessage input context:', JSON.stringify(context))
   const msg = {
-    type: 'setDocRoot',
+    type: 'setContentRoot',
     rootKey: context.rootKey,
     path: context.path,
   }
@@ -134,5 +115,6 @@ export function buildDocMessage(context) {
     msg.focus = context.focus
   }
 
+  console.log('[models] buildContentMessage output:', JSON.stringify(msg))
   return msg
 }

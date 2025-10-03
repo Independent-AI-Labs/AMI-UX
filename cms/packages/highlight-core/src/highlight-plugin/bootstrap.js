@@ -348,7 +348,7 @@ export function bootstrapHighlightPlugin(config = {}) {
         debugLog('context:listener-error', { error: error?.message || String(error) })
       }
       const initialPath = doc.documentElement?.getAttribute('data-ami-doc-path') || ''
-      const initialRoot = doc.documentElement?.getAttribute('data-ami-doc-root') || 'docRoot'
+      const initialRoot = doc.documentElement?.getAttribute('data-ami-doc-root') || 'contentRoot'
       if (initialPath) {
         manager
           .setDocumentContext({ path: initialPath, root: initialRoot })

@@ -60,7 +60,7 @@ export const VisualizerA = {
     const sel = opts?.pathInfo || opts?.selected || {}
     let path = sel.path || ''
     let rel = path
-    let root = 'docRoot'
+    let root = 'contentRoot'
     const idx = rel.indexOf('files/uploads/')
     if (idx !== -1) {
       rel = rel.slice(idx + 'files/uploads/'.length)
@@ -69,11 +69,11 @@ export const VisualizerA = {
       try {
         const r = await fetch('/api/config')
         const cfg = r.ok ? await r.json() : null
-        const docRoot = cfg?.docRoot || ''
-        if (docRoot && rel.startsWith(docRoot)) {
-          const cut = docRoot.endsWith('/') ? docRoot.length : (docRoot + '/').length
+        const contentRoot = cfg?.contentRoot || ''
+        if (contentRoot && rel.startsWith(contentRoot)) {
+          const cut = contentRoot.endsWith('/') ? contentRoot.length : (contentRoot + '/').length
           rel = rel.slice(cut)
-          root = 'docRoot'
+          root = 'contentRoot'
         }
       } catch {}
     }
@@ -105,7 +105,7 @@ export const VisualizerB = {
     const sel = opts?.pathInfo || opts?.selected || {}
     let path = sel.path || ''
     let rel = path
-    let root = 'docRoot'
+    let root = 'contentRoot'
     const idx = rel.indexOf('files/uploads/')
     if (idx !== -1) {
       rel = rel.slice(idx + 'files/uploads/'.length)
@@ -114,11 +114,11 @@ export const VisualizerB = {
       try {
         const r = await fetch('/api/config')
         const cfg = r.ok ? await r.json() : null
-        const docRoot = cfg?.docRoot || ''
-        if (docRoot && rel.startsWith(docRoot)) {
-          const cut = docRoot.endsWith('/') ? docRoot.length : (docRoot + '/').length
+        const contentRoot = cfg?.contentRoot || ''
+        if (contentRoot && rel.startsWith(contentRoot)) {
+          const cut = contentRoot.endsWith('/') ? contentRoot.length : (contentRoot + '/').length
           rel = rel.slice(cut)
-          root = 'docRoot'
+          root = 'contentRoot'
         }
       } catch {}
     }

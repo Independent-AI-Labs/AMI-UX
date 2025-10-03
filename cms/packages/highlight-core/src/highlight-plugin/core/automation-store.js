@@ -3,7 +3,7 @@ import { debugLog } from './debug.js'
 function buildQuery(params = {}) {
   const search = new URLSearchParams()
   if (params.path) search.set('path', params.path)
-  if (params.root && params.root !== 'docRoot') search.set('root', params.root)
+  if (params.root && params.root !== 'contentRoot') search.set('root', params.root)
   return search.toString()
 }
 
@@ -66,7 +66,7 @@ export function createAutomationStore() {
     const payload = {
       action,
       path: context.path,
-      root: context.root || 'docRoot',
+      root: context.root || 'contentRoot',
       ...body,
     }
     debugLog('automation:store:post', { action, path: context.path })

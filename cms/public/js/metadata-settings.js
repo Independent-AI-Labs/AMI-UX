@@ -88,6 +88,7 @@ function ensureDialog() {
 
   overlayEl = document.createElement('div')
   overlayEl.className = 'dialog-backdrop'
+  overlayEl.setAttribute('data-ami-highlight-ignore', '1')
   overlayEl.hidden = true
 
   surfaceEl = document.createElement('div')
@@ -329,13 +330,13 @@ async function openServerDirectorySelector() {
   fields.metaServerButton.disabled = true
 
   try {
-    const pickerModule = await import('./modal.js?v=20251002')
+    const pickerModule = await import('./modal.js?v=20251003j')
     const openPicker = pickerModule?.openServerDirectoryPicker
     if (typeof openPicker !== 'function') {
       throw new Error('Server picker unavailable.')
     }
     const initialSelection = {
-      rootKey: currentContext.rootKey || 'docRoot',
+      rootKey: currentContext.rootKey || '',
       path: currentContext.relativePath || '',
     }
     const selection = await openPicker({

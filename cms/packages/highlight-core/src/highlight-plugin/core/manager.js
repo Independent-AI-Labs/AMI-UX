@@ -546,7 +546,7 @@ export class HighlightManager {
     if (context && typeof context === 'object' && context.path) {
       const next = {
         path: String(context.path),
-        root: context.root || 'docRoot',
+        root: context.root || 'contentRoot',
         name: context.name || '',
         metaPath: context.metaPath || '',
       }

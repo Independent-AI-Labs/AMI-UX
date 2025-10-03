@@ -31,6 +31,7 @@ export function openCreateDirectoryDialog(options = {}) {
   return new Promise((resolve) => {
     const overlay = document.createElement('div')
     overlay.className = 'dialog-backdrop'
+    overlay.setAttribute('data-ami-highlight-ignore', '1')
 
     const surface = document.createElement('div')
     surface.className = 'dialog-surface create-directory-dialog'

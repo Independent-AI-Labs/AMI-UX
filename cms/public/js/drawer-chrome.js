@@ -129,14 +129,47 @@ export function createDrawerChrome(React) {
       onMouseLeave,
     }
 
-    Object.entries(dataAttributes || {}).forEach(([key, value]) => {
+    const mergedAttributes = dataAttributes && typeof dataAttributes === 'object' ? { ...dataAttributes } : {}
+    const attrMenu = mergedAttributes['data-menu'] || mergedAttributes['data-ctx-menu']
+    const attrFlags = mergedAttributes['data-menu-flags']
+    const attrZone = mergedAttributes['data-menu-zone']
+    delete mergedAttributes['data-menu']
+    delete mergedAttributes['data-ctx-menu']
+    delete mergedAttributes['data-menu-flags']
+    delete mergedAttributes['data-menu-zone']
+
+    Object.entries(mergedAttributes).forEach(([key, value]) => {
       if (key && key.startsWith('data-')) props[key] = value
     })
 
-    // Mark element as having custom context menu to prevent global context menu from interfering
-    if (onContextMenu) {
-      props['data-has-context-menu'] = 'true'
+    const menuTokens = new Set()
+    const flagTokens = new Set()
+    if (typeof attrMenu === 'string') {
+      attrMenu
+        .split(/\s+/)
+        .filter(Boolean)
+        .forEach((token) => menuTokens.add(token))
     }
+    if (typeof attrFlags === 'string') {
+      attrFlags
+        .split(/\s+/)
+        .filter(Boolean)
+        .forEach((token) => flagTokens.add(token))
+    }
+
+    if (onContextMenu) {
+      menuTokens.add('drawer-entry')
+      flagTokens.add('drawer')
+      flagTokens.add('drawer-item')
+      if (active) flagTokens.add('drawer-active')
+      if (selected) flagTokens.add('drawer-selected')
+      props['data-menu-zone'] = attrZone || 'cms-drawer'
+    } else if (attrZone) {
+      props['data-menu-zone'] = attrZone
+    }
+
+    if (menuTokens.size) props['data-menu'] = Array.from(menuTokens).join(' ')
+    if (flagTokens.size) props['data-menu-flags'] = Array.from(flagTokens).join(' ')
 
     const resolvedStatus = (() => {
       if (status && typeof status === 'object') return status

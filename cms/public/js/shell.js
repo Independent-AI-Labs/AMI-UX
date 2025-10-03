@@ -7,18 +7,18 @@ import {
   VisualizerB,
   VisualizerD,
 } from './visualizers.js'
-import { openSelectMediaModal } from './modal.js?v=20251002'
+import { openSelectMediaModal } from './modal.js?v=20251003j'
 import { deriveMetaDirectory, openMetadataSettingsDialog } from './metadata-settings.js?v=20250306'
 import { showToast } from './toast-manager.js?v=20250306'
 import { applyHint, humanizeName, normalizeFsPath } from './utils.js'
 import { ensureDocumentHintLayer } from './hints/manager.js'
 import { createDocMessenger } from './message-channel.js?v=20250310'
-import { openAccountDrawer } from './account-drawer.js?v=20250316'
+import { openAccountDrawer } from './account-drawer.js?v=20251003f'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { createTabStrip } from './tab-strip.js?v=20250321'
 import { initShellConsole } from './shell-console.js?v=20250321'
-import { initContextMenu } from './context-menu.js'
-import { deriveDocRootFromPath, buildDocMessage } from './models.js'
+import { initContextMenu, registerContextMenu } from './context-menu.js'
+import { deriveContextFromPath, buildContentMessage } from './models.js'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -247,9 +247,9 @@ function ensureHighlightPluginConfig(win) {
     if (!storageSuffix) {
       try {
         const doc = win.document
-        const docPath = doc?.documentElement?.getAttribute('data-ami-doc-path') || ''
-        const docRoot = doc?.documentElement?.getAttribute('data-ami-doc-root') || ''
-        if (docRoot || docPath) storageSuffix = `${docRoot}::${docPath}`
+        const contentPath = doc?.documentElement?.getAttribute('data-ami-doc-path') || ''
+        const contentRoot = doc?.documentElement?.getAttribute('data-ami-content-root') || ''
+        if (contentRoot || contentPath) storageSuffix = `${contentRoot}::${contentPath}`
       } catch {}
     }
     if (!storageSuffix) {
@@ -690,6 +690,8 @@ async function loadConfig(force = false) {
 }
 
 const tabsState = { tabs: [], active: null }
+
+registerShellContextMenus()
 const servedMap = { instances: [] }
 const appRunning = new Map()
 
@@ -731,12 +733,12 @@ function getMetadataContextForPath(path) {
     return context
   }
 
-  const docRootAbs = cachedConfig?.docRootAbsolute ? normalizeFsPath(cachedConfig.docRootAbsolute) : ''
-  if (docRootAbs) {
-    if (normalized === docRootAbs || normalized.startsWith(`${docRootAbs}/`)) {
-      context.rootKey = 'docRoot'
-      context.rootLabel = cachedConfig?.docRootLabel || 'Docs'
-      context.relativePath = normalized === docRootAbs ? '' : normalized.slice(docRootAbs.length + 1)
+  const contentRootAbs = cachedConfig?.contentRootAbsolute ? normalizeFsPath(cachedConfig.contentRootAbsolute) : ''
+  if (contentRootAbs) {
+    if (normalized === contentRootAbs || normalized.startsWith(`${contentRootAbs}/`)) {
+      context.rootKey = 'contentRoot'
+      context.rootLabel = cachedConfig?.contentRootLabel || 'Docs'
+      context.relativePath = normalized === contentRootAbs ? '' : normalized.slice(contentRootAbs.length + 1)
       return context
     }
   }
@@ -1045,6 +1047,7 @@ let docIsReady = false
 const pendingDocMessages = []
 
 function resetDocMessagingState() {
+  console.log('[shell] resetDocMessagingState called, clearing', pendingDocMessages.length, 'pending messages')
   docIsReady = false
   pendingDocMessages.length = 0
 }
@@ -1061,10 +1064,12 @@ function flushPendingDocMessages() {
 }
 
 function queueDocMessage(msg, options = {}) {
+  console.log('[shell] queueDocMessage called, docIsReady:', docIsReady, 'msg.type:', msg?.type, 'msg.rootKey:', msg?.rootKey)
   if (docIsReady) {
     postToDoc(msg, options)
   } else {
     pendingDocMessages.push({ msg, options })
+    console.log('[shell] Added to pending queue, new length:', pendingDocMessages.length)
   }
 }
 
@@ -1097,27 +1102,40 @@ function uploadsBaseFromPath(originalPath) {
   return { baseOriginal, baseNormalized }
 }
 
-function buildDocMessageForDir(tab, cfg) {
+function buildContentMessageForDir(tab, cfg) {
   if (!tab) return null
   const path = tab.path || ''
   if (!path) return null
 
-  // Use model to derive context from path
-  const serverConfig = cfg ? {
-    docRoot: cfg.docRoot || '',
-    docRootLabel: cfg.docRootLabel || '',
-    docRootAbsolute: cfg.docRootAbsolute || '',
-  } : null
+  let context
 
-  const context = deriveDocRootFromPath(path, serverConfig)
+  // If tab has an entryId, use it directly as rootKey (library entry)
+  if (tab.entryId) {
+    context = {
+      rootKey: tab.entryId,
+      path: path,
+      absolutePath: path,
+      label: tab.label || path.split('/').filter(Boolean).pop() || 'Content',
+      focus: '',
+    }
+  } else {
+    // Use model to derive context from path
+    const serverConfig = cfg ? {
+      contentRoot: cfg.contentRoot || '',
+      contentRootLabel: cfg.contentRootLabel || '',
+      contentRootAbsolute: cfg.contentRootAbsolute || '',
+    } : null
 
-  // Override label if tab has custom label
-  if (tab.label) {
-    context.label = tab.label
+    context = deriveContextFromPath(path, serverConfig)
+
+    // Override label if tab has custom label
+    if (tab.label) {
+      context.label = tab.label
+    }
   }
 
   // Build message from context
-  return buildDocMessage(context)
+  return buildContentMessage(context)
 }
 
 function iconForTab(kind) {
@@ -1130,6 +1148,9 @@ function getShellTabStrip() {
   if (shellTabStrip) return shellTabStrip
   const bar = document.getElementById('tabsBar')
   if (!bar) return null
+  if (!bar.hasAttribute('data-ami-highlight-ignore')) {
+    bar.setAttribute('data-ami-highlight-ignore', '1')
+  }
   shellTabStrip = createTabStrip(bar, {
     showAddButton: true,
     addButtonLabel: '+',
@@ -1147,14 +1168,6 @@ function getShellTabStrip() {
     },
     onClose: (id) => {
       closeTab(id)
-    },
-    onContextMenu: (event, id) => {
-      const tab = tabsState.tabs.find((t) => t.id === id)
-      if (!tab) return
-      try {
-        event.preventDefault()
-      } catch {}
-      openTabContextMenu(event.clientX, event.clientY, tab)
     },
     onReorder: (order) => {
       applyTabOrder(Array.isArray(order) ? order : [])
@@ -1250,51 +1263,85 @@ function renderTabs() {
   updateWelcomeVisibility()
 }
 
-function openTabContextMenu(x, y, tab) {
-  closeContextMenus()
-  const menu = document.createElement('div')
-  menu.dataset.ctx = '1'
-  Object.assign(menu.style, {
-    position: 'fixed',
-    left: x + 'px',
-    top: y + 'px',
-    zIndex: 1000,
-    background: 'var(--panel)',
-    color: 'var(--text)',
-    border: '1px solid var(--border)',
-    borderRadius: '6px',
-    minWidth: '11.25rem',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+function registerShellContextMenus() {
+  registerContextMenu({
+    id: 'cms.shell.tab',
+    tokens: ['shell-tab'],
+    priority: 80,
+    match: (ctx) => {
+      if (ctx?.data && (ctx.data.tab || ctx.data.tabId)) return true
+      const target = ctx?.target
+      if (!(target instanceof Element)) return false
+      return !!target.closest('[data-tab-id]')
+    },
+    prepare: (ctx) => {
+      const targetEl = ctx.target instanceof Element ? ctx.target.closest('[data-tab-id]') : null
+      const providedTab = ctx.data?.tab || null
+      const providedTabId = ctx.data?.tabId || providedTab?.id || null
+      const tabId = providedTabId || targetEl?.dataset?.tabId || null
+      const tab = providedTab || (tabId ? tabsState.tabs.find((t) => t.id === tabId) || null : null)
+      return { tab, tabId, tabElement: targetEl }
+    },
+    build: (ctx) => buildTabContextMenuModel(ctx),
   })
-  function addItem(label, handler, disabled = false) {
-    const it = document.createElement('div')
-    it.textContent = label
-    Object.assign(it.style, {
-      padding: '0.5rem 0.625rem',
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      opacity: disabled ? '0.5' : '1',
-    })
-    if (!disabled)
-      it.addEventListener('click', async () => {
-        try {
-          await handler()
-        } finally {
-          closeContextMenus()
-        }
-      })
-    menu.appendChild(it)
+}
+
+function buildTabContextMenuModel(ctx) {
+  const tab = ctx.tab
+  if (!tab) return null
+  const isServing = !!tab.servedId
+  const canStart = !!tab.entryId && !isServing
+  const tabLabel = tab.label || (tab.path ? tab.path.split(/[\\/]/).pop() || tab.path : 'Tab')
+
+  const actionItems = [
+    {
+      id: 'tab-open',
+      label: 'Open',
+      onSelect: () => activateTab(tab.id),
+    },
+    {
+      id: 'tab-start',
+      label: 'Start Serving',
+      hint: tab.entryId ? 'Make content available via Serve' : 'Add to Library first',
+      disabled: !canStart,
+      onSelect: async () => {
+        if (!canStart) return
+        await startServingTab(tab, 'tab-menu')
+      },
+    },
+    {
+      id: 'tab-stop',
+      label: 'Stop Serving',
+      danger: true,
+      disabled: !isServing,
+      onSelect: async () => {
+        if (!isServing) return
+        await stopServingTab(tab, 'tab-menu')
+      },
+    },
+    {
+      id: 'tab-metadata',
+      label: 'Metadata Settings…',
+      disabled: !tab.path,
+      onSelect: () => openMetadataSettingsForTab(tab),
+    },
+  ]
+
+  const manageItems = [
+    {
+      id: 'tab-close',
+      label: 'Close Tab',
+      onSelect: () => closeTab(tab.id),
+    },
+  ]
+
+  return {
+    title: tabLabel,
+    sections: [
+      { id: 'tab-actions', label: 'Actions', items: actionItems },
+      { id: 'tab-manage', label: 'Manage', items: manageItems },
+    ],
   }
-  const canStart = !!tab.entryId
-  const canStop = !!tab.servedId
-  addItem('Open', () => activateTab(tab.id))
-  addItem('Start Serving', () => startServingTab(tab, 'tab-menu'), !canStart)
-  addItem('Stop Serving', () => stopServingTab(tab, 'tab-menu'), !canStop)
-  addItem('Metadata Settings…', () => openMetadataSettingsForTab(tab), !tab.path)
-  addItem('Close Tab', () => closeTab(tab.id))
-  document.body.appendChild(menu)
-  setTimeout(() => {
-    document.addEventListener('click', closeContextMenus, { once: true })
-  }, 0)
 }
 
 async function openMetadataSettingsForTab(tab) {
@@ -1330,10 +1377,6 @@ async function openMetadataSettingsForTab(tab) {
     rootLabel: context.rootLabel,
     relativePath: context.relativePath,
   })
-}
-
-function closeContextMenus() {
-  document.querySelectorAll('div[data-ctx="1"]').forEach((n) => n.remove())
 }
 
 function closeTab(id) {
@@ -1395,7 +1438,8 @@ async function activateTab(id) {
     }
     if (tab.kind === 'dir') {
       resetDocMessagingState()
-      const docMessage = buildDocMessageForDir(tab, cfg)
+      const docMessage = buildContentMessageForDir(tab, cfg)
+      console.log('[shell] Queuing content message:', JSON.stringify(docMessage))
       lastDocMessage = docMessage
       if (docMessage) queueDocMessage(docMessage)
       if (frame) teardownHighlightPlugin(frame)
@@ -1426,7 +1470,7 @@ async function activateTab(id) {
       if (frame) teardownHighlightPlugin(frame)
       const mode = tab.mode || 'A'
       let rel = tab.path || ''
-      let root = 'docRoot'
+      let root = 'contentRoot'
       const normalizedPath = normalizeFsPath(rel)
       const uploadsMarker = '/files/uploads/'
       const uploadsIdx = normalizedPath.indexOf(uploadsMarker)
@@ -1434,15 +1478,15 @@ async function activateTab(id) {
         rel = normalizedPath.slice(uploadsIdx + uploadsMarker.length)
         root = 'uploads'
       } else if (cfg) {
-        const docRootNormalized = normalizeFsPath(cfg.docRootAbsolute || cfg.docRoot || '').replace(
+        const contentRootNormalized = normalizeFsPath(cfg.contentRootAbsolute || cfg.contentRoot || '').replace(
           /\/+$/,
           '',
         )
-        if (docRootNormalized) {
-          if (normalizedPath === docRootNormalized) {
+        if (contentRootNormalized) {
+          if (normalizedPath === contentRootNormalized) {
             rel = ''
-          } else if (normalizedPath.startsWith(docRootNormalized + '/')) {
-            rel = normalizedPath.slice(docRootNormalized.length + 1)
+          } else if (normalizedPath.startsWith(contentRootNormalized + '/')) {
+            rel = normalizedPath.slice(contentRootNormalized.length + 1)
           } else {
             rel = normalizedPath
           }
@@ -1579,6 +1623,7 @@ async function ensureModeForFile(p) {
 }
 
 async function openEntry(entry) {
+  console.log('[shell] Opening entry:', JSON.stringify({ id: entry.id, kind: entry.kind, path: entry.path, label: entry.label }))
   // Check if already served
   let servedId = null
   try {
@@ -1601,6 +1646,7 @@ async function openEntry(entry) {
     servedId,
     mode: null,
   }
+  console.log('[shell] Created tab:', JSON.stringify({ id: tab.id, entryId: tab.entryId, kind: tab.kind, path: tab.path }))
   if (entry.kind === 'file') tab.mode = await ensureModeForFile(entry.path)
   tabsState.tabs.push(tab)
   activateTab(tabId)
@@ -1682,7 +1728,7 @@ async function boot() {
       if (r.ok) pathInfo.meta = await r.json()
     } catch {}
   } else {
-    pathInfo = { type: 'dir', path: cfg?.docRoot || '' }
+    pathInfo = { type: 'dir', path: cfg?.contentRoot || '' }
   }
   let viz = null
   if (pathInfo?.mode)
@@ -1716,7 +1762,7 @@ async function boot() {
     // Also message the iframe (with retries)
     queueDocMessage({ type: 'applyTheme', theme })
   }
-  // Ensure we re-send theme and docRoot as soon as the embedded doc signals readiness
+  // Ensure we re-send theme and contentRoot as soon as the embedded doc signals readiness
   window.addEventListener('message', (ev) => {
     try {
       const msg = ev && ev.data
@@ -1737,6 +1783,7 @@ async function boot() {
         return
       }
       if (msg.type === 'docReady') {
+        console.log('[shell] docReady received, pendingDocMessages.length:', pendingDocMessages.length, 'lastDocMessage:', JSON.stringify(lastDocMessage))
         if (!sourceVisible) return
         docIsReady = true
         if (sourceWin && ownerFrame) {
@@ -1747,10 +1794,12 @@ async function boot() {
         }
         if (!pendingDocMessages.length) {
           const active = tabsState.tabs.find((t) => t.id === tabsState.active)
+          console.log('[shell] docReady handler, active tab:', JSON.stringify({ id: active?.id, entryId: active?.entryId, kind: active?.kind, path: active?.path }))
           if (active && active.kind === 'dir') {
             ;(async () => {
               const cfgNow = await loadConfig()
-              const docMessage = buildDocMessageForDir(active, cfgNow)
+              const docMessage = buildContentMessageForDir(active, cfgNow)
+              console.log('[shell] docReady rebuilding message:', JSON.stringify(docMessage))
               lastDocMessage = docMessage
               if (docMessage) queueDocMessage(docMessage)
               queueDocMessage({
@@ -1768,11 +1817,11 @@ async function boot() {
       if (msg.type === 'docConfig') {
         if (!sourceVisible) return
         if (!cachedConfig) cachedConfig = {}
-        if (typeof msg.docRoot === 'string') cachedConfig.docRoot = msg.docRoot
-        if (typeof msg.docRootLabel === 'string' || msg.docRootLabel === null)
-          cachedConfig.docRootLabel = msg.docRootLabel
-        if (typeof msg.docRootAbsolute === 'string')
-          cachedConfig.docRootAbsolute = msg.docRootAbsolute
+        if (typeof msg.contentRoot === 'string') cachedConfig.contentRoot = msg.contentRoot
+        if (typeof msg.contentRootLabel === 'string' || msg.contentRootLabel === null)
+          cachedConfig.contentRootLabel = msg.contentRootLabel
+        if (typeof msg.contentRootAbsolute === 'string')
+          cachedConfig.contentRootAbsolute = msg.contentRootAbsolute
         return
       }
     } catch {}

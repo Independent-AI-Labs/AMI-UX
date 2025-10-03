@@ -2,7 +2,7 @@ import './auth-fetch.js'
 
 import { applyHint, humanizeName, pathAnchor } from './utils.js'
 import { ensureDocumentHintLayer } from './hints/manager.js'
-import { fetchConfig, fetchTreeChildren, setDocRoot } from './api.js'
+import { fetchConfig, fetchTreeChildren, fetchLibrary } from './api.js'
 import {
   applyTheme,
   renderTree,
@@ -21,9 +21,8 @@ import { markIgnoredNode } from './highlight-plugin/core/dom-utils.js'
 import { normalizeFsPath } from './file-tree.js'
 import { createVisibilityTracker } from './visibility-tracker.js'
 import {
-  createDocRootFromConfig,
-  createDocRootFromMessage,
-  buildDocRootSubtitle,
+  createContextFromMessage,
+  buildContextSubtitle,
 } from './models.js'
 
 window.addEventListener('ami:unauthorized', () => {
@@ -53,26 +52,26 @@ const state = {
   treeOverlayLabel: null,
   treeFilterInput: null,
   treeFilterValue: '',
-  rootKey: 'docRoot',
+  rootKey: '',
   rootLabelOverride: null,
   pendingFocus: typeof bootOptions.focusPath === 'string' ? bootOptions.focusPath : '',
-  docRootAbsolute: '',
-  cacheContext: 'docRoot',
+  contentRootAbsolute: '',
+  cacheContext: '',
   isLoading: false,
   eventsAttached: false,
-  docOverlay: null,
-  docOverlayLabel: null,
+  contentOverlay: null,
+  contentOverlayLabel: null,
   bootOptions,
   fileOnly: Boolean(bootOptions.fileOnly),
   treeIndex: new Map(),
   loadDirectoryChildren: null,
   visibilityTracker: null,
-  // SINGLE SOURCE OF TRUTH for doc root context
-  docRootContext: {
-    rootKey: 'docRoot',
+  // SINGLE SOURCE OF TRUTH for content root context
+  contentContext: {
+    rootKey: '',
     path: '',
     absolutePath: '',
-    label: 'Docs',
+    label: 'Content',
     focus: '',
   },
 }
@@ -240,7 +239,7 @@ async function loadDirectoryChildren(state, node) {
   meta.error = null
   meta.promise = (async () => {
     try {
-      const res = await fetchTreeChildren(state.rootKey || 'docRoot', node.path || '')
+      const res = await fetchTreeChildren(state.rootKey || '', node.path || '')
       const summaries = Array.isArray(res.children) ? res.children : []
       const children = summaries.map((summary) => createNodeFromSummary(summary))
       node.children = children
@@ -296,7 +295,7 @@ async function buildInitialTree(state, rootKey) {
 function ensureDocOverlay() {
   const shell = getTreeShell()
   if (!shell) return null
-  if (!state.docOverlay || !shell.contains(state.docOverlay)) {
+  if (!state.contentOverlay || !shell.contains(state.contentOverlay)) {
     let overlay = shell.querySelector('.doc-viewer__overlay')
     if (!overlay) {
       overlay = document.createElement('div')
@@ -315,23 +314,23 @@ function ensureDocOverlay() {
       overlay.appendChild(spinner)
       overlay.appendChild(label)
       shell.appendChild(overlay)
-      state.docOverlayLabel = label
+      state.contentOverlayLabel = label
     } else {
-      state.docOverlayLabel = overlay.querySelector('.doc-viewer__overlay-label')
+      state.contentOverlayLabel = overlay.querySelector('.doc-viewer__overlay-label')
     }
-    state.docOverlay = overlay
-  } else if (!state.docOverlayLabel) {
-    state.docOverlayLabel = state.docOverlay.querySelector('.doc-viewer__overlay-label')
+    state.contentOverlay = overlay
+  } else if (!state.contentOverlayLabel) {
+    state.contentOverlayLabel = state.contentOverlay.querySelector('.doc-viewer__overlay-label')
   }
-  return state.docOverlay
+  return state.contentOverlay
 }
 
 function endDocumentLoading(token) {
   if (!state.documentLoadTokens) state.documentLoadTokens = new Set()
   if (token && state.documentLoadTokens.has(token)) state.documentLoadTokens.delete(token)
-  if (state.documentLoadTokens.size === 0 && state.docOverlay) {
-    state.docOverlay.classList.remove('doc-viewer__overlay--active')
-    state.docOverlay.setAttribute('aria-hidden', 'true')
+  if (state.documentLoadTokens.size === 0 && state.contentOverlay) {
+    state.contentOverlay.classList.remove('doc-viewer__overlay--active')
+    state.contentOverlay.setAttribute('aria-hidden', 'true')
   }
 }
 
@@ -339,8 +338,8 @@ function beginDocumentLoading(message = 'Loading document…') {
   const overlay = ensureDocOverlay()
   if (!overlay) return () => {}
   if (!state.documentLoadTokens) state.documentLoadTokens = new Set()
-  if (state.docOverlayLabel && typeof message === 'string') {
-    state.docOverlayLabel.textContent = message
+  if (state.contentOverlayLabel && typeof message === 'string') {
+    state.contentOverlayLabel.textContent = message
   }
   overlay.classList.add('doc-viewer__overlay--active')
   overlay.setAttribute('aria-hidden', 'false')
@@ -476,7 +475,7 @@ function ensureTreeContainer() {
     }
   }
   if (state.visibilityTracker && typeof state.visibilityTracker.setOptions === 'function') {
-    state.visibilityTracker.setOptions({ rootMargin: '10rem 0px' })
+    state.visibilityTracker.setOptions({ rootMargin: '160px 0px' })
   }
   ensureDocOverlay()
   if (typeof state.registerTreeFilterInput === 'function') {
@@ -495,7 +494,7 @@ function debounceRefreshTree() {
     let scrollY = window.scrollY
     state.isLoading = true
     try {
-      const newTree = await buildInitialTree(state, state.rootKey || 'docRoot')
+      const newTree = await buildInitialTree(state, state.rootKey || '')
       state.tree = newTree
       state.loadDirectoryChildren = async (nodeOrPath) => {
         if (!nodeOrPath) return []
@@ -612,9 +611,9 @@ async function renderStandaloneDocument(state, tree, targetPath) {
         : entry.html || document.createTextNode('')
     content.appendChild(cloned)
     try {
-      const docRootKey = state?.rootKey || 'docRoot'
+      const contentRootKey = state?.rootKey || ''
       if (document && document.documentElement) {
-        document.documentElement.setAttribute('data-ami-doc-root', docRootKey)
+        document.documentElement.setAttribute('data-ami-content-root', contentRootKey)
         if (node.path) document.documentElement.setAttribute('data-ami-doc-path', node.path)
         else document.documentElement.removeAttribute('data-ami-doc-path')
       }
@@ -623,7 +622,7 @@ async function renderStandaloneDocument(state, tree, targetPath) {
           detail: {
             path: node.path || '',
             name: node.name || '',
-            root: docRootKey,
+            root: contentRootKey,
           },
         }),
       )
@@ -641,20 +640,20 @@ async function renderStandaloneDocument(state, tree, targetPath) {
   }
 }
 
-async function persistDocRoot(pathStr, options = {}) {
-  // NOTE: Server ignores docRoot/docRootLabel changes (they're ENV-configured)
+async function persistContentRoot(pathStr, options = {}) {
+  // NOTE: Content roots are managed via library entries
   // So we don't POST them - just update local state
-  const context = createDocRootFromMessage({
-    rootKey: 'docRoot',
+  const context = createContextFromMessage({
+    rootKey: '',
     path: pathStr,
     label: options.label || null,
     focus: state.pendingFocus || '',
   })
 
   // Update state with new context (preserves label!)
-  state.docRootContext = context
+  state.contentContext = context
   state.rootKey = context.rootKey
-  state.docRootAbsolute = context.absolutePath
+  state.contentRootAbsolute = context.absolutePath
   state.rootLabelOverride = context.label // ✓ NO LONGER NULLED
 }
 
@@ -666,7 +665,7 @@ export async function startCms(fromSelect = false) {
   if (!state.eventsAttached) {
     attachEvents(
       state,
-      (path) => persistDocRoot(path),
+      (path) => persistContentRoot(path),
       startCms,
       () => applyTheme(state),
     )
@@ -676,39 +675,40 @@ export async function startCms(fromSelect = false) {
   try {
     cfg = await fetchConfig()
   } catch {}
-  if (cfg) {
-    // Initialize docRootContext from server config if not already set
-    if (!state.docRootContext.absolutePath || state.rootKey === 'docRoot') {
-      state.docRootContext = createDocRootFromConfig(cfg)
-      state.rootKey = state.docRootContext.rootKey
-      state.docRootAbsolute = state.docRootContext.absolutePath
-      state.rootLabelOverride = state.docRootContext.label
-    }
 
+  // Load library entries and initialize with first available entry
+  if (!state.rootKey) {
     try {
-      window.parent?.postMessage?.(
-        {
-          type: 'docConfig',
-          docRoot: cfg.docRoot,
-          docRootLabel: cfg.docRootLabel,
-          docRootAbsolute: state.docRootContext.absolutePath,
-        },
-        '*',
-      )
-    } catch {}
+      const library = await fetchLibrary()
+      if (library && library.entries && library.entries.length > 0) {
+        const firstEntry = library.entries[0]
+        state.rootKey = firstEntry.id
+        state.contentContext = {
+          rootKey: firstEntry.id,
+          path: firstEntry.path,
+          absolutePath: firstEntry.path,
+          label: firstEntry.label || firstEntry.path.split('/').pop() || 'Content',
+          focus: '',
+        }
+        state.contentRootAbsolute = firstEntry.path
+        state.rootLabelOverride = firstEntry.label
+      }
+    } catch (err) {
+      console.warn('Failed to load library', err)
+    }
   }
-  const activeRootKey = state.rootKey || 'docRoot'
-  const contextTag = activeRootKey === 'uploads' ? 'uploads' : state.docRootAbsolute || 'docRoot'
+
+  const activeRootKey = state.rootKey || ''
+  const contextTag = activeRootKey === 'uploads' ? 'uploads' : state.contentRootAbsolute || ''
   const combinedContext = `${activeRootKey}::${contextTag}`
   if (state.cacheContext !== combinedContext) {
     state.cache.clear()
     state.cacheContext = combinedContext
   }
-  const rootLabelEl = document.getElementById('docRootLabel')
+  const rootLabelEl = document.getElementById('contentRootLabel')
   if (rootLabelEl) {
-    if (activeRootKey === 'docRoot') {
-      const label = cfg ? cfg.docRootLabel || cfg.docRootAbsolute || cfg.docRoot || '' : ''
-      rootLabelEl.textContent = label ? '(' + label + ')' : ''
+    if (activeRootKey === '') {
+      rootLabelEl.textContent = ''
     } else {
       const displayLabel =
         state.rootLabelOverride || (activeRootKey === 'uploads' ? 'Uploads' : '')
@@ -718,9 +718,18 @@ export async function startCms(fromSelect = false) {
   const treeSubtitleEl = document.getElementById('treeToolbarSubtitle')
   if (treeSubtitleEl) {
     // Use SINGLE SOURCE OF TRUTH for subtitle
-    const subtitleText = buildDocRootSubtitle(state.docRootContext)
+    const subtitleText = buildContextSubtitle(state.contentContext)
     treeSubtitleEl.textContent = subtitleText
   }
+  // Skip tree loading if no content root is selected
+  if (!activeRootKey) {
+    const root = ensureTreeContainer()
+    if (root) {
+      setTreeStatus('idle', 'Select content from Library')
+    }
+    return
+  }
+
   let root = null
   let shouldWipe = false
   if (state.fileOnly) {
@@ -737,6 +746,7 @@ export async function startCms(fromSelect = false) {
     setTreeStatus('loading', 'Loading content…', { wipe: shouldWipe, skeleton: true })
   }
   state.isLoading = true
+  console.log('[main] Building tree with rootKey:', activeRootKey)
   let tree = null
   try {
     tree = await buildInitialTree(state, activeRootKey)
@@ -831,23 +841,8 @@ export async function startCms(fromSelect = false) {
       debounceRefreshTree()
       fetchConfig()
         .then((c) => {
-          state.docRootAbsolute = c.docRootAbsolute || c.docRoot || ''
-          try {
-            window.parent?.postMessage?.(
-              {
-                type: 'docConfig',
-                docRoot: c.docRoot,
-                docRootLabel: c.docRootLabel,
-                docRootAbsolute: state.docRootAbsolute,
-              },
-              '*',
-            )
-          } catch {}
-          if (state.rootKey === 'docRoot') {
-            const label = c.docRootLabel || c.docRootAbsolute || c.docRoot || ''
-            const labelEl = document.getElementById('docRootLabel')
-            if (labelEl) labelEl.textContent = label ? '(' + label + ')' : ''
-          }
+          // Config no longer contains content root info
+          // Content roots are managed via library entries
         })
         .catch(() => {})
     },
@@ -884,21 +879,23 @@ window.addEventListener('message', async (ev) => {
   }
 
   try {
-    if (msg.type === 'setDocRoot') {
+    if (msg.type === 'setContentRoot') {
+      console.log('[main] Received setContentRoot:', JSON.stringify({ rootKey: msg.rootKey, path: msg.path, label: msg.label }))
       ack({ status: 'accepted' })
 
       // Use model to create context from message
-      const context = createDocRootFromMessage({
+      const context = createContextFromMessage({
         rootKey: msg.rootKey,
         path: msg.path,
         label: msg.label,
         focus: msg.focus,
       })
+      console.log('[main] Created context:', JSON.stringify({ rootKey: context.rootKey, path: context.path }))
 
       // Update state with context (single source of truth!)
-      state.docRootContext = context
+      state.contentContext = context
       state.rootKey = context.rootKey
-      state.docRootAbsolute = context.absolutePath
+      state.contentRootAbsolute = context.absolutePath
       state.rootLabelOverride = context.label
       state.pendingFocus = context.focus
 

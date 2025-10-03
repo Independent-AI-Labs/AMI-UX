@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import path from 'path'
 import crypto from 'crypto'
 import { listLibrary, saveLibrary, type LibraryEntry, type LibraryKind } from '../../lib/store'
-import { loadDocRootInfo } from '../../lib/doc-root'
 import { withSession } from '../../lib/auth-guard'
 import { promises as fs } from 'fs'
 import type { Dirent } from 'fs'
@@ -103,18 +102,7 @@ function idFromPath(p: string) {
 }
 
 export const GET = withSession(async () => {
-  const stored = await listLibrary()
-  const entries: LibraryEntry[] = [...stored]
-  try {
-    const docInfo = await loadDocRootInfo()
-    if (docInfo) {
-      const abs = path.resolve(docInfo.absolute)
-      const existingIndex = entries.findIndex((e) => path.resolve(e.path) === abs)
-      if (existingIndex !== -1 && !entries[existingIndex].label) {
-        entries[existingIndex] = { ...entries[existingIndex], label: docInfo.label }
-      }
-    }
-  } catch {}
+  const entries = await listLibrary()
   const augmented = await Promise.all(
     entries.map(async (entry) => {
       const metrics = await computeMetrics(entry.path, entry.kind).catch(() => null)

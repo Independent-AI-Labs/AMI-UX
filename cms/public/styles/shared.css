@@ -906,7 +906,7 @@ details:focus-within > summary .row-actions {
   padding: 1.375rem;
   border-radius: 14px;
   border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
-  background: color-mix(in oklab, var(--panel) 94%, transparent);
+  background: var(--panel);
   color: var(--text);
   box-shadow: 0 26px 72px rgba(0, 0, 0, 0.45);
   opacity: 0;
@@ -1709,12 +1709,14 @@ details:focus-within > summary .row-actions {
 .account-add-dialog__surface {
   --dialog-min-width: min(28.75rem, 94vw);
   --dialog-max-width: min(28.75rem, 94vw);
+  background: var(--panel) !important;
 }
 
 .account-add-dialog {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  background: var(--panel);
 }
 
 .account-add-dialog__title-row {

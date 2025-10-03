@@ -55,7 +55,7 @@ function toJsonResponse(body: unknown, init?: number | ResponseInit) {
 export const GET = withSession(async ({ request }) => {
   const url = new URL(request.url)
   const relParam = url.searchParams.get('path') || ''
-  const rootParam = url.searchParams.get('root') || 'docRoot'
+  const rootParam = url.searchParams.get('root') || 'contentRoot'
 
   if (!relParam) return toJsonResponse({ error: 'Missing path' }, 400)
 
@@ -111,7 +111,7 @@ export const POST = withSession(async ({ request }) => {
 
   const form = await request.formData()
   const relParam = (form.get('path') || '') as string
-  const rootParam = ((form.get('root') || '') as string) || 'docRoot'
+  const rootParam = ((form.get('root') || '') as string) || 'contentRoot'
   const headingsParam = form.get('headings')
   const logParam = form.get('log')
   const pdfFile = form.get('pdf') as File | null

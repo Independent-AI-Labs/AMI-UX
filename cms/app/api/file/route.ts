@@ -21,15 +21,15 @@ export const GET = withSession(async ({ request }) => {
 
   const cfg = await loadRuntimeConfig()
   const formats = await getTextFormats(cfg.allowed ?? null)
-  const rootParam = (url.searchParams.get('root') || 'docRoot') as string
-  const allowedRoot = rootParam === 'uploads' ? 'uploads' : 'docRoot'
+  const rootParam = (url.searchParams.get('root') || 'uploads') as string
+  const allowedRoot = rootParam
   const rootInfo = await resolveMediaRoot(allowedRoot)
   if (!rootInfo) return new NextResponse('Root unavailable', { status: 404 })
   const rootAbs = rootInfo.path
   const targetAbs = path.resolve(rootAbs, relPath)
   if (!withinRoot(rootAbs, targetAbs)) return new NextResponse('Forbidden', { status: 403 })
 
-  if (allowedRoot === 'docRoot' && !isAllowedTextFormat(formats, relPath)) {
+  if (!isAllowedTextFormat(formats, relPath)) {
     return new NextResponse('Unsupported type', { status: 415 })
   }
 

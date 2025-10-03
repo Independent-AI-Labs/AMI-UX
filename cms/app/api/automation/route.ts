@@ -391,7 +391,7 @@ function jsonError(message: string, status = 400) {
 export const GET = withSession(async ({ request }) => {
   const url = new URL(request.url)
   const relParam = url.searchParams.get('path') || ''
-  const rootParam = url.searchParams.get('root') || 'docRoot'
+  const rootParam = url.searchParams.get('root') || 'contentRoot'
   if (!relParam) return jsonError('Missing path', 400)
 
   let relPath: string
@@ -416,7 +416,7 @@ export const POST = withSession(async ({ request }) => {
   if (!body || typeof body !== 'object') return jsonError('Invalid payload', 400)
 
   const relParam = typeof body.path === 'string' ? body.path : ''
-  const rootParam = typeof body.root === 'string' && body.root ? body.root : 'docRoot'
+  const rootParam = typeof body.root === 'string' && body.root ? body.root : 'contentRoot'
   const action = typeof body.action === 'string' ? body.action : ''
   if (!relParam) return jsonError('Path required', 400)
   if (!action) return jsonError('Action required', 400)

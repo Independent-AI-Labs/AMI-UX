@@ -8,11 +8,175 @@ import { showToast } from './toast-manager.js?v=20250306'
 import { dialogService } from './dialog-service.js?v=20250306'
 import { openCreateDirectoryDialog } from './create-directory-dialog.js?v=20250306'
 import { ensureReact as ensureReactRuntime } from './react-loader.js?v=20250306'
+import { openContextMenu, registerContextMenu } from './context-menu.js'
 
-export { ensureReactRuntime as ensureReact }
+export { ensureReactRuntime as ensureReact, createThemedOverlay }
 
 const MODAL_CLOSE_DELAY = 260
 const DRAWER_CLOSE_DELAY = 260
+
+registerContextMenu({
+  id: 'cms.library-entry',
+  tokens: ['drawer-entry'],
+  priority: 70,
+  match: (ctx) => !!(ctx?.data && ctx.data.entry),
+  build: (ctx) => buildLibraryEntryMenu(ctx),
+})
+
+function buildLibraryEntryMenu(ctx) {
+  const data = ctx?.data || {}
+  const entry = data.entry
+  if (!entry) return null
+  const actions = data.actions || {}
+  const servingStatus = data.servingStatus || 'stopped'
+  const isRunning = servingStatus === 'running'
+  const canServe = actions.canServe !== false
+  const canOpenMetadata = actions.canOpenMetadata !== false
+
+  const primaryItems = []
+  if (typeof actions.onOpen === 'function') {
+    primaryItems.push({
+      id: 'library-open',
+      label: 'Open',
+      onSelect: actions.onOpen,
+    })
+  }
+  if (typeof actions.onStart === 'function') {
+    primaryItems.push({
+      id: 'library-start',
+      label: 'Start Serving',
+      hint: canServe ? 'Expose content via Serve' : 'Add to Library or select a valid target first',
+      disabled: !canServe || isRunning,
+      onSelect: actions.onStart,
+    })
+  }
+  if (typeof actions.onStop === 'function') {
+    primaryItems.push({
+      id: 'library-stop',
+      label: 'Stop Serving',
+      danger: true,
+      disabled: !isRunning,
+      onSelect: actions.onStop,
+    })
+  }
+  if (typeof actions.onRename === 'function') {
+    primaryItems.push({
+      id: 'library-rename',
+      label: 'Rename…',
+      onSelect: actions.onRename,
+    })
+  }
+  if (typeof actions.onCopyPath === 'function') {
+    primaryItems.push({
+      id: 'library-copy-path',
+      label: 'Copy Path',
+      onSelect: actions.onCopyPath,
+    })
+  }
+  if (typeof actions.onMeta === 'function') {
+    primaryItems.push({
+      id: 'library-metadata',
+      label: 'Metadata Settings…',
+      disabled: !canOpenMetadata,
+      onSelect: actions.onMeta,
+    })
+  }
+
+  const manageItems = []
+  if (typeof actions.onDeleteLibrary === 'function') {
+    manageItems.push({
+      id: 'library-remove',
+      label: 'Remove from Directory',
+      onSelect: actions.onDeleteLibrary,
+    })
+  }
+  if (typeof actions.onDeleteDisk === 'function') {
+    manageItems.push({
+      id: 'library-delete',
+      label: 'Delete from Disk',
+      danger: true,
+      onSelect: actions.onDeleteDisk,
+    })
+  }
+
+  if (!primaryItems.length && !manageItems.length) {
+    return null
+  }
+
+  const sections = []
+  if (primaryItems.length) sections.push({ id: 'library-actions', label: 'Actions', items: primaryItems })
+  if (manageItems.length) sections.push({ id: 'library-manage', label: 'Cleanup', items: manageItems })
+
+  const title = entry.label || entry.path || 'Content'
+  return { title, sections }
+}
+
+/**
+ * Creates a themed overlay container for dialogs/modals
+ * @param {Object} options - Configuration options
+ * @param {string} options.zIndex - Z-index value (default: '1600')
+ * @returns {HTMLDivElement} The overlay element with theme applied
+ */
+function syncThemeIntoElement(element) {
+  if (!element || typeof document === 'undefined') return
+  const root = document.documentElement
+  const theme = root.getAttribute('data-theme') || 'dark'
+  element.setAttribute('data-theme', theme)
+
+  try {
+    const styles = getComputedStyle(root)
+    for (let i = 0; i < styles.length; i += 1) {
+      const prop = styles[i]
+      if (!prop || !prop.startsWith('--')) continue
+      const value = styles.getPropertyValue(prop)
+      if (value != null && value !== '') element.style.setProperty(prop, value)
+    }
+  } catch {}
+}
+
+function createThemedOverlay({ zIndex = '1600' } = {}) {
+  const overlay = document.createElement('div')
+  overlay.style.position = 'fixed'
+  overlay.style.inset = '0'
+  overlay.style.zIndex = zIndex
+  overlay.setAttribute('data-ami-highlight-ignore', '1')
+
+  const applyTheme = () => syncThemeIntoElement(overlay)
+
+  applyTheme()
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+        applyTheme()
+        break
+      }
+    }
+  })
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  })
+
+  const handleThemeChange = () => applyTheme()
+  document.addEventListener('themechange', handleThemeChange)
+
+  const cleanup = () => {
+    observer.disconnect()
+    document.removeEventListener('themechange', handleThemeChange)
+  }
+
+  const originalRemove = overlay.remove.bind(overlay)
+  overlay.remove = (...args) => {
+    cleanup()
+    return originalRemove(...args)
+  }
+
+  overlay.__amiThemeCleanup = cleanup
+
+  return overlay
+}
 
 function createModalDialogFactory(React) {
   const { useEffect, useRef, useCallback, useMemo } = React
@@ -66,6 +230,41 @@ function createModalDialogFactory(React) {
       return () => {
         dialogService.unregister(dialogId)
         dialogHandleRef.current = null
+      }
+    }, [])
+
+    useEffect(() => {
+      const overlayEl = overlayRef.current
+      if (!overlayEl) return
+
+      const updateTheme = () => {
+        syncThemeIntoElement(overlayEl)
+        const surfaceEl = surfaceRef.current
+        if (surfaceEl) syncThemeIntoElement(surfaceEl)
+      }
+
+      updateTheme()
+
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+            updateTheme()
+            break
+          }
+        }
+      })
+
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme'],
+      })
+
+      const handleThemeChange = () => updateTheme()
+      document.addEventListener('themechange', handleThemeChange)
+
+      return () => {
+        observer.disconnect()
+        document.removeEventListener('themechange', handleThemeChange)
       }
     }, [])
 
@@ -278,7 +477,7 @@ function createServerDirectoryModalFactory(React, { ModalDialog, FileTreeSelecto
       if (writableRoots.length) {
         return writableRoots.sort((a, b) => {
           const weight = (value) => {
-            if (value.key === 'docRoot') return 0
+            if (value.key === 'contentRoot') return 0
             if (value.key === 'uploads') return 1
             return 2
           }
@@ -311,7 +510,7 @@ function createServerDirectoryModalFactory(React, { ModalDialog, FileTreeSelecto
           if (usedKeys.has(opt.key)) continue
           usedKeys.add(opt.key)
           try {
-            const query = opt.key === 'docRoot' ? '' : `?root=${encodeURIComponent(opt.key)}`
+            const query = opt.key === 'contentRoot' ? '' : `?root=${encodeURIComponent(opt.key)}`
             const res = await fetch(`/api/tree${query}`)
             if (!res.ok) throw new Error('failed')
             const data = await res.json()
@@ -932,6 +1131,12 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       actions,
       selected,
       footer,
+      dataAttributes: {
+        'data-entry-id': entry?.id || '',
+        'data-entry-kind': kind || '',
+        'data-entry-path': pathValue || '',
+        'data-menu-zone': 'cms-drawer',
+      },
       onDoubleClick: isUpload ? undefined : () => onOpen(entry),
       onContextMenu: isUpload ? undefined : (event) => onContext(event, entry),
     })
@@ -1016,81 +1221,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     return out
   }
 
-  function ContextMenu({
-    x,
-    y,
-    serving,
-    onClose,
-    onPick,
-    onStart,
-    onStop,
-    onRename,
-    onCopyPath,
-    onMeta,
-    onDeleteLib,
-    onDeleteDisk,
-  }) {
-    const startDisabled = !!serving
-    const stopDisabled = !serving
-    const metadataDisabled = typeof onMeta !== 'function'
-    const vpW = window.innerWidth || 1200
-    const vpH = window.innerHeight || 800
-    const left = Math.min(x, vpW - 220)
-    const top = Math.min(y, vpH - 180)
-    const mkItem = (key, label, action, disabled = false) =>
-      React.createElement(
-        'div',
-        {
-          key,
-          className: 'ctx',
-          onClick: (e) => {
-            e.stopPropagation()
-            if (!disabled) {
-              action()
-              onClose()
-            }
-          },
-          style: {
-            padding: '0.5rem 0.625rem',
-            cursor: disabled ? 'default' : 'pointer',
-            opacity: disabled ? 0.5 : 1,
-          },
-        },
-        label,
-      )
-    return React.createElement(
-      'div',
-      {
-        className: 'media-ctx',
-        style: {
-          position: 'fixed',
-          left,
-          top,
-          zIndex: 1603,
-          background: 'var(--panel)',
-          color: 'var(--text)',
-          border: '1px solid var(--border)',
-          borderRadius: 6,
-          minWidth: 220,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-          pointerEvents: 'auto',
-        },
-        onContextMenu: (e) => e.preventDefault(),
-      },
-      mkItem('open', 'Open', onPick),
-      mkItem('start', 'Start Serving', onStart, startDisabled),
-      mkItem('stop', 'Stop Serving', onStop, stopDisabled),
-      mkItem('rename', 'Rename…', onRename, false),
-      mkItem('copy', 'Copy Path', onCopyPath, false),
-      mkItem('meta', 'Metadata Settings…', onMeta, metadataDisabled),
-      React.createElement('div', {
-        style: { height: 1, background: 'var(--border)', margin: '4px 0' },
-      }),
-      mkItem('del', 'Remove from Directory', onDeleteLib, false),
-      mkItem('deld', 'Delete from Disk', onDeleteDisk, false),
-    )
-  }
-
   function DestinationModal({
     selection,
     directories,
@@ -1123,7 +1253,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
             if (usedKeys.has(opt.key)) continue
             usedKeys.add(opt.key)
             try {
-              const query = opt.key === 'docRoot' ? '' : `?root=${encodeURIComponent(opt.key)}`
+              const query = opt.key === 'contentRoot' ? '' : `?root=${encodeURIComponent(opt.key)}`
               const res = await fetch(`/api/tree${query}`)
               if (!res.ok) throw new Error('failed')
               const data = await res.json()
@@ -1320,7 +1450,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const [entries, setEntries] = useState([])
     const [loadingEntries, setLoadingEntries] = useState(true)
     const [filter, setFilter] = useState('')
-    const [menu, setMenu] = useState(null)
     const [servingMap, setServingMap] = useState(new Map())
     const [selectedId, setSelectedId] = useState(null)
     const [busyId, setBusyId] = useState(null)
@@ -1329,7 +1458,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
     const uploadControllers = useRef(new Map())
     const [dropActive, setDropActive] = useState(false)
     const [rootOptions, setRootOptions] = useState([])
-    const [uploadRoot, setUploadRoot] = useState('docRoot')
+    const [uploadRoot, setUploadRoot] = useState('contentRoot')
     const [pendingSelection, setPendingSelection] = useState(null)
     const [serverPickerOpen, setServerPickerOpen] = useState(false)
     const [noResultsToken, setNoResultsToken] = useState(0)
@@ -1425,10 +1554,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           const hasCurrent = writableList.some((item) => item.key === uploadRoot)
           if (!hasCurrent) {
             const preferred =
-              writableList.find((item) => item.key === 'docRoot') ||
+              writableList.find((item) => item.key === 'contentRoot') ||
               writableList.find((item) => item.key === 'uploads') ||
               writableList[0] ||
-              list.find((item) => item.key === 'docRoot') ||
+              list.find((item) => item.key === 'contentRoot') ||
               list.find((item) => item.key === 'uploads') ||
               list[0]
             if (preferred) setUploadRoot(preferred.key)
@@ -1535,7 +1664,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         if (targetPath) {
           try {
             const dirPayload = { path: targetPath, kind: 'dir' }
-            if (rootKey === 'docRoot' && rootLabel) {
+            if (rootKey === 'contentRoot' && rootLabel) {
               dirPayload.label = rootLabel
             }
             const res = await fetch('/api/library', {
@@ -2067,7 +2196,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         }
       }
       const resolvedRootLabel =
-        explicitLabel || rootInfo?.label || (root === 'docRoot' ? 'Doc Root' : root)
+        explicitLabel || rootInfo?.label || (root === 'contentRoot' ? 'Doc Root' : root)
       const id = `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`
       const totalBytes = cleaned.reduce((sum, entry) => sum + (entry.file?.size || 0), 0)
       const roots = uniqueRoots(cleaned)
@@ -2214,8 +2343,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         }))
         .filter((opt) => opt.base)
 
-      const docRootOpt = writableRootOptions.find((opt) => opt && opt.key === 'docRoot') || null
-      if (docRootOpt) addOption(docRootOpt.path, docRootOpt.label || 'Doc Root')
+      const contentRootOpt = writableRootOptions.find((opt) => opt && opt.key === 'contentRoot') || null
+      if (contentRootOpt) addOption(contentRootOpt.path, contentRootOpt.label || 'Doc Root')
 
       const writableKeys = new Set(writableRoots.map((opt) => opt.key))
 
@@ -2242,7 +2371,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         })
 
       writableRootOptions
-        .filter((opt) => opt && opt.key && opt.key !== 'docRoot')
+        .filter((opt) => opt && opt.key && opt.key !== 'contentRoot')
         .forEach((opt) => addOption(opt.path, opt.label || opt.key))
 
       return list
@@ -2382,10 +2511,10 @@ export async function openSelectMediaModal({ onSelect } = {}) {
           return
         }
         const selectedRoot =
-          writableRootOptions.find((opt) => opt && opt.key === 'docRoot') ||
+          writableRootOptions.find((opt) => opt && opt.key === 'contentRoot') ||
           writableRootOptions.find((opt) => opt && opt.key === uploadRoot) ||
           writableRootOptions[0] ||
-          rootOptions.find((opt) => opt && opt.key === 'docRoot') ||
+          rootOptions.find((opt) => opt && opt.key === 'contentRoot') ||
           activeRoot ||
           rootOptions[0]
         if (!selectedRoot) {
@@ -2403,25 +2532,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       showToast('Unsupported destination type.', { tone: 'danger' })
       setPendingSelection(null)
     }
-
-    // Close context menu on Escape or click outside
-    useEffect(() => {
-      if (!menu) return
-      const onKey = (e) => {
-        if (e.key === 'Escape') setMenu(null)
-      }
-      const onClick = (e) => {
-        const t = e.target
-        const inMenu = t && typeof t.closest === 'function' && t.closest('.media-ctx')
-        if (!inMenu) setMenu(null)
-      }
-      window.addEventListener('keydown', onKey)
-      window.addEventListener('mousedown', onClick)
-      return () => {
-        window.removeEventListener('keydown', onKey)
-        window.removeEventListener('mousedown', onClick)
-      }
-    }, [menu])
 
     // Toast auto-dismiss
 
@@ -2459,10 +2569,44 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       requestClose()
     }
 
-    function ctx(e, entry) {
-      e.preventDefault()
+    function ctx(event, entry) {
+      if (!entry) return
+      event.preventDefault()
       setSelectedId(entry.id)
-      setMenu({ x: e.clientX, y: e.clientY, entry })
+      const anchor =
+        event.currentTarget instanceof HTMLElement
+          ? event.currentTarget
+          : event.target instanceof HTMLElement
+            ? event.target
+            : surfaceRef.current
+      const servingStatus = servingMap.get(entry.id) || 'stopped'
+      openContextMenu('cms.library-entry', {
+        target: anchor || undefined,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        data: {
+          entry,
+          servingStatus,
+          actions: {
+            canServe: !!entry.id,
+            canOpenMetadata: !!entry.path,
+            onOpen: () => openEntry(entry),
+            onStart: async () => {
+              await startServing(entry)
+              await refreshServing()
+            },
+            onStop: async () => {
+              await stopServing(entry)
+              await refreshServing()
+            },
+            onRename: async () => renameEntry(entry),
+            onCopyPath: () => copyEntryPath(entry),
+            onMeta: () => openEntryMetadata(entry),
+            onDeleteLibrary: () => delLib(entry),
+            onDeleteDisk: () => delDisk(entry),
+          },
+        },
+      })
       refreshServing()
     }
 
@@ -2504,6 +2648,56 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         updateServing(entry.id, 'running')
         showToast('Failed to stop', { tone: 'danger' })
       }
+    }
+
+    async function renameEntry(entry) {
+      if (!entry?.id) return
+      const currentLabel = entry.label || ''
+      const next = prompt('New label:', currentLabel)
+      if (next == null) return
+      const trimmed = String(next).trim()
+      if (!trimmed || trimmed === currentLabel.trim()) return
+      try {
+        await fetch(`/api/library/${entry.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label: trimmed }),
+        })
+        const listing = await fetch('/api/library')
+          .then((r) => (r.ok ? r.json() : { entries: [] }))
+          .catch(() => ({ entries: [] }))
+        setEntries(listing.entries || [])
+      } catch (err) {
+        console.error('Failed to rename entry', err)
+        showToast('Failed to rename entry.', { tone: 'danger' })
+      }
+    }
+
+    async function copyEntryPath(entry) {
+      const path = entry?.path
+      if (!path) return
+      try {
+        await navigator.clipboard.writeText(path)
+        showToast('Path copied to clipboard.', { tone: 'info' })
+      } catch (err) {
+        console.error('Failed to copy path', err)
+        showToast('Failed to copy path.', { tone: 'danger' })
+      }
+    }
+
+    function openEntryMetadata(entry) {
+      const entryPath = entry?.path || ''
+      if (!entryPath) return
+      const metaPath = deriveMetaDirectory(entryPath)
+      const mapping = deriveRootForAbsolutePath(entryPath)
+      openMetadataSettingsDialog({
+        label: entry.label || entryPath.split(/[\\/]/).pop() || entryPath,
+        path: entryPath,
+        metaPath,
+        rootKey: mapping?.root || '',
+        rootLabel: mapping?.rootLabel || '',
+        relativePath: mapping?.prefix || '',
+      })
     }
     async function delLib(entry) {
       setBusyId(entry.id)
@@ -2767,63 +2961,6 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
     const portalChildren = [
       overlayNode,
-      menu &&
-        React.createElement('div', {
-          style: { position: 'fixed', inset: 0, zIndex: 1602, pointerEvents: 'auto' },
-          onClick: () => setMenu(null),
-        }),
-      menu &&
-        React.createElement(ContextMenu, {
-          x: menu.x,
-          y: menu.y,
-          serving: (servingMap.get(menu.entry.id) || 'stopped') === 'running',
-          onClose: () => setMenu(null),
-          onPick: () => openEntry(menu.entry),
-          onStart: async () => {
-            await startServing(menu.entry)
-            await refreshServing()
-          },
-          onStop: async () => {
-            await stopServing(menu.entry)
-            await refreshServing()
-          },
-          onRename: async () => {
-            const cur = menu.entry.label || ''
-            const next = prompt('New label:', cur)
-            if (next == null) return
-            await fetch(`/api/library/${menu.entry.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ label: next }),
-            })
-            const j = await fetch('/api/library')
-              .then((r) => r.json())
-              .catch(() => ({ entries: [] }))
-            setEntries(j.entries || [])
-          },
-          onCopyPath: async () => {
-            const p = menu.entry.path
-            try {
-              await navigator.clipboard.writeText(p)
-            } catch {}
-          },
-          onMeta: () => {
-            const entryPath = menu.entry.path || ''
-            if (!entryPath) return
-            const metaPath = deriveMetaDirectory(entryPath)
-            const mapping = deriveRootForAbsolutePath(entryPath)
-            openMetadataSettingsDialog({
-              label: menu.entry.label || entryPath.split(/[\\/]/).pop() || entryPath,
-              path: entryPath,
-              metaPath,
-              rootKey: mapping?.root || '',
-              rootLabel: mapping?.rootLabel || '',
-              relativePath: mapping?.prefix || '',
-            })
-          },
-          onDeleteLib: () => delLib(menu.entry),
-          onDeleteDisk: () => delDisk(menu.entry),
-        }),
       pendingSelection &&
         React.createElement(DestinationModal, {
           selection: pendingSelection,
@@ -2996,10 +3133,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
   }
 
   // Mount modal
-  const overlay = document.createElement('div')
-  overlay.style.position = 'fixed'
-  overlay.style.inset = '0'
-  overlay.style.zIndex = '1600'
+  const overlay = createThemedOverlay({ zIndex: '1600' })
   document.body.appendChild(overlay)
   const root = ReactDOM.createRoot(overlay)
   const onCloseHandler = () => {
@@ -3040,13 +3174,11 @@ export async function openServerDirectoryPicker(options = {}) {
   }
 
   return new Promise((resolve) => {
-    const overlay = document.createElement('div')
-    overlay.style.position = 'fixed'
-    overlay.style.inset = '0'
-    overlay.style.zIndex = '1700'
-    document.body.appendChild(overlay)
+    const container = document.createElement('div')
+    container.setAttribute('data-ami-highlight-ignore', '1')
+    document.body.appendChild(container)
 
-    const root = ReactDOM.createRoot(overlay)
+    const root = ReactDOM.createRoot(container)
     let settled = false
 
     const finalize = (result) => {
@@ -3056,7 +3188,7 @@ export async function openServerDirectoryPicker(options = {}) {
         root.unmount()
       } catch {}
       try {
-        overlay.remove()
+        container.remove()
       } catch {}
       resolve(result)
     }

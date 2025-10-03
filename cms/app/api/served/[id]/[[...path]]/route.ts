@@ -141,7 +141,7 @@ export const GET = withSession<{ params: Promise<{ id: string; path?: string[] }
     }
   }
   if (inst.kind === 'dir') {
-    const html = `<!doctype html><html lang="en" data-ami-highlight-proxy="1"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Docs</title><script>window.__AMI_HIGHLIGHT_PROXY__=true;</script></head><body style="margin:0; height:100vh; background:#111;" data-ami-highlight-proxy="1"><iframe id="d" src="/doc.html?embed=1" style="border:0;width:100%;height:100%"></iframe><script>window.addEventListener('load',function(){try{document.getElementById('d').contentWindow.postMessage({type:'setDocRoot',path:${JSON.stringify(entry.path)}},'*')}catch(e){}})</script></body></html>`
+    const html = `<!doctype html><html lang="en" data-ami-highlight-proxy="1"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Docs</title><script>window.__AMI_HIGHLIGHT_PROXY__=true;</script></head><body style="margin:0; height:100vh; background:#111;" data-ami-highlight-proxy="1"><iframe id="d" src="/doc.html?embed=1" style="border:0;width:100%;height:100%"></iframe><script>window.addEventListener('load',function(){try{document.getElementById('d').contentWindow.postMessage({type:'setContentRoot',path:${JSON.stringify(entry.path)}},'*')}catch(e){}})</script></body></html>`
     const headers = new Headers({ 'Content-Type': 'text/html; charset=utf-8' })
     csp(headers)
     return new NextResponse(html, { headers })

@@ -57,8 +57,8 @@ export function applyTheme(state) {
 }
 
 function cacheKey(state, relPath) {
-  const rootKey = state?.rootKey === 'uploads' ? 'uploads' : 'docRoot'
-  const context = rootKey === 'uploads' ? 'uploads' : state?.docRootAbsolute || 'docRoot'
+  const rootKey = state?.rootKey || ''
+  const context = state?.contentRootAbsolute || rootKey
   return `${rootKey}@${context}::${relPath}`
 }
 
@@ -155,7 +155,8 @@ export async function ensureFileContent(state, node) {
     return state.cache.get(key)
   }
   try {
-    const rootKey = state?.rootKey === 'uploads' ? 'uploads' : 'docRoot'
+    const rootKey = state?.rootKey
+    if (!rootKey) throw new Error('No content root selected')
     const { view, meta } = resolveFileView(node)
     const primaryFormat = view?.contentFormat === 'manual' ? null : view?.contentFormat || 'text'
     const fetchForFormat = (format) => fetchFile(node.path, rootKey, { format })
@@ -238,9 +239,9 @@ export async function loadFileNode(state, details, node, body) {
       html && typeof html.cloneNode === 'function' ? html.cloneNode(true) : html || document.createTextNode('')
     body.appendChild(cloned)
     try {
-      const docRootKey = state?.rootKey || 'docRoot'
+      const contentRootKey = state?.rootKey || ''
       if (document && document.documentElement) {
-        document.documentElement.setAttribute('data-ami-doc-root', docRootKey)
+        document.documentElement.setAttribute('data-ami-doc-root', contentRootKey)
         if (node.path) document.documentElement.setAttribute('data-ami-doc-path', node.path)
         else document.documentElement.removeAttribute('data-ami-doc-path')
       }
@@ -249,7 +250,7 @@ export async function loadFileNode(state, details, node, body) {
           detail: {
             path: node.path || '',
             name: node.name || '',
-            root: docRootKey,
+            root: contentRootKey,
           },
         }),
       )
@@ -628,7 +629,8 @@ function ensureSummaryActions(state, details, node) {
     if (!path) return
     try {
       btn.classList.add('is-busy')
-      const rootKey = state?.rootKey || 'docRoot'
+      const rootKey = state?.rootKey
+      if (!rootKey) throw new Error('No content root selected')
       const blob = await fetchFile(path, rootKey, { format: 'blob' })
       const url = URL.createObjectURL(blob)
       const anchorEl = document.createElement('a')
@@ -1467,7 +1469,7 @@ export function scrollToAnchorWhenReady(anchorId, options = {}) {
   setTimeout(seek, baseDelay)
 }
 
-export function attachEvents(state, setDocRoot, init, applyThemeCb) {
+export function attachEvents(state, setContentRoot, init, applyThemeCb) {
   const on = (id, evt, fn) => {
     const el = document.getElementById(id)
     if (el && typeof el.addEventListener === 'function') el.addEventListener(evt, fn)
@@ -1488,10 +1490,10 @@ export function attachEvents(state, setDocRoot, init, applyThemeCb) {
           await fetch('/api/config')
             .then((r) => r.json())
             .catch(() => ({}))
-        ).docRoot || ''
+        ).contentRoot || ''
       const val = prompt('Enter docs directory path (absolute or relative to server):', current)
       if (!val) return
-      await setDocRoot(val)
+      await setContentRoot(val)
       await init(true)
     } catch (e) {
       alert(e.message || 'Failed to set directory')

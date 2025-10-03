@@ -157,22 +157,22 @@ test('PUT rejects mismatched offsets', { concurrency: false }, async () => {
   assert.equal(badPayload.size, firstChunk.length)
 })
 
-test('PUT honours docRoot uploads and metadata storage', { concurrency: false }, async () => {
+test('PUT honours contentRoot uploads and metadata storage', { concurrency: false }, async () => {
   const { GET, PUT } = uploadModule
-  const docRootDir = path.join(tempRepoRoot, 'docs')
-  await mkdir(docRootDir, { recursive: true })
+  const contentRootDir = path.join(tempRepoRoot, 'docs')
+  await mkdir(contentRootDir, { recursive: true })
   const dataDir = path.join(tempRepoRoot, 'data')
   await mkdir(dataDir, { recursive: true })
   const configPath = path.join(dataDir, 'config.json')
-  const docRootRelative = path.relative(tempRepoRoot, docRootDir)
-  await writeFile(configPath, JSON.stringify({ docRoot: docRootRelative, docRootLabel: 'Docs' }, null, 2))
+  const contentRootRelative = path.relative(tempRepoRoot, contentRootDir)
+  await writeFile(configPath, JSON.stringify({ contentRoot: contentRootRelative, contentRootLabel: 'Docs' }, null, 2))
 
   const relativePath = 'guides/start.md'
   const expectedSize = 12
   const baseUrl = new URL('http://localhost/api/upload')
   baseUrl.searchParams.set('path', relativePath)
   baseUrl.searchParams.set('size', String(expectedSize))
-  baseUrl.searchParams.set('root', 'docRoot')
+  baseUrl.searchParams.set('root', 'contentRoot')
 
   const firstChunk = Buffer.from('hello ')
   const firstRes = await PUT(
@@ -206,16 +206,16 @@ test('PUT honours docRoot uploads and metadata storage', { concurrency: false },
   const finalPayload = await finalRes.json()
   assert.equal(finalPayload.complete, true)
   assert.equal(finalPayload.offset, expectedSize)
-  assert.equal(finalPayload.rootKey, 'docRoot')
+  assert.equal(finalPayload.rootKey, 'contentRoot')
   assert.equal(finalPayload.rootLabel, 'Docs')
-  assert.equal(path.resolve(finalPayload.rootBaseAbsolute || ''), docRootDir)
+  assert.equal(path.resolve(finalPayload.rootBaseAbsolute || ''), contentRootDir)
 
-  const uploadedFile = path.join(docRootDir, relativePath)
+  const uploadedFile = path.join(contentRootDir, relativePath)
   assert.equal(existsSync(uploadedFile), true)
   const contents = await readFile(uploadedFile, 'utf8')
   assert.equal(contents, 'hello world!')
 
-  const metaPath = path.join(tempRepoRoot, 'data', 'upload-meta', 'docRoot', `${relativePath}.json`)
+  const metaPath = path.join(tempRepoRoot, 'data', 'upload-meta', 'contentRoot', `${relativePath}.json`)
   assert.equal(existsSync(metaPath), true)
   const meta = JSON.parse(await readFile(metaPath, 'utf8'))
   assert.equal(meta.completed, true)
