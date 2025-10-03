@@ -29,6 +29,7 @@ before(async () => {
 beforeEach(async () => {
   if (!tempRepoRoot) return
   await rm(path.join(tempRepoRoot, 'content'), { recursive: true, force: true })
+  await rm(path.join(tempRepoRoot, 'docs'), { recursive: true, force: true })
   await rm(path.join(tempRepoRoot, 'data'), { recursive: true, force: true })
 })
 
@@ -40,7 +41,7 @@ after(async () => {
 })
 
 test('Doc tree exposes extended text formats and serves their contents', { concurrency: false }, async () => {
-  const docRootDir = path.join(tempRepoRoot, 'content', 'docs')
+  const docRootDir = path.join(tempRepoRoot, 'docs')
   await mkdir(docRootDir, { recursive: true })
   await mkdir(path.join(tempRepoRoot, 'data'), { recursive: true })
 

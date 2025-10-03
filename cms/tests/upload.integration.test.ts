@@ -29,6 +29,7 @@ beforeEach(async () => {
   await rm(path.join(tempRepoRoot, 'files'), { recursive: true, force: true })
   await rm(path.join(tempRepoRoot, 'data'), { recursive: true, force: true })
   await rm(path.join(tempRepoRoot, 'content'), { recursive: true, force: true })
+  await rm(path.join(tempRepoRoot, 'docs'), { recursive: true, force: true })
 })
 
 after(async () => {
@@ -158,13 +159,13 @@ test('PUT rejects mismatched offsets', { concurrency: false }, async () => {
 
 test('PUT honours docRoot uploads and metadata storage', { concurrency: false }, async () => {
   const { GET, PUT } = uploadModule
-  const docRootDir = path.join(tempRepoRoot, 'content', 'docs')
+  const docRootDir = path.join(tempRepoRoot, 'docs')
   await mkdir(docRootDir, { recursive: true })
   const dataDir = path.join(tempRepoRoot, 'data')
   await mkdir(dataDir, { recursive: true })
   const configPath = path.join(dataDir, 'config.json')
   const docRootRelative = path.relative(tempRepoRoot, docRootDir)
-  await writeFile(configPath, JSON.stringify({ docRoot: docRootRelative, docRootLabel: 'AMI-REACH' }, null, 2))
+  await writeFile(configPath, JSON.stringify({ docRoot: docRootRelative, docRootLabel: 'Docs' }, null, 2))
 
   const relativePath = 'guides/start.md'
   const expectedSize = 12
@@ -206,7 +207,7 @@ test('PUT honours docRoot uploads and metadata storage', { concurrency: false },
   assert.equal(finalPayload.complete, true)
   assert.equal(finalPayload.offset, expectedSize)
   assert.equal(finalPayload.rootKey, 'docRoot')
-  assert.equal(finalPayload.rootLabel, 'AMI-REACH')
+  assert.equal(finalPayload.rootLabel, 'Docs')
   assert.equal(path.resolve(finalPayload.rootBaseAbsolute || ''), docRootDir)
 
   const uploadedFile = path.join(docRootDir, relativePath)

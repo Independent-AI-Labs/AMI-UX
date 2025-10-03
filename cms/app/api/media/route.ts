@@ -14,9 +14,9 @@ async function loadCfg(): Promise<Cfg> {
   try {
     const raw = await fs.readFile(p, 'utf8')
     const cfg = JSON.parse(raw)
-    return { docRoot: cfg.docRoot || process.env.DOC_ROOT || '../../../AMI-REACH/social' }
+    return { docRoot: cfg.docRoot || process.env.DOC_ROOT || 'docs' }
   } catch {
-    return { docRoot: process.env.DOC_ROOT || '../../../AMI-REACH/social' }
+    return { docRoot: process.env.DOC_ROOT || 'docs' }
   }
 }
 

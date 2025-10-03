@@ -6,7 +6,7 @@ export type RuntimeConfig = {
   allowed?: string | null
 }
 
-const DEFAULT_DOC_ROOT = process.env.DOC_ROOT || '../../../AMI-REACH/social'
+const DEFAULT_DOC_ROOT = process.env.DOC_ROOT || 'docs'
 
 function sanitizeString(value: unknown): string | null {
   if (typeof value !== 'string') return null

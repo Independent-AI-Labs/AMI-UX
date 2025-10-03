@@ -52,7 +52,7 @@ npm run dev   # serves http://localhost:3000 ; run in a separate terminal or bac
 > Tip: background long-lived commands (`npm run dev &`) or launch them in another terminal so your active shell stays unblocked.
 
 ## Configuration Reference
-- `DOC_ROOT` – primary live data directory (defaults to `../../../AMI-REACH/social`).
+- `DOC_ROOT` – primary live data directory (defaults to `docs`).
 - `ALLOWED_EXTENSIONS` – comma-delimited whitelist for text-serving endpoints.
 - `MEDIA_ROOTS` – optional labelled roots (`Label::/abs/path`) merged into `/api/media/list` alongside uploads and repo media.
 - `AUTH_SECRET`, `AUTH_TRUST_HOST` – NextAuth session security knobs.

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { withSession } from '../../../../lib/auth-guard'
+import { withSession } from '../../../../../lib/auth-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,9 +14,9 @@ async function loadCfg(): Promise<Cfg> {
   try {
     const raw = await fs.readFile(p, 'utf8')
     const cfg = JSON.parse(raw)
-    return { docRoot: cfg.docRoot || process.env.DOC_ROOT || '../../../AMI-REACH/social' }
+    return { docRoot: cfg.docRoot || process.env.DOC_ROOT || 'docs' }
   } catch {
-    return { docRoot: process.env.DOC_ROOT || '../../../AMI-REACH/social' }
+    return { docRoot: process.env.DOC_ROOT || 'docs' }
   }
 }
 
@@ -42,10 +42,7 @@ const MIME: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 }
 
-export const GET = withSession(async (
-  _req: Request,
-  context: { params: Promise<{ root: string; path?: string[] }> },
-) => {
+export const GET = withSession(async ({ context }: { context: { params: Promise<{ root: string; path?: string[] }> } }) => {
   const { root, path: pathParts } = await context.params
   const { docRoot } = await loadCfg()
   const cwd = process.cwd()

@@ -2,11 +2,20 @@ import { NextResponse } from 'next/server'
 
 import { signIn } from '@ami/auth/server'
 
+import { buildAbsoluteUrl, resolveRequestOrigin } from '../../../lib/request-origin'
+
+function serialiseRelative(base: URL, target: URL): string {
+  if (target.origin === base.origin) {
+    const suffix = `${target.pathname}${target.search}${target.hash}`
+    return suffix || '/index.html'
+  }
+  return '/index.html'
+}
+
 function toRedirectUrl(base: URL, target: string | null | undefined): URL {
-  if (!target) return new URL('/index.html', base)
-  if (target === '/') return new URL('/index.html', base)
+  if (!target || target === '/') return new URL('/index.html', base)
   try {
-    const resolved = new URL(target, base)
+    const resolved = buildAbsoluteUrl(base, target)
     if (resolved.origin !== base.origin) {
       return new URL('/index.html', base)
     }
@@ -16,41 +25,48 @@ function toRedirectUrl(base: URL, target: string | null | undefined): URL {
   }
 }
 
-function buildFailureRedirect(base: URL, callbackUrl: string | null | undefined, code = 'guest_session_failed'): URL {
+function buildFailureRedirect(base: URL, callback: URL, code = 'guest_session_failed'): URL {
   const redirect = new URL('/auth/signin', base)
   redirect.searchParams.set('error', code)
-  if (callbackUrl && callbackUrl.trim()) {
-    redirect.searchParams.set('callbackUrl', callbackUrl)
+  const callbackValue = serialiseRelative(base, callback)
+  if (callbackValue) {
+    redirect.searchParams.set('callbackUrl', callbackValue)
   }
   return redirect
 }
 
 export async function handleGuestSignIn(request: Request, signInFn: typeof signIn = signIn) {
-  const origin = new URL(request.url)
+  const requestUrl = new URL(request.url)
+  const origin = resolveRequestOrigin(request)
   const formData = await request.formData().catch(() => null)
   const formCallback = formData?.get('callbackUrl')
-  const queryCallback = origin.searchParams.get('callbackUrl')
-  const callbackUrl = typeof formCallback === 'string' && formCallback.trim() ? formCallback : queryCallback
+  const queryCallback = requestUrl.searchParams.get('callbackUrl')
+  const callbackCandidate =
+    typeof formCallback === 'string' && formCallback.trim() ? formCallback : queryCallback
+  const safeCallback = toRedirectUrl(origin, callbackCandidate)
 
   try {
-    const result = await signInFn('guest', { callbackUrl: callbackUrl || '/index.html', redirect: false })
+    const result = await signInFn('guest', {
+      callbackUrl: safeCallback.toString(),
+      redirect: false,
+    })
 
     if (!result) {
-      return NextResponse.redirect(buildFailureRedirect(origin, callbackUrl))
+      return NextResponse.redirect(buildFailureRedirect(origin, safeCallback))
     }
 
     if (result.error) {
-      return NextResponse.redirect(buildFailureRedirect(origin, callbackUrl, 'guest_session_failed'))
+      return NextResponse.redirect(buildFailureRedirect(origin, safeCallback, 'guest_session_failed'))
     }
 
     if (result.url) {
       return NextResponse.redirect(toRedirectUrl(origin, result.url))
     }
 
-    return NextResponse.redirect(toRedirectUrl(origin, callbackUrl))
+    return NextResponse.redirect(safeCallback)
   } catch (err) {
     console.error('[auth/guest] Failed to start guest session', err)
-    return NextResponse.redirect(buildFailureRedirect(origin, callbackUrl, 'guest_session_failed'))
+    return NextResponse.redirect(buildFailureRedirect(origin, safeCallback, 'guest_session_failed'))
   }
 }
 

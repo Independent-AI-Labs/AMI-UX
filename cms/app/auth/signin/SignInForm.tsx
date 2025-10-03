@@ -45,6 +45,39 @@ function mapError(code: string | null): FormError | null {
 
 const preferenceKey = 'ami-auth-preferred'
 
+const LOOPBACK_HOSTS = new Set(['0.0.0.0', '::', '::0', '[::]', '[::0]'])
+
+function normalizeRedirectUrl(raw: string | null | undefined, fallbackPath: string): string {
+  if (typeof window === 'undefined') return fallbackPath
+  const origin = window.location.origin
+  const fallback = new URL(fallbackPath || '/', origin)
+
+  if (!raw) return fallback.toString()
+
+  try {
+    const candidate = new URL(raw, origin)
+    const targetHost = candidate.hostname.trim()
+    const current = new URL(origin)
+
+    if (LOOPBACK_HOSTS.has(targetHost) || targetHost.length === 0) {
+      candidate.hostname = current.hostname
+    }
+
+    candidate.protocol = current.protocol
+    if (!candidate.port && current.port) {
+      candidate.port = current.port
+    }
+
+    if (candidate.hostname !== current.hostname) {
+      return fallback.toString()
+    }
+
+    return candidate.toString()
+  } catch {
+    return fallback.toString()
+  }
+}
+
 function rememberPreference(value: 'credentials' | 'guest' | null) {
   if (typeof window === 'undefined') return
   if (!value) {
@@ -101,7 +134,8 @@ export function SignInForm({ callbackUrl, prefillEmail, initialErrorCode }: Sign
           }
 
           if (result.url) {
-            window.location.href = result.url
+            const nextUrl = normalizeRedirectUrl(result.url, effectiveCallback)
+            window.location.href = nextUrl
             return
           }
 
@@ -159,7 +193,8 @@ export function SignInForm({ callbackUrl, prefillEmail, initialErrorCode }: Sign
         rememberPreference('credentials')
 
         if (result.url) {
-          window.location.href = result.url
+          const nextUrl = normalizeRedirectUrl(result.url, effectiveCallback)
+          window.location.href = nextUrl
           return
         }
 

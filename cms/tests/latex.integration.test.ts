@@ -16,7 +16,7 @@ type JsonBody<T> = T extends Response ? Awaited<ReturnType<T['json']>> : never
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const DOC_ROOT_RELATIVE = 'content/docs'
+const DOC_ROOT_RELATIVE = 'docs'
 const REPO_ROOT = path.resolve(__dirname, '../../..')
 const REAL_TEX_SOURCE_PATH = path.join(
   REPO_ROOT,

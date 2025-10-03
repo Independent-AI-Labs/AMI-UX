@@ -8,15 +8,20 @@ import { handleGuestSignIn } from '../app/auth/signin/guest/route'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-function createRequest(pathname: string, init?: RequestInit): Request {
-  const options: RequestInit = { method: 'POST', ...init }
+type RequestInitWithOrigin = RequestInit & { origin?: string }
+
+function createRequest(pathname: string, init?: RequestInitWithOrigin): Request {
+  const options: RequestInitWithOrigin = { method: 'POST', ...init }
+  const origin = options.origin ?? 'http://localhost'
+  const headers = new Headers(options.headers)
   if (options.body instanceof URLSearchParams) {
-    options.headers = {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...(options.headers || {}),
-    }
+    headers.set('Content-Type', 'application/x-www-form-urlencoded')
   }
-  return new Request(`http://localhost${pathname}`, options)
+  if (!headers.has('host')) {
+    headers.set('host', new URL(origin).host)
+  }
+  const { origin: _discarded, ...rest } = options
+  return new Request(`${origin}${pathname}`, { ...rest, headers })
 }
 
 test('guest route redirects to provider result URL on success', async () => {
@@ -61,6 +66,32 @@ test('guest route handles provider exceptions gracefully', async () => {
   const location = res.headers.get('location')
   assert.ok(location?.includes('error=guest_session_failed'))
   assert.ok(location?.includes('callbackUrl=%2Fhome'))
+})
+
+test('guest route normalises wildcard host using forwarded headers', async () => {
+  const request = createRequest('/auth/signin/guest?callbackUrl=%2Fworkspace', {
+    origin: 'http://0.0.0.0:4000',
+    headers: {
+      'x-forwarded-host': 'portal.example.internal:4000',
+      'x-forwarded-proto': 'https',
+    },
+  })
+
+  const res = await handleGuestSignIn(request, async () => ({ url: '/workspace', error: undefined }))
+
+  assert.ok(res.status >= 300 && res.status < 400)
+  assert.equal(res.headers.get('location'), 'https://portal.example.internal:4000/workspace')
+})
+
+test('guest route falls back to loopback when wildcard host is not overridden', async () => {
+  const request = createRequest('/auth/signin/guest?callbackUrl=%2Findex.html', {
+    origin: 'http://0.0.0.0:5000',
+  })
+
+  const res = await handleGuestSignIn(request, async () => ({ url: '/workspace', error: undefined }))
+
+  assert.ok(res.status >= 300 && res.status < 400)
+  assert.equal(res.headers.get('location'), 'http://127.0.0.1:5000/workspace')
 })
 
 test('sign-in form source retains guest CTA action and copy', async () => {
