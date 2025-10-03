@@ -1,5 +1,5 @@
 import { dialogService } from './dialog-service.js?v=20250306'
-import { ensureReact } from './modal.js?v=20250306'
+import { ensureReact } from './modal.js?v=20251002'
 import { createDrawerChrome } from './drawer-chrome.js?v=20250306'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 

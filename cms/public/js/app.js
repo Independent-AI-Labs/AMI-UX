@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!btn) return
   btn.addEventListener('click', async () => {
     try {
-      const mod = await import('./modal.js')
+      const mod = await import('./modal.js?v=20251002')
       const openSelectMediaModal = mod && mod.openSelectMediaModal
       if (typeof openSelectMediaModal !== 'function') throw new Error('modal not loaded')
       openSelectMediaModal({

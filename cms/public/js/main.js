@@ -20,6 +20,11 @@ import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { markIgnoredNode } from './highlight-plugin/core/dom-utils.js'
 import { normalizeFsPath } from './file-tree.js'
 import { createVisibilityTracker } from './visibility-tracker.js'
+import {
+  createDocRootFromConfig,
+  createDocRootFromMessage,
+  buildDocRootSubtitle,
+} from './models.js'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -62,6 +67,14 @@ const state = {
   treeIndex: new Map(),
   loadDirectoryChildren: null,
   visibilityTracker: null,
+  // SINGLE SOURCE OF TRUTH for doc root context
+  docRootContext: {
+    rootKey: 'docRoot',
+    path: '',
+    absolutePath: '',
+    label: 'Docs',
+    focus: '',
+  },
 }
 
 // Theme
@@ -629,9 +642,20 @@ async function renderStandaloneDocument(state, tree, targetPath) {
 }
 
 async function persistDocRoot(pathStr, options = {}) {
-  await setDocRoot(pathStr, options)
-  state.rootKey = 'docRoot'
-  state.rootLabelOverride = null
+  // NOTE: Server ignores docRoot/docRootLabel changes (they're ENV-configured)
+  // So we don't POST them - just update local state
+  const context = createDocRootFromMessage({
+    rootKey: 'docRoot',
+    path: pathStr,
+    label: options.label || null,
+    focus: state.pendingFocus || '',
+  })
+
+  // Update state with new context (preserves label!)
+  state.docRootContext = context
+  state.rootKey = context.rootKey
+  state.docRootAbsolute = context.absolutePath
+  state.rootLabelOverride = context.label // ✓ NO LONGER NULLED
 }
 
 export async function startCms(fromSelect = false) {
@@ -653,14 +677,21 @@ export async function startCms(fromSelect = false) {
     cfg = await fetchConfig()
   } catch {}
   if (cfg) {
-    state.docRootAbsolute = cfg.docRootAbsolute || cfg.docRoot || ''
+    // Initialize docRootContext from server config if not already set
+    if (!state.docRootContext.absolutePath || state.rootKey === 'docRoot') {
+      state.docRootContext = createDocRootFromConfig(cfg)
+      state.rootKey = state.docRootContext.rootKey
+      state.docRootAbsolute = state.docRootContext.absolutePath
+      state.rootLabelOverride = state.docRootContext.label
+    }
+
     try {
       window.parent?.postMessage?.(
         {
           type: 'docConfig',
           docRoot: cfg.docRoot,
           docRootLabel: cfg.docRootLabel,
-          docRootAbsolute: state.docRootAbsolute,
+          docRootAbsolute: state.docRootContext.absolutePath,
         },
         '*',
       )
@@ -686,20 +717,8 @@ export async function startCms(fromSelect = false) {
   }
   const treeSubtitleEl = document.getElementById('treeToolbarSubtitle')
   if (treeSubtitleEl) {
-    let subtitleText = 'Explore and inspect structured documentation.'
-    if (activeRootKey === 'uploads') {
-      const label = (state.rootLabelOverride || 'Uploads').trim()
-      subtitleText = label ? `Uploads workspace sourced from ${label}` : 'Uploads workspace'
-    } else {
-      const override = (state.rootLabelOverride || '').trim()
-      const cfgLabel = cfg ? (cfg.docRootLabel || cfg.docRoot || '').trim() : ''
-      const absolutePath = (cfg ? cfg.docRootAbsolute : state.docRootAbsolute) || ''
-      const infoParts = []
-      const displayLabel = override || cfgLabel
-      if (displayLabel) infoParts.push(displayLabel)
-      if (absolutePath && absolutePath !== displayLabel) infoParts.push(absolutePath)
-      if (infoParts.length) subtitleText = `Docs sourced from ${infoParts.join(' · ')}`
-    }
+    // Use SINGLE SOURCE OF TRUTH for subtitle
+    const subtitleText = buildDocRootSubtitle(state.docRootContext)
     treeSubtitleEl.textContent = subtitleText
   }
   let root = null
@@ -867,36 +886,22 @@ window.addEventListener('message', async (ev) => {
   try {
     if (msg.type === 'setDocRoot') {
       ack({ status: 'accepted' })
-      const rootKey = msg.rootKey === 'uploads' ? 'uploads' : 'docRoot'
-      const focus = typeof msg.focus === 'string' ? msg.focus : ''
-      if (rootKey === 'docRoot') {
-        if (typeof msg.path === 'string' && msg.path) {
-          const options = {}
-          if (Object.prototype.hasOwnProperty.call(msg, 'label')) {
-            const incoming = msg.label
-            if (incoming === null) options.label = null
-            else if (typeof incoming === 'string' && incoming.trim()) options.label = incoming.trim()
-          }
-          state.pendingFocus = focus
-          await persistDocRoot(msg.path, options)
-          state.docRootAbsolute = msg.path || state.docRootAbsolute
-          await startCms(true)
-        }
-        return
-      }
-      state.rootKey = rootKey
-      if (Object.prototype.hasOwnProperty.call(msg, 'label')) {
-        if (msg.label === null) {
-          state.rootLabelOverride = null
-        } else if (typeof msg.label === 'string' && msg.label.trim()) {
-          state.rootLabelOverride = msg.label.trim()
-        } else {
-          state.rootLabelOverride = rootKey === 'uploads' ? 'Uploads' : null
-        }
-      } else {
-        state.rootLabelOverride = rootKey === 'uploads' ? 'Uploads' : state.rootLabelOverride
-      }
-      state.pendingFocus = focus
+
+      // Use model to create context from message
+      const context = createDocRootFromMessage({
+        rootKey: msg.rootKey,
+        path: msg.path,
+        label: msg.label,
+        focus: msg.focus,
+      })
+
+      // Update state with context (single source of truth!)
+      state.docRootContext = context
+      state.rootKey = context.rootKey
+      state.docRootAbsolute = context.absolutePath
+      state.rootLabelOverride = context.label
+      state.pendingFocus = context.focus
+
       await startCms(true)
       return
     }

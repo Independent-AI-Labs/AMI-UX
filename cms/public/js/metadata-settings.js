@@ -329,7 +329,7 @@ async function openServerDirectorySelector() {
   fields.metaServerButton.disabled = true
 
   try {
-    const pickerModule = await import('./modal.js?v=20250306')
+    const pickerModule = await import('./modal.js?v=20251002')
     const openPicker = pickerModule?.openServerDirectoryPicker
     if (typeof openPicker !== 'function') {
       throw new Error('Server picker unavailable.')

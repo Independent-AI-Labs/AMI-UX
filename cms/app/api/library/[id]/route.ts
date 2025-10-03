@@ -5,7 +5,7 @@ import { withSession } from '../../../lib/auth-guard'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export const PATCH = withSession(async ({ request, context }) => {
+export const PATCH = withSession(async ({ request, context }: { request: Request; context: { params: Promise<{ id: string }> } }) => {
   const { id } = await context.params
   const body = await request.json().catch(() => ({}))
   const list = await listLibrary()
@@ -17,7 +17,7 @@ export const PATCH = withSession(async ({ request, context }) => {
   return NextResponse.json({ ok: true })
 })
 
-export const DELETE = withSession(async ({ context }) => {
+export const DELETE = withSession(async ({ context }: { context: { params: Promise<{ id: string }> } }) => {
   const { id } = await context.params
   const list = await listLibrary()
   const next = list.filter((e) => e.id !== id)

@@ -485,19 +485,19 @@ function readMetadataString(
 
 function normaliseGuestUser(payload: AuthenticatedUser | null): AuthenticatedUser {
   if (!payload) {
-    throw new MetadataValidationError('Cannot normalize null user payload')
+    throw new MetadataValidationError('user', 'Cannot normalize null user payload')
   }
 
   if (!payload.id || !payload.id.trim()) {
-    throw new MetadataValidationError('User payload missing required field: id')
+    throw new MetadataValidationError('id', 'User payload missing required field')
   }
 
   if (!payload.email || !payload.email.trim()) {
-    throw new MetadataValidationError('User payload missing required field: email')
+    throw new MetadataValidationError('email', 'User payload missing required field')
   }
 
   if (!Array.isArray(payload.groups)) {
-    throw new MetadataValidationError('User payload has invalid groups field (must be array)')
+    throw new MetadataValidationError('groups', 'User payload has invalid groups field (must be array)')
   }
 
   const email = payload.email.toLowerCase()

@@ -1,4 +1,4 @@
-import createAuthMiddleware, { AUTH_MIDDLEWARE_MATCHER } from '@ami/auth/middleware'
+import createAuthMiddleware from '@ami/auth/middleware'
 
 export default createAuthMiddleware({
   publicRoutes: [/^\/public\//],
@@ -6,5 +6,5 @@ export default createAuthMiddleware({
 })
 
 export const config = {
-  matcher: AUTH_MIDDLEWARE_MATCHER,
+  matcher: ['/((?!_next/static|_next/image|api/auth|auth|favicon.ico|docs).*)'],
 }

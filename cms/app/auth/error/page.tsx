@@ -2,8 +2,9 @@ import '../styles.css'
 
 import Link from 'next/link'
 
-export default function AuthErrorPage({ searchParams }: { searchParams?: Record<string, string | string[]> }) {
-  const message = typeof searchParams?.message === 'string' ? searchParams.message : 'Unable to complete authentication.'
+export default async function AuthErrorPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[]>> }) {
+  const params = await searchParams
+  const message = typeof params?.message === 'string' ? params.message : 'Unable to complete authentication.'
 
   return (
     <div className="auth-layout">

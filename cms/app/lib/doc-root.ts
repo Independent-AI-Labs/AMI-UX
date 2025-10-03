@@ -22,21 +22,19 @@ export type DocRootInfo = {
   label: string
 }
 
-function resolveDocRootSetting(cfg: CmsConfig): string {
-  const input =
-    typeof cfg.docRoot === 'string' && cfg.docRoot.trim() ? cfg.docRoot.trim() : DEFAULT_DOC_ROOT
-  return input
+function resolveDocRootSetting(): string {
+  // docRoot comes from ENV, not stored config
+  return process.env.DOC_ROOT || DEFAULT_DOC_ROOT
 }
 
 export async function loadDocRootInfo(): Promise<DocRootInfo | null> {
-  const cfg = await getConfig()
-  const docRootSetting = resolveDocRootSetting(cfg)
+  const docRootSetting = resolveDocRootSetting()
   const absolute = path.resolve(repoRoot, docRootSetting)
   const stat = await fs.stat(absolute).catch(() => null)
   if (!stat || !stat.isDirectory()) {
     return null
   }
   const relative = path.relative(repoRoot, absolute) || '.'
-  const label = deriveDocRootLabel(absolute, cfg.docRootLabel)
+  const label = deriveDocRootLabel(absolute, defaultDocRootLabel())
   return { absolute, relative, label }
 }

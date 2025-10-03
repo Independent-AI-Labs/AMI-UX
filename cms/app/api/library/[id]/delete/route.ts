@@ -13,7 +13,7 @@ async function rmrf(p: string) {
   } catch {}
 }
 
-export const POST = withSession(async ({ context }) => {
+export const POST = withSession(async ({ context }: { context: { params: Promise<{ id: string }> } }) => {
   const { id } = await context.params
   const entries = await listLibrary()
   const entry = entries.find((e) => e.id === id)

@@ -133,6 +133,11 @@ export function createDrawerChrome(React) {
       if (key && key.startsWith('data-')) props[key] = value
     })
 
+    // Mark element as having custom context menu to prevent global context menu from interfering
+    if (onContextMenu) {
+      props['data-has-context-menu'] = 'true'
+    }
+
     const resolvedStatus = (() => {
       if (status && typeof status === 'object') return status
       if (active) return { tone: 'positive', label: 'Active' }

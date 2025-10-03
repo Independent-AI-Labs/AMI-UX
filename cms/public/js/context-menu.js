@@ -3,6 +3,18 @@
 let contextMenuInstance = null
 let currentTarget = null
 
+const SKIP_SELECTORS = [
+  '[data-has-context-menu="true"]',
+  '[data-ctx="1"]',
+  '.drawer-list-item',
+  '.drawer-shell',
+  '.drawer-root',
+  '.tree-root',
+  '.tree-root-shell',
+  '#tabsBar',
+  '.media-ctx',
+]
+
 function createContextMenu(target) {
   const menu = document.createElement('div')
   menu.className = 'custom-context-menu'
@@ -171,15 +183,67 @@ function hasCustomContextMenu(element) {
   return false
 }
 
+function isHighlightedElement(element) {
+  // Check if element or any parent has highlight plugin classes
+  let current = element
+  while (current && current !== document.body) {
+    if (current.classList) {
+      const highlightClasses = ['glow-block', 'glow-inline', 'glow-underline', 'glow-tree', 'glow-active']
+      for (const cls of highlightClasses) {
+        if (current.classList.contains(cls)) {
+          return true
+        }
+      }
+    }
+    current = current.parentElement
+  }
+  return false
+}
+
+function shouldDeferToAppMenus(element) {
+  if (!(element instanceof HTMLElement)) return false
+  if (hasCustomContextMenu(element)) return true
+  for (const selector of SKIP_SELECTORS) {
+    if (element.closest(selector)) return true
+  }
+  return false
+}
+
+function hasSelectedText() {
+  try {
+    const selection = window.getSelection()
+    if (!selection) return false
+    return selection.toString().trim().length > 0
+  } catch {
+    return false
+  }
+}
+
 export function initContextMenu() {
   document.addEventListener('contextmenu', (e) => {
-    // Don't override if element has its own context menu
-    if (hasCustomContextMenu(e.target)) {
+    const target = e.target
+    if (!(target instanceof HTMLElement)) return
+
+    if (shouldDeferToAppMenus(target)) {
+      hideContextMenu()
       return
     }
 
-    e.preventDefault()
-    showContextMenu(e.pageX, e.pageY, e.target)
+    const isEditable = isEditableElement(target)
+    const selectionPresent = hasSelectedText()
+    const isHighlighted = isHighlightedElement(target)
+    const link = target.closest('a')
+
+    if (!selectionPresent && !isEditable && !isHighlighted && !link) {
+      hideContextMenu()
+      return
+    }
+
+    try {
+      e.preventDefault()
+    } catch {}
+
+    showContextMenu(e.pageX, e.pageY, target)
   })
 
   document.addEventListener('click', () => {

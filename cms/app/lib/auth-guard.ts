@@ -19,7 +19,8 @@ export async function requireSession(): Promise<GuardResult> {
 }
 
 export function ensureRole(session: Session, role: string): boolean {
-  return session.user.roles?.includes(role) ?? false
+  const user = session.user as any
+  return user?.roles?.includes(role) ?? false
 }
 
 type RouteHandlerArgs<T> = {

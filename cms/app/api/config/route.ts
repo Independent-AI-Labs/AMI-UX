@@ -25,19 +25,17 @@ function normalizeDocRootForStorage(absPath: string): string {
 
 async function handleGet() {
   const cfg = await getConfig()
-  // Ensure stable defaults
-  const rawDocRoot = cfg.docRoot || defaultDocRoot()
+  // docRoot and docRootLabel come from ENV, not stored config
+  const rawDocRoot = defaultDocRoot()
   const docRootAbsolute = path.resolve(repoRoot, rawDocRoot)
-  const labelExplicit =
-    typeof cfg.docRootLabel === 'string' && cfg.docRootLabel.trim()
-      ? cfg.docRootLabel.trim()
-      : path.resolve(repoRoot, rawDocRoot) === path.resolve(repoRoot, defaultDocRoot())
-        ? defaultDocRootLabel()
-        : ''
+  const labelExplicit = defaultDocRootLabel()
   const docRootLabel = deriveDocRootLabel(docRootAbsolute, labelExplicit)
-  const filled: CmsConfig = {
+
+  // Build response with both stored config and server-side config
+  const response = {
     docRoot: rawDocRoot,
     docRootLabel,
+    docRootAbsolute,
     selected: cfg.selected ?? null,
     openTabs: cfg.openTabs ?? [],
     activeTabId: cfg.activeTabId ?? null,
@@ -45,7 +43,7 @@ async function handleGet() {
     recents: cfg.recents ?? [],
     allowed: cfg.allowed,
   }
-  return NextResponse.json({ ...filled, docRootAbsolute })
+  return NextResponse.json(response)
 }
 
 async function handlePost(req: Request) {
@@ -76,17 +74,17 @@ async function handlePost(req: Request) {
   }
 
   await saveConfig(next)
-  const storedDocRoot = next.docRoot || defaultDocRoot()
-  const absolute = path.resolve(repoRoot, storedDocRoot)
-  const label =
-    typeof next.docRootLabel === 'string' && next.docRootLabel
-      ? next.docRootLabel
-      : deriveDocRootLabel(absolute)
+
+  // docRoot and docRootLabel come from ENV, not stored config
+  const docRoot = defaultDocRoot()
+  const docRootAbsolute = path.resolve(repoRoot, docRoot)
+  const docRootLabel = deriveDocRootLabel(docRootAbsolute, defaultDocRootLabel())
+
   return NextResponse.json({
     ok: true,
-    docRoot: next.docRoot,
-    docRootLabel: label,
-    docRootAbsolute: absolute,
+    docRoot,
+    docRootLabel,
+    docRootAbsolute,
   })
 }
 

@@ -39,6 +39,14 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
   const { publicRoutes = [], signInPath = '/auth/signin', headerForwarding = true } = options
 
   const handlerOrPromise = auth((req: AuthenticatedRequest, event: NextFetchEvent) => {
+    // Redirect HTTP to HTTPS
+    const protocol = req.headers.get('x-forwarded-proto') || req.nextUrl.protocol
+    if (protocol === 'http:') {
+      const httpsUrl = new URL(req.nextUrl.href)
+      httpsUrl.protocol = 'https:'
+      return NextResponse.redirect(httpsUrl, 301)
+    }
+
     if (isPublicRoute(req.nextUrl, publicRoutes)) {
       return NextResponse.next()
     }

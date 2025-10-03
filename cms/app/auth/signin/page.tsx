@@ -7,14 +7,14 @@ import { auth } from '@ami/auth/server'
 
 import { SignInForm } from './SignInForm'
 
-export default async function SignInPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[]>> | Record<string, string | string[]> }) {
+export default async function SignInPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[]>> }) {
   let session = null
   try {
     session = await auth()
   } catch (err) {
     console.warn('[signin] Failed to read session, clearing cookies', err)
   }
-  const params = await Promise.resolve(searchParams)
+  const params = await searchParams
   const rawCallback = typeof params?.callbackUrl === 'string' ? params?.callbackUrl : '/index.html'
   const callback = rawCallback === '/' ? '/index.html' : rawCallback
   const prefill = typeof params?.prefill === 'string' ? params.prefill : null

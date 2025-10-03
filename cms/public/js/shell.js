@@ -7,7 +7,7 @@ import {
   VisualizerB,
   VisualizerD,
 } from './visualizers.js'
-import { openSelectMediaModal } from './modal.js'
+import { openSelectMediaModal } from './modal.js?v=20251002'
 import { deriveMetaDirectory, openMetadataSettingsDialog } from './metadata-settings.js?v=20250306'
 import { showToast } from './toast-manager.js?v=20250306'
 import { applyHint, humanizeName, normalizeFsPath } from './utils.js'
@@ -18,6 +18,7 @@ import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { createTabStrip } from './tab-strip.js?v=20250321'
 import { initShellConsole } from './shell-console.js?v=20250321'
 import { initContextMenu } from './context-menu.js'
+import { deriveDocRootFromPath, buildDocMessage } from './models.js'
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -1098,39 +1099,25 @@ function uploadsBaseFromPath(originalPath) {
 
 function buildDocMessageForDir(tab, cfg) {
   if (!tab) return null
-  const originalPath = tab.path || ''
-  const normalizedPath = normalizeFsPath(originalPath)
-  if (!normalizedPath) return null
+  const path = tab.path || ''
+  if (!path) return null
 
-  const { baseOriginal: uploadsOriginal, baseNormalized: uploadsNormalized } =
-    uploadsBaseFromPath(originalPath)
-  if (uploadsOriginal && uploadsNormalized) {
-    const focus = relativeNormalized(uploadsNormalized, normalizedPath)
-    const msg = { type: 'setDocRoot', rootKey: 'uploads', path: uploadsOriginal, label: 'Uploads' }
-    if (focus) msg.focus = focus
-    return msg
+  // Use model to derive context from path
+  const serverConfig = cfg ? {
+    docRoot: cfg.docRoot || '',
+    docRootLabel: cfg.docRootLabel || '',
+    docRootAbsolute: cfg.docRootAbsolute || '',
+  } : null
+
+  const context = deriveDocRootFromPath(path, serverConfig)
+
+  // Override label if tab has custom label
+  if (tab.label) {
+    context.label = tab.label
   }
 
-  const docRootOriginal = cfg?.docRootAbsolute || cfg?.docRoot || ''
-  const docRootNormalized = normalizeFsPath(docRootOriginal).replace(/\/+$/, '')
-  if (
-    docRootNormalized &&
-    (normalizedPath === docRootNormalized || normalizedPath.startsWith(docRootNormalized + '/'))
-  ) {
-    const focus = relativeNormalized(docRootNormalized, normalizedPath)
-    const msg = { type: 'setDocRoot', rootKey: 'docRoot', path: docRootOriginal }
-    if (focus) msg.focus = focus
-    if (cfg && typeof cfg.docRootLabel === 'string' && cfg.docRootLabel.trim()) {
-      msg.label = cfg.docRootLabel.trim()
-    }
-    return msg
-  }
-
-  const defaultLabel =
-    tab.label || humanizeName(normalizedPath.split('/').pop() || normalizedPath, 'dir')
-  const msg = { type: 'setDocRoot', rootKey: 'docRoot', path: originalPath }
-  if (defaultLabel) msg.label = defaultLabel
-  return msg
+  // Build message from context
+  return buildDocMessage(context)
 }
 
 function iconForTab(kind) {
