@@ -1,6 +1,6 @@
 import { displayName, pathAnchor, normalizeFsPath } from './utils.js'
 import { fetchFile } from './api.js'
-import { resolveFileView, getDefaultFileView } from './file-view-registry.js'
+import { resolveFileView, getDefaultFileView } from './file-view-registry.js?v=20251004'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
 import { markIgnoredNode, markPluginNode } from './highlight-plugin/core/dom-utils.js'
 

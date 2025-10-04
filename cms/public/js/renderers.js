@@ -1,5 +1,5 @@
 import { slugify, pathAnchor } from './utils.js'
-import { CodeView, guessLanguageFromClassName, normaliseLanguageHint } from './code-view.js'
+import { CodeView, guessLanguageFromClassName, normaliseLanguageHint } from './code-view.js?v=20251004'
 import { ensureTexLiveCompiler } from './texlive/compiler.js'
 import { ensureDetailsChainForPath, scrollToAnchorWhenReady } from './ui.js?v=20251004'
 

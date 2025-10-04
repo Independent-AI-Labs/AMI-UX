@@ -1,5 +1,5 @@
-import { renderMarkdown, renderCSV, renderHTMLDocument, renderLaTeXDocument } from './renderers.js'
-import { CodeView, guessLanguageFromFilename } from './code-view.js'
+import { renderMarkdown, renderCSV, renderHTMLDocument, renderLaTeXDocument } from './renderers.js?v=20251004'
+import { CodeView, guessLanguageFromFilename } from './code-view.js?v=20251004'
 
 const registry = []
 
