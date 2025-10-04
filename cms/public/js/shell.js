@@ -481,7 +481,7 @@ function ensureHighlightPluginInFrame(frame) {
       }
     }
 
-    // Get iframe's document
+    // Get iframe's document (will throw SecurityError if cross-origin)
     const iframeDoc = frame.contentDocument || frame.contentWindow?.document
     if (!iframeDoc) {
       logHighlightShell('ensure-no-iframe-doc')
@@ -550,6 +550,12 @@ function ensureHighlightPluginInFrame(frame) {
 
     return false
   } catch (err) {
+    // Silently skip cross-origin iframes (SecurityError)
+    const isCrossOrigin = err?.name === 'SecurityError' || err?.message?.includes('cross-origin')
+    if (isCrossOrigin) {
+      logHighlightShell('ensure-skip-cross-origin')
+      return false
+    }
     console.warn('Failed to ensure highlight plugin in iframe', err)
     logHighlightShell('ensure-error', { error: err?.message || String(err) })
     return false
