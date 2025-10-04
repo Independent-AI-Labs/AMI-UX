@@ -582,8 +582,12 @@ function teardownHighlightPlugin(frame) {
       api.destroy()
     }
   } catch (err) {
-    console.warn('Highlight plugin destroy during teardown failed', err)
-    logHighlightShell('teardown-error', { error: err?.message || String(err) })
+    // Silently skip cross-origin frames
+    const isCrossOrigin = err?.name === 'SecurityError' || err?.message?.includes('cross-origin')
+    if (!isCrossOrigin) {
+      console.warn('Highlight plugin destroy during teardown failed', err)
+      logHighlightShell('teardown-error', { error: err?.message || String(err) })
+    }
   }
   try {
     const win = frame.contentWindow || null
@@ -1418,7 +1422,8 @@ async function activateTab(id) {
     return changed
   }
   let usedServed = false
-  if (tab.servedId) {
+  // Serving only enables external embed URLs - dirs always load /doc?embed=1 in shell
+  if (tab.servedId && tab.kind !== 'dir') {
     try {
       const r = await fetch(`/api/serve/${tab.servedId}`)
       if (r.ok) {

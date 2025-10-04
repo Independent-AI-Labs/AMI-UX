@@ -585,7 +585,7 @@ function ensureSummaryActions(state, details, node) {
   makeButton(
     'fullscreen',
     'fullscreen-line',
-    'Toggle full-screen view',
+    'Toggle Full Screen',
     async (btn) => {
       try {
         let target = btn.__fullscreenTarget
@@ -610,22 +610,27 @@ function ensureSummaryActions(state, details, node) {
 
   const path = node.path || ''
 
-  const embedBtn = makeButton('embed', 'share-forward-line', 'Open embed view', () => {
+  const embedBtn = makeButton('embed', 'share-forward-line', 'Embed Options', (btn, event) => {
     if (!path) return
     try {
-      const base = new URL('/doc.html', window.location.origin)
-      base.searchParams.set('embed', '1')
-      base.searchParams.set('mode', 'file')
-      base.searchParams.set('path', path)
-      base.hash = pathAnchor(path)
-      window.open(base.toString(), '_blank', 'noopener')
+      const { openContextMenu } = window
+      if (typeof openContextMenu !== 'function') {
+        console.warn('Context menu not available')
+        return
+      }
+      const rect = btn.getBoundingClientRect()
+      openContextMenu('cms.embed-options', {
+        x: rect.left,
+        y: rect.bottom + 4,
+        data: { path, node, state },
+      })
     } catch (error) {
-      console.warn('Failed to open embed view', error)
+      console.warn('Failed to open embed options', error)
     }
   })
   if (!path) embedBtn.disabled = true
 
-  const exportBtn = makeButton('export', 'download-2-line', 'Export this document', async (btn) => {
+  const exportBtn = makeButton('export', 'download-2-line', 'Export Document', async (btn) => {
     if (!path) return
     try {
       btn.classList.add('is-busy')
@@ -1090,7 +1095,51 @@ function rebuildTOC(state, progress) {
 
   const structHdr = document.createElement('h3')
   structHdr.textContent = 'Structure'
-  toc.appendChild(structHdr)
+
+  const structHeaderRow = document.createElement('div')
+  structHeaderRow.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;'
+  structHeaderRow.appendChild(structHdr)
+
+  const structActions = document.createElement('div')
+  structActions.style.cssText = 'display: flex; gap: 0.25rem; margin-left: auto;'
+
+  const expandBtn = document.createElement('button')
+  expandBtn.id = 'expandAll'
+  expandBtn.className = 'icon-button'
+  expandBtn.setAttribute('data-hint', 'Expand Sections')
+  expandBtn.setAttribute('aria-label', 'Expand Sections')
+  expandBtn.innerHTML = iconMarkup('arrow-down-s-line', { size: 14 })
+
+  const collapseBtn = document.createElement('button')
+  collapseBtn.id = 'collapseAll'
+  collapseBtn.className = 'icon-button'
+  collapseBtn.setAttribute('data-hint', 'Collapse Sections')
+  collapseBtn.setAttribute('aria-label', 'Collapse Sections')
+  collapseBtn.innerHTML = iconMarkup('arrow-up-s-line', { size: 14 })
+
+  const embedRootBtn = document.createElement('button')
+  embedRootBtn.id = 'embedRootBtn'
+  embedRootBtn.className = 'icon-button'
+  embedRootBtn.setAttribute('data-hint', 'Embed Options')
+  embedRootBtn.setAttribute('aria-label', 'Embed Options')
+  embedRootBtn.innerHTML = iconMarkup('share-forward-line', { size: 14 })
+  embedRootBtn.addEventListener('click', (event) => {
+    const { openContextMenu } = window
+    if (typeof openContextMenu !== 'function') return
+    const rect = embedRootBtn.getBoundingClientRect()
+    openContextMenu('cms.embed-root-options', {
+      x: rect.left,
+      y: rect.bottom + 4,
+      data: { state },
+    })
+  })
+
+  structActions.appendChild(expandBtn)
+  structActions.appendChild(collapseBtn)
+  structActions.appendChild(embedRootBtn)
+
+  structHeaderRow.appendChild(structActions)
+  toc.appendChild(structHeaderRow)
 
   const struct = document.createElement('div')
   struct.className = 'structure-nav'

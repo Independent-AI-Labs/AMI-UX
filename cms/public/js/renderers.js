@@ -1,7 +1,7 @@
 import { slugify, pathAnchor } from './utils.js'
 import { CodeView, guessLanguageFromClassName, normaliseLanguageHint } from './code-view.js'
 import { ensureTexLiveCompiler } from './texlive/compiler.js'
-import { ensureDetailsChainForPath, scrollToAnchorWhenReady } from './ui.js'
+import { ensureDetailsChainForPath, scrollToAnchorWhenReady } from './ui.js?v=20251004'
 
 const DEFAULT_LATEX_PAGE_WIDTH = 816
 

@@ -24,6 +24,135 @@ import {
   createContextFromMessage,
   buildContextSubtitle,
 } from './models.js'
+import { registerContextMenu, openContextMenu } from './context-menu.js'
+
+// Expose openContextMenu globally for buttons
+window.openContextMenu = openContextMenu
+
+// Register embed options context menu for files
+registerContextMenu({
+  id: 'cms.embed-options',
+  priority: 90,
+  build: (ctx) => {
+    const path = ctx.data?.path || ''
+    const node = ctx.data?.node || null
+    const state = ctx.data?.state || null
+
+    if (!path) return null
+
+    const rootKey = state?.rootKey || ''
+    const label = node?.name || path.split('/').pop() || 'Document'
+
+    // Build embed URL
+    const embedUrl = (() => {
+      try {
+        const base = new URL('/doc', window.location.origin)
+        base.searchParams.set('embed', '1')
+        base.searchParams.set('mode', 'file')
+        if (rootKey) base.searchParams.set('rootKey', rootKey)
+        if (path) base.searchParams.set('path', path)
+        base.hash = pathAnchor(path)
+        return base.toString()
+      } catch {
+        return ''
+      }
+    })()
+
+    return {
+      title: 'Embed Options',
+      sections: [
+        {
+          id: 'embed-actions',
+          items: [
+            {
+              id: 'copy-link',
+              label: 'Copy Link',
+              icon: 'link',
+              onSelect: async () => {
+                if (!embedUrl) return
+                try {
+                  await navigator.clipboard.writeText(embedUrl)
+                } catch (error) {
+                  console.warn('Failed to copy embed URL', error)
+                }
+              },
+            },
+            {
+              id: 'open-embed',
+              label: 'Open Embedding View',
+              icon: 'external-link-line',
+              onSelect: () => {
+                if (!embedUrl) return
+                window.open(embedUrl, '_blank', 'noopener')
+              },
+            },
+          ],
+        },
+      ],
+    }
+  },
+})
+
+// Register embed options context menu for root dir
+registerContextMenu({
+  id: 'cms.embed-root-options',
+  priority: 90,
+  build: (ctx) => {
+    const state = ctx.data?.state || null
+    if (!state) return null
+
+    const rootKey = state.rootKey || ''
+    const path = ''
+    const label = state.rootLabelOverride || rootKey || 'Content'
+
+    // Build embed URL for root
+    const embedUrl = (() => {
+      try {
+        const base = new URL('/doc', window.location.origin)
+        base.searchParams.set('embed', '1')
+        if (rootKey) base.searchParams.set('rootKey', rootKey)
+        if (path) base.searchParams.set('path', path)
+        if (label && label !== rootKey) base.searchParams.set('label', label)
+        return base.toString()
+      } catch {
+        return ''
+      }
+    })()
+
+    return {
+      title: 'Embed Options',
+      sections: [
+        {
+          id: 'embed-actions',
+          items: [
+            {
+              id: 'copy-link',
+              label: 'Copy Link',
+              icon: 'link',
+              onSelect: async () => {
+                if (!embedUrl) return
+                try {
+                  await navigator.clipboard.writeText(embedUrl)
+                } catch (error) {
+                  console.warn('Failed to copy embed URL', error)
+                }
+              },
+            },
+            {
+              id: 'open-embed',
+              label: 'Open Embedding View',
+              icon: 'external-link-line',
+              onSelect: () => {
+                if (!embedUrl) return
+                window.open(embedUrl, '_blank', 'noopener')
+              },
+            },
+          ],
+        },
+      ],
+    }
+  },
+})
 
 window.addEventListener('ami:unauthorized', () => {
   window.dispatchEvent(new Event('ami:navigate-signin'))
@@ -52,8 +181,8 @@ const state = {
   treeOverlayLabel: null,
   treeFilterInput: null,
   treeFilterValue: '',
-  rootKey: '',
-  rootLabelOverride: null,
+  rootKey: bootOptions.rootKey || '',
+  rootLabelOverride: bootOptions.label || null,
   pendingFocus: typeof bootOptions.focusPath === 'string' ? bootOptions.focusPath : '',
   contentRootAbsolute: '',
   cacheContext: '',
@@ -68,11 +197,11 @@ const state = {
   visibilityTracker: null,
   // SINGLE SOURCE OF TRUTH for content root context
   contentContext: {
-    rootKey: '',
-    path: '',
-    absolutePath: '',
-    label: 'Content',
-    focus: '',
+    rootKey: bootOptions.rootKey || '',
+    path: bootOptions.path || '',
+    absolutePath: bootOptions.path || '',
+    label: bootOptions.label || 'Content',
+    focus: bootOptions.focusPath || '',
   },
 }
 
@@ -843,7 +972,7 @@ export async function startCms(fromSelect = false) {
         sel.setAttribute('open', '')
         const body = sel.querySelector('.body')
         const node = { name: intro.name, path: intro.path, type: 'file' }
-        const { loadFileNode } = await import('./ui.js')
+        const { loadFileNode } = await import('./ui.js?v=20251004')
         await loadFileNode(state, sel, node, body)
       }
     }
@@ -870,7 +999,7 @@ export async function startCms(fromSelect = false) {
       if (openFile && openFile.hasAttribute('open')) {
         const body = openFile.querySelector('.body')
         const node = { name: rel.split('/').pop() || rel, path: rel, type: 'file' }
-        import('./ui.js').then(({ loadFileNode }) => loadFileNode(state, openFile, node, body))
+        import('./ui.js?v=20251004').then(({ loadFileNode }) => loadFileNode(state, openFile, node, body))
       }
       updateTOC(state)
     },
