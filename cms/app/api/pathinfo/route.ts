@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { repoRoot } from '../../lib/doc-root'
+import { repoRoot } from '../../lib/store'
 import { withSession } from '../../lib/auth-guard'
 
 export const runtime = 'nodejs'

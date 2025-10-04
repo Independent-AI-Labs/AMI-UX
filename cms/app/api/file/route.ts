@@ -21,7 +21,7 @@ export const GET = withSession(async ({ request }) => {
 
   const cfg = await loadRuntimeConfig()
   const formats = await getTextFormats(cfg.allowed ?? null)
-  const rootParam = (url.searchParams.get('root') || 'uploads') as string
+  const rootParam = (url.searchParams.get('root') || 'contentRoot') as string
   const allowedRoot = rootParam
   const rootInfo = await resolveMediaRoot(allowedRoot)
   if (!rootInfo) return new NextResponse('Root unavailable', { status: 404 })

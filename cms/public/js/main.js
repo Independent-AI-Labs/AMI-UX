@@ -260,7 +260,19 @@ async function loadDirectoryChildren(state, node) {
 }
 
 async function buildInitialTree(state, rootKey) {
-  const res = await fetchTreeChildren(rootKey, '')
+  console.log('[main] buildInitialTree: fetching children for rootKey:', rootKey)
+  let res
+  try {
+    res = await fetchTreeChildren(rootKey, '')
+    console.log('[main] buildInitialTree: received response:', {
+      hasNode: !!res?.node,
+      childrenCount: Array.isArray(res?.children) ? res.children.length : 0,
+      rootLabel: res?.rootLabel
+    })
+  } catch (err) {
+    console.error('[main] buildInitialTree: fetchTreeChildren failed:', err)
+    throw err
+  }
   const nodeInfo = res?.node || { name: '', path: '', type: 'dir', hasChildren: true }
   const rootNode = {
     name: nodeInfo.name || (rootKey === 'uploads' ? 'Uploads' : 'Docs'),
@@ -289,6 +301,7 @@ async function buildInitialTree(state, rootKey) {
   meta.hasChildren = children.length > 0
   meta.childCount = children.length
   children.forEach((child) => registerTreeNode(state, child))
+  console.log('[main] buildInitialTree: tree built, children:', children.length)
   return rootNode
 }
 
@@ -677,7 +690,9 @@ export async function startCms(fromSelect = false) {
   } catch {}
 
   // Load library entries and initialize with first available entry
-  if (!state.rootKey) {
+  // ONLY when NOT in embed mode (embed mode waits for setContentRoot message)
+  const isEmbedMode = document.documentElement.classList.contains('embed')
+  if (!state.rootKey && !isEmbedMode) {
     try {
       const library = await fetchLibrary()
       if (library && library.entries && library.entries.length > 0) {
@@ -750,7 +765,9 @@ export async function startCms(fromSelect = false) {
   let tree = null
   try {
     tree = await buildInitialTree(state, activeRootKey)
+    console.log('[main] Tree built successfully, node count:', tree?.children?.length ?? 0)
   } catch (err) {
+    console.error('[main] Failed to build tree for rootKey:', activeRootKey, 'error:', err)
     state.isLoading = false
     if (state.fileOnly) {
       console.warn('Failed to load tree', err)

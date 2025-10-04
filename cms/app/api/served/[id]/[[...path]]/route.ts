@@ -7,19 +7,31 @@ import { promises as fs } from 'fs'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-function csp(headers: Headers) {
+/**
+ * Sets security headers on the response.
+ */
+function csp(headers: Headers): void {
   headers.set('X-Frame-Options', 'SAMEORIGIN')
   headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('Referrer-Policy', 'no-referrer')
 }
 
-async function proxyToPort(port: number, subpath: string, req: Request) {
+/**
+ * Proxies a request to a local port.
+ */
+async function proxyToPort(port: number, subpath: string, req: Request): Promise<NextResponse> {
   const url = new URL(req.url)
   const qs = url.search
   const upstream = `http://127.0.0.1:${port}/${subpath}${qs}`
+
+  const headersInit: HeadersInit = {}
+  req.headers.forEach((value, key) => {
+    headersInit[key] = value
+  })
+
   const r = await fetch(upstream, {
     method: req.method,
-    headers: req.headers as any,
+    headers: headersInit,
     body:
       req.method === 'GET' || req.method === 'HEAD'
         ? undefined
@@ -30,7 +42,10 @@ async function proxyToPort(port: number, subpath: string, req: Request) {
   return new NextResponse(r.body, { status: r.status, headers })
 }
 
-function guessMime(p: string) {
+/**
+ * Guesses MIME type from file extension.
+ */
+function guessMime(p: string): string {
   const ext = p.toLowerCase().split('.').pop() || ''
   switch (ext) {
     case 'html':
@@ -100,7 +115,7 @@ export const GET = withSession<{ params: Promise<{ id: string; path?: string[] }
           text = raw.toString('utf8')
         }
         // Extract potential entity-encoded body and decode
-        const m = text.match(/<body[^>]*>([\s\s\S]*?)<\/body>/i)
+        const m = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
         if (m) {
           let inner = m[1]
           inner = inner.replace(/<\/(?:p|span)(?:\s[^>]*)?>/gi, '')
@@ -135,16 +150,23 @@ export const GET = withSession<{ params: Promise<{ id: string; path?: string[] }
       }
       const headers = new Headers({ 'Content-Type': guessMime(target) })
       csp(headers)
-      return new NextResponse(typeof data === 'string' ? data : (data as any), { headers })
+
+      // Convert Buffer to ArrayBuffer for NextResponse if needed
+      const bodyContent = typeof data === 'string' ? data : new Uint8Array(data).buffer
+      return new NextResponse(bodyContent, { headers })
     } catch {
       return NextResponse.json({ error: 'not found' }, { status: 404 })
     }
   }
   if (inst.kind === 'dir') {
-    const html = `<!doctype html><html lang="en" data-ami-highlight-proxy="1"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Docs</title><script>window.__AMI_HIGHLIGHT_PROXY__=true;</script></head><body style="margin:0; height:100vh; background:#111;" data-ami-highlight-proxy="1"><iframe id="d" src="/doc.html?embed=1" style="border:0;width:100%;height:100%"></iframe><script>window.addEventListener('load',function(){try{document.getElementById('d').contentWindow.postMessage({type:'setContentRoot',path:${JSON.stringify(entry.path)}},'*')}catch(e){}})</script></body></html>`
-    const headers = new Headers({ 'Content-Type': 'text/html; charset=utf-8' })
-    csp(headers)
-    return new NextResponse(html, { headers })
+    // Redirect to Next.js doc viewer with params
+    const params = new URLSearchParams({
+      embed: '1',
+      rootKey: entry.id,
+      path: entry.path,
+    })
+    if (entry.label) params.set('label', entry.label)
+    return NextResponse.redirect(new URL(`/doc?${params.toString()}`, request.url))
   }
   return NextResponse.json({ error: 'unsupported' }, { status: 400 })
 }

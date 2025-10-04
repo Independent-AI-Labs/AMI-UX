@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { appRoot, repoRoot, uploadsRoot } from './store'
+import { loadRuntimeConfig } from './runtime-config'
 
 export type MediaRoot = {
   key: string
@@ -28,6 +29,31 @@ export async function collectMediaRoots(): Promise<MediaRoot[]> {
     if (seen.has(normalized)) return
     seen.add(normalized)
     roots.push({ key, label, path: normalized, writable })
+  }
+
+  const cfg = await loadRuntimeConfig()
+  const contentRootRelative = cfg.contentRoot
+  const contentRootAbsolute = path.isAbsolute(contentRootRelative)
+    ? contentRootRelative
+    : path.resolve(appRoot, contentRootRelative)
+
+  const configPath = path.join(appRoot, 'data', 'config.json')
+  let contentRootLabel = 'Content'
+  try {
+    const configRaw = await fs.readFile(configPath, 'utf8')
+    const config = JSON.parse(configRaw) as { contentRootLabel?: string }
+    if (config.contentRootLabel) {
+      contentRootLabel = config.contentRootLabel
+    }
+  } catch {
+    // No config or missing contentRootLabel, use default
+  }
+
+  try {
+    await fs.mkdir(contentRootAbsolute, { recursive: true })
+  } catch {}
+  if (await pathExists(contentRootAbsolute)) {
+    addRoot('contentRoot', contentRootLabel, contentRootAbsolute, true)
   }
 
   try {

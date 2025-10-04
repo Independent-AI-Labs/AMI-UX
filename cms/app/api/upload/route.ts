@@ -8,6 +8,7 @@ import { pipeline } from 'stream/promises'
 import { createHash } from 'crypto'
 import { appRoot, repoRoot, uploadsRoot as sharedUploadsRoot } from '../../lib/store'
 import { withSession } from '../../lib/auth-guard'
+import { loadRuntimeConfig } from '../../lib/runtime-config'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,7 +24,7 @@ type UploadMeta = {
 const uploadsRoot = sharedUploadsRoot
 
 type RootTarget = {
-  key: 'uploads'
+  key: string
   base: string
   label: string
   metaBase: string
@@ -34,21 +35,61 @@ async function ensureDir(p: string) {
   await fs.mkdir(p, { recursive: true })
 }
 
+/**
+ * Resolves the upload target root based on the root parameter.
+ * Supports 'uploads' and 'contentRoot' roots.
+ */
 async function resolveRootTarget(rootParam: string | null | undefined): Promise<RootTarget> {
-  if (rootParam && rootParam !== 'uploads') {
-    throw new Error('Only uploads root is supported')
+  const resolvedRoot = rootParam || 'uploads'
+
+  if (resolvedRoot === 'uploads') {
+    const metaBase = path.resolve(uploadsRoot, '.upload-meta')
+    await ensureDir(metaBase)
+    await ensureDir(uploadsRoot)
+    const relativeBase = path.relative(repoRoot, uploadsRoot)
+    return {
+      key: 'uploads',
+      base: uploadsRoot,
+      label: 'Uploads',
+      metaBase,
+      relativeBase,
+    }
   }
-  const metaBase = path.resolve(appRoot, 'data/upload-meta/uploads')
-  await ensureDir(metaBase)
-  await ensureDir(uploadsRoot)
-  const relativeBase = path.relative(repoRoot, uploadsRoot)
-  return {
-    key: 'uploads',
-    base: uploadsRoot,
-    label: 'Uploads',
-    metaBase,
-    relativeBase,
+
+  if (resolvedRoot === 'contentRoot') {
+    const cfg = await loadRuntimeConfig()
+    const contentRootRelative = cfg.contentRoot
+    const contentRootAbsolute = path.isAbsolute(contentRootRelative)
+      ? contentRootRelative
+      : path.resolve(appRoot, contentRootRelative)
+
+    const configPath = path.join(appRoot, 'data', 'config.json')
+    let contentRootLabel = 'Content'
+    try {
+      const configRaw = await fs.readFile(configPath, 'utf8')
+      const config = JSON.parse(configRaw) as { contentRootLabel?: string }
+      if (config.contentRootLabel) {
+        contentRootLabel = config.contentRootLabel
+      }
+    } catch {
+      // No config or missing contentRootLabel, use default
+    }
+
+    const metaBase = path.resolve(appRoot, 'data', 'upload-meta', 'contentRoot')
+    await ensureDir(metaBase)
+    await ensureDir(contentRootAbsolute)
+    const relativeBase = path.relative(repoRoot, contentRootAbsolute)
+
+    return {
+      key: 'contentRoot',
+      base: contentRootAbsolute,
+      label: contentRootLabel,
+      metaBase,
+      relativeBase,
+    }
   }
+
+  throw new Error('Only uploads and contentRoot roots are supported')
 }
 
 function sanitizeRel(p: string) {
@@ -156,8 +197,7 @@ export const GET = withSession(async ({ request }) => {
     target = await resolveRootTarget(rootParam)
   } catch (err) {
     console.error('[api/upload] resolve root failed:', err)
-    const message = rootParam === 'contentRoot' ? 'contentRoot unavailable' : 'invalid root'
-    return NextResponse.json({ error: message }, { status: 400 })
+    return NextResponse.json({ error: 'invalid root' }, { status: 400 })
   }
 
   let resolved
@@ -216,8 +256,7 @@ export const PUT = withSession(async ({ request }) => {
     target = await resolveRootTarget(rootParam)
   } catch (err) {
     console.error('[api/upload] resolve root failed:', err)
-    const message = rootParam === 'contentRoot' ? 'contentRoot unavailable' : 'invalid root'
-    return NextResponse.json({ error: message }, { status: 400 })
+    return NextResponse.json({ error: 'invalid root' }, { status: 400 })
   }
 
   let resolved

@@ -39,7 +39,7 @@ initContextMenu()
   } catch {}
 })()
 
-// Visualizer C: iframe to doc.html embed
+// Visualizer C: iframe to doc embed
 const VisualizerC = {
   id: 'C',
   label: 'Docs Directory',
@@ -47,7 +47,7 @@ const VisualizerC = {
   mount: async (container, opts = {}) => {
     const sel = opts?.pathInfo || opts?.selected || {}
     const path = sel.path || ''
-    loadFrame('/doc.html?embed=1', { intent: 'doc', force: true, frame: getActiveFrame() })
+    loadFrame('/doc?embed=1', { intent: 'doc', force: true, frame: getActiveFrame() })
     return { unmount: () => {} }
   },
 }
@@ -1443,7 +1443,7 @@ async function activateTab(id) {
       lastDocMessage = docMessage
       if (docMessage) queueDocMessage(docMessage)
       if (frame) teardownHighlightPlugin(frame)
-      requestFrame('/doc.html?embed=1', 'doc', { force: true, frame })
+      requestFrame('/doc?embed=1', 'doc', { force: true, frame })
       if (frame) {
         frame.addEventListener(
           'load',

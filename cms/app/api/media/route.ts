@@ -3,6 +3,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 
 import { withSession } from '../../lib/auth-guard'
+import { resolveMediaRoot } from '../../lib/media-roots'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -55,12 +56,9 @@ export const GET = withSession(async ({ request }) => {
   const mode = url.searchParams.get('mode') || ''
   if (!rel) return new NextResponse('Missing path', { status: 400 })
 
-  const cwd = process.cwd()
-  const roots: Record<string, string> = {
-    uploads: path.resolve(cwd, 'files/uploads'),
-  }
-  const rootAbs = roots[rootParam]
-  if (!rootAbs) return new NextResponse('Invalid root', { status: 400 })
+  const rootInfo = await resolveMediaRoot(rootParam)
+  if (!rootInfo) return new NextResponse('Invalid root', { status: 400 })
+  const rootAbs = rootInfo.path
 
   const targetAbs = path.resolve(rootAbs, rel)
   if (!withinRoot(rootAbs, targetAbs)) return new NextResponse('Forbidden', { status: 403 })

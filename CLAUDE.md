@@ -66,6 +66,8 @@ Environment configuration:
 - Copy the updated `default.env` files (base/browser/domains/ux) and fill the auth stack variables: `DATAOPS_AUTH_URL`, `NEXT_PUBLIC_DATAOPS_AUTH_URL`, `DATAOPS_INTERNAL_TOKEN`, `SECRETS_BROKER_URL`, the broker tokens, and the `OPENBAO_*` settings that match your secrets instance. These must be valid before running auth or secrets tests.
 
 Process management:
+- **ABSOLUTELY FORBIDDEN**: NEVER manually start, stop, restart, or kill processes using `pkill`, `kill`, `killall`, or direct process management commands.
+- **ALWAYS** use the `/nodes` launcher for ALL process operations: `python nodes/scripts/setup_service.py start <service>`, `python nodes/scripts/setup_service.py stop <service>`, `python nodes/scripts/setup_service.py restart <service>`.
 - Run `npm run dev` for the UX app in the background (for example, `npm run dev &`) or in a separate terminal since it blocks the current shell.
 
 Reference code:

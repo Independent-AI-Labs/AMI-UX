@@ -1,4 +1,4 @@
-import { startCms } from './main.js?v=20250306'
+import { startCms } from './main.js?v=20251004'
 import { initContextMenu } from './context-menu.js'
 
 // Initialize custom context menu in doc viewer
@@ -37,16 +37,22 @@ window.addEventListener('resize', () => {
 
 startCms()
   .then(() => {
-    try {
-      window.parent?.postMessage?.({ type: 'docReady' }, '*')
-    } catch {}
+    console.log('[doc] startCms completed successfully')
   })
   .catch((err) => {
+    console.error('[doc] startCms failed:', err)
     const el = document.getElementById('content') || document.body
     if (el) el.textContent = 'Failed to initialize doc viewer.'
-    console.error(err)
   })
   .finally(() => {
+    // ALWAYS send docReady, even if startCms failed
+    // This ensures the shell can flush pending messages and show errors properly
+    try {
+      console.log('[doc] Sending docReady to parent')
+      window.parent?.postMessage?.({ type: 'docReady' }, '*')
+    } catch (e) {
+      console.error('[doc] Failed to send docReady:', e)
+    }
     syncDocHeaderHeight()
   })
 
