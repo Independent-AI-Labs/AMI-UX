@@ -14,16 +14,21 @@ export const GET = withSession(async () => {
       // Initial hello event
       try {
         controller.enqueue(encoder.encode(`: connected\n\n`))
-      } catch {}
+      } catch (err) {
+        console.error('[events] Failed to enqueue initial hello event:', err instanceof Error ? err.message : String(err))
+      }
       const interval = setInterval(() => {
         if (closed) return
         try {
           controller.enqueue(encoder.encode(`event: ping\n` + `data: ${Date.now()}\n\n`))
-        } catch {
+        } catch (err) {
           // If enqueue throws, close the stream and stop
+          console.warn('[events] Failed to enqueue ping event, closing stream:', err instanceof Error ? err.message : String(err))
           try {
             controller.close()
-          } catch {}
+          } catch (closeErr) {
+            console.error('[events] Failed to close controller after enqueue error:', closeErr instanceof Error ? closeErr.message : String(closeErr))
+          }
           closed = true
           clearInterval(interval)
         }
@@ -35,15 +40,19 @@ export const GET = withSession(async () => {
         clearInterval(interval)
         try {
           controller.close()
-        } catch {}
+        } catch (err) {
+          console.warn('[events] Failed to close controller on abort:', err instanceof Error ? err.message : String(err))
+        }
       }
 
       // Best-effort: close on process exit
       try {
-        // @ts-ignore
-        const signal: AbortSignal | undefined = (globalThis as any).request?.signal || undefined
+        // Access experimental abort signal if available (Next.js runtime-specific)
+        const signal: AbortSignal | undefined = (globalThis as unknown as { request?: { signal?: AbortSignal } }).request?.signal
         if (signal) signal.addEventListener('abort', abort, { once: true })
-      } catch {}
+      } catch (err) {
+        console.warn('[events] Failed to setup abort signal listener:', err instanceof Error ? err.message : String(err))
+      }
     },
     cancel() {
       closed = true

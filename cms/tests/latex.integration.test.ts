@@ -132,7 +132,7 @@ test('POST stores rendered PDF artefacts and GET reuses the cache', { concurrenc
   form.set('path', texRel)
   form.set('root', 'contentRoot')
   form.set('headings', JSON.stringify([{ id: 'a', text: 'Intro', level: 1, page: 1 }]))
-  form.set('log', 'stub log output')
+  form.set('log', 'test log output')
 
   const pdfFile = new File([SAMPLE_PDF_BYTES], 'render.pdf', { type: 'application/pdf' })
   form.append('pdf', pdfFile)

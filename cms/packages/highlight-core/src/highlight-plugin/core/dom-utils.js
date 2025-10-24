@@ -1,50 +1,50 @@
-export const IGNORE_ATTR = 'data-ami-highlight-ignore'
-export const IGNORE_VALUE = '1'
-export const IGNORE_PROPS = Object.freeze({ [IGNORE_ATTR]: IGNORE_VALUE })
+export const EXCLUDE_ATTR = 'data-ami-highlight-exclude'
+export const EXCLUDE_VALUE = '1'
+export const EXCLUDE_PROPS = Object.freeze({ [EXCLUDE_ATTR]: EXCLUDE_VALUE })
 export const OWNED_ATTR = 'data-ami-highlight-owned'
 
 const ElementRef = typeof Element !== 'undefined' ? Element : null
 
-const IGNORE_SELECTOR = `[${IGNORE_ATTR}]`
+const EXCLUDE_SELECTOR = `[${EXCLUDE_ATTR}]`
 
-let ignoreCache = new WeakMap()
-let ignoreCacheToken = 0
+let excludeCache = new WeakMap()
+let excludeCacheToken = 0
 
-function readIgnoreCache(node) {
+function readExcludeCache(node) {
   if (!node) return undefined
-  const entry = ignoreCache.get(node)
+  const entry = excludeCache.get(node)
   if (!entry) return undefined
-  return entry.token === ignoreCacheToken ? entry.value : undefined
+  return entry.token === excludeCacheToken ? entry.value : undefined
 }
 
-function writeIgnoreCache(node, value) {
+function writeExcludeCache(node, value) {
   if (!node) return
-  ignoreCache.set(node, { token: ignoreCacheToken, value })
+  excludeCache.set(node, { token: excludeCacheToken, value })
 }
 
-export function resetIgnoreCache() {
-  ignoreCacheToken += 1
-  if (ignoreCacheToken > Number.MAX_SAFE_INTEGER - 1) {
-    ignoreCacheToken = 0
-    ignoreCache = new WeakMap()
+export function resetExcludeCache() {
+  excludeCacheToken += 1
+  if (excludeCacheToken > Number.MAX_SAFE_INTEGER - 1) {
+    excludeCacheToken = 0
+    excludeCache = new WeakMap()
   }
 }
 
-export function invalidateIgnoreCacheFor(node) {
+export function invalidateExcludeCacheFor(node) {
   if (!node) return
   try {
-    ignoreCache.delete(node)
+    excludeCache.delete(node)
   } catch {}
 }
 
-export function markIgnoredNode(node, options = {}) {
+export function markExcludedNode(node, options = {}) {
   if (!node || typeof node.setAttribute !== 'function') return node
-  if (options.ignore === false) return node
+  if (options.exclude === false) return node
   try {
-    node.setAttribute(IGNORE_ATTR, IGNORE_VALUE)
-    resetIgnoreCache()
+    node.setAttribute(EXCLUDE_ATTR, EXCLUDE_VALUE)
+    resetExcludeCache()
   } catch {
-    invalidateIgnoreCacheFor(node)
+    invalidateExcludeCacheFor(node)
   }
   return node
 }
@@ -54,8 +54,8 @@ export function markPluginNode(node, options = {}) {
   try {
     node.setAttribute(OWNED_ATTR, '1')
   } catch {}
-  if (options.ignore !== false) markIgnoredNode(node)
-  invalidateIgnoreCacheFor(node)
+  if (options.exclude !== false) markExcludedNode(node)
+  invalidateExcludeCacheFor(node)
   return node
 }
 
@@ -71,37 +71,37 @@ export function isPluginNode(node) {
   return false
 }
 
-export function shouldIgnoreNode(node) {
+export function shouldExcludeNode(node) {
   if (!node || !ElementRef) return false
   if (node instanceof ElementRef) {
-    const cached = readIgnoreCache(node)
+    const cached = readExcludeCache(node)
     if (typeof cached === 'boolean') return cached
-    let ignored = false
+    let excluded = false
     try {
-      ignored = !!node.closest(IGNORE_SELECTOR)
+      excluded = !!node.closest(EXCLUDE_SELECTOR)
     } catch {
-      ignored = false
+      excluded = false
     }
-    writeIgnoreCache(node, ignored)
-    return ignored
+    writeExcludeCache(node, excluded)
+    return excluded
   }
   return false
 }
 
-export function filterIgnored(collection) {
+export function filterExcluded(collection) {
   const out = []
   if (!collection || !ElementRef) return out
   for (const node of collection) {
     if (!(node instanceof ElementRef)) continue
-    if (shouldIgnoreNode(node)) continue
+    if (shouldExcludeNode(node)) continue
     out.push(node)
   }
   return out
 }
-export function withIgnoreProps(props = {}) {
+export function withExcludeProps(props = {}) {
   if (!props || typeof props !== 'object') {
-    return { [IGNORE_ATTR]: IGNORE_VALUE }
+    return { [EXCLUDE_ATTR]: EXCLUDE_VALUE }
   }
-  if (props[IGNORE_ATTR] === IGNORE_VALUE) return props
-  return { ...props, [IGNORE_ATTR]: IGNORE_VALUE }
+  if (props[EXCLUDE_ATTR] === EXCLUDE_VALUE) return props
+  return { ...props, [EXCLUDE_ATTR]: EXCLUDE_VALUE }
 }

@@ -93,7 +93,7 @@ export function createSyntaxEditorToolkit(React) {
     value = '',
     onChange,
     language = 'javascript',
-    placeholder = '',
+    hint = '',
     disabled = false,
     name,
     autoFocus = false,
@@ -132,8 +132,8 @@ export function createSyntaxEditorToolkit(React) {
       const wrapper = wrapperRef.current
       if (wrapper) {
         wrapper.dataset.language = language
-        if (placeholder) wrapper.dataset.placeholder = placeholder
-        else delete wrapper.dataset.placeholder
+        if (hint) wrapper.dataset.hint = hint
+        else delete wrapper.dataset.hint
         wrapper.dataset.empty = text ? 'false' : 'true'
         const lines = minLines > 0 ? minLines : 8
         wrapper.style.setProperty('--syntax-editor-min-lines', String(lines))
@@ -142,7 +142,7 @@ export function createSyntaxEditorToolkit(React) {
       if (textareaRef.current && textareaRef.current.value !== text) {
         textareaRef.current.value = text
       }
-    }, [value, language, placeholder, minLines])
+    }, [value, language, hint, minLines])
 
     useEffect(() => {
       if (autoFocus && textareaRef.current) textareaRef.current.focus()
@@ -159,7 +159,7 @@ export function createSyntaxEditorToolkit(React) {
       {
         ref: wrapperRef,
         className: 'syntax-editor',
-        'data-placeholder': placeholder || undefined,
+        'data-hint': hint || undefined,
         'data-language': language,
         'data-empty': value ? 'false' : 'true',
         'data-disabled': disabled ? 'true' : 'false',

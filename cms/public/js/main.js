@@ -17,7 +17,7 @@ import {
 import { connectSSE } from './sse.js'
 import { acknowledgeParentMessage, messageChannel } from './message-channel.js'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
-import { markIgnoredNode } from './highlight-plugin/core/dom-utils.js'
+import { markExcludedNode } from './highlight-plugin/core/dom-utils.js'
 import { normalizeFsPath } from './file-tree.js'
 import { createVisibilityTracker } from './visibility-tracker.js'
 import {
@@ -522,16 +522,15 @@ function ensureTreeContainer() {
   const filterInput = document.createElement('input')
   filterInput.type = 'search'
   filterInput.id = 'treeFilter'
-  filterInput.placeholder = 'Filter tree items'
   filterInput.className = 'drawer-shell-header__search-input'
-  filterInput.setAttribute('aria-label', 'Filter tree')
+  filterInput.setAttribute('aria-label', 'Filter tree items')
   if (state.treeFilterValue) filterInput.value = state.treeFilterValue
   filterWrap.appendChild(filterInput)
   controls.appendChild(filterWrap)
 
   const actions = document.createElement('div')
   actions.className = 'drawer-shell-header__actions tree-toolbar__actions'
-  markIgnoredNode(actions)
+  markExcludedNode(actions)
 
   const expandBtn = document.createElement('button')
   expandBtn.className = 'btn btn--ghost icon-button'
@@ -540,7 +539,7 @@ function ensureTreeContainer() {
   expandBtn.innerHTML = iconMarkup('add-box-line', { size: 18 })
   applyHint(expandBtn, 'Expand all sections')
   expandBtn.setAttribute('aria-label', 'Expand all sections')
-  markIgnoredNode(expandBtn)
+  markExcludedNode(expandBtn)
   expandBtn.addEventListener('click', () => expandCollapseAll(true))
 
   const collapseBtn = document.createElement('button')
@@ -550,7 +549,7 @@ function ensureTreeContainer() {
   collapseBtn.innerHTML = iconMarkup('checkbox-indeterminate-line', { size: 18 })
   applyHint(collapseBtn, 'Collapse all sections')
   collapseBtn.setAttribute('aria-label', 'Collapse all sections')
-  markIgnoredNode(collapseBtn)
+  markExcludedNode(collapseBtn)
   collapseBtn.addEventListener('click', () => expandCollapseAll(false))
 
   actions.appendChild(expandBtn)
@@ -564,7 +563,7 @@ function ensureTreeContainer() {
   subtitle.className = 'drawer-shell-header__subtitle tree-toolbar__subtitle'
   subtitle.id = 'treeToolbarSubtitle'
   subtitle.textContent = 'Explore and inspect structured documentation.'
-  markIgnoredNode(subtitle)
+  markExcludedNode(subtitle)
   toolbar.appendChild(subtitle)
 
   const shell = document.createElement('div')

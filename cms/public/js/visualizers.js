@@ -29,7 +29,7 @@ export function detectVisualizer(pathInfo) {
   return null
 }
 
-// Helper stubs for future modes A/B/D
+// Helper implementations for future modes A/B/D
 function createIframe(
   container,
   src,

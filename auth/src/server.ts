@@ -8,7 +8,7 @@ type AuthExports = {
   signOut: (...args: any[]) => Promise<any>
 }
 
-function deriveStubUserId(email: string): string {
+function deriveDevUserId(email: string): string {
   const safeEmail = email.trim().toLowerCase()
   let hash = 0
   for (let i = 0; i < safeEmail.length; i += 1) {
@@ -18,11 +18,11 @@ function deriveStubUserId(email: string): string {
   return `user-${slug}`
 }
 
-function createStubAuth(): AuthExports {
+function createDevAuth(): AuthExports {
   const guestEmail = (process.env.AMI_GUEST_EMAIL || 'guest@ami.local').toLowerCase()
   const guestName = process.env.AMI_GUEST_NAME || 'Guest AMI Account'
-  const guestUserId = deriveStubUserId(guestEmail)
-  const stubSession = {
+  const guestUserId = deriveDevUserId(guestEmail)
+  const devSession = {
     user: {
       id: guestUserId,
       email: guestEmail,
@@ -33,13 +33,13 @@ function createStubAuth(): AuthExports {
       tenantId: null,
       metadata: {
         accountType: 'guest',
-        managedBy: 'stub-auth',
+        managedBy: 'dev-auth',
       },
     },
     expires: new Date(Date.now() + 1000 * 60 * 60).toISOString(),
   }
 
-  const csrfToken = 'stub-csrf-token'
+  const csrfToken = 'dev-csrf-token'
 
   const jsonResponse = (payload: unknown, init: ResponseInit = {}) =>
     new Response(JSON.stringify(payload), {
@@ -55,7 +55,7 @@ function createStubAuth(): AuthExports {
     const url = new URL(request.url)
     const pathname = url.pathname
     if (pathname.endsWith('/session')) {
-      return jsonResponse(stubSession)
+      return jsonResponse(devSession)
     }
     if (pathname.endsWith('/csrf')) {
       return jsonResponse({ csrfToken, cookie: csrfToken })
@@ -93,14 +93,14 @@ function createStubAuth(): AuthExports {
       const body = await request.clone().text().catch(() => '')
       const params = new URLSearchParams(body)
       const callbackUrl = params.get('callbackUrl') || url.searchParams.get('callbackUrl') || '/'
-      return jsonResponse({ url: callbackUrl, status: 'stub' })
+      return jsonResponse({ url: callbackUrl, status: 'dev' })
     }
     return jsonResponse({ ok: true })
   }
 
-  const stubbedAuth = (...args: any[]) => {
+  const devAuth = (...args: any[]) => {
     if (args.length === 0) {
-      return Promise.resolve(stubSession)
+      return Promise.resolve(devSession)
     }
 
     const [firstArg] = args
@@ -110,7 +110,7 @@ function createStubAuth(): AuthExports {
       return async (...handlerArgs: any[]) => {
         const [req] = handlerArgs
         if (req && typeof req === 'object') {
-          ;(req as any).auth = stubSession
+          ;(req as any).auth = devSession
         }
         return handler(...handlerArgs)
       }
@@ -118,13 +118,13 @@ function createStubAuth(): AuthExports {
 
     const req = firstArg
     if (req && typeof req === 'object') {
-      ;(req as any).auth = stubSession
+      ;(req as any).auth = devSession
     }
-    return Promise.resolve(stubSession)
+    return Promise.resolve(devSession)
   }
 
   return {
-    auth: stubbedAuth,
+    auth: devAuth,
     handlers: {
       GET: handleGet,
       POST: handlePost,
@@ -137,12 +137,12 @@ function createStubAuth(): AuthExports {
 let authExportsPromise: Promise<AuthExports> | null = null
 
 const HAS_NEXT_RUNTIME = typeof process.env.NEXT_RUNTIME === 'string' && process.env.NEXT_RUNTIME.length > 0
-const FORCE_STUB_AUTH =
-  process.env.AMI_AUTH_FORCE_STUB === '1' || (!HAS_NEXT_RUNTIME && process.env.NODE_ENV !== 'production')
+const FORCE_DEV_AUTH =
+  process.env.AMI_AUTH_FORCE_DEV === '1' || (!HAS_NEXT_RUNTIME && process.env.NODE_ENV !== 'production')
 
 async function initialiseAuthExports(): Promise<AuthExports> {
-  if (FORCE_STUB_AUTH) {
-    return createStubAuth()
+  if (FORCE_DEV_AUTH) {
+    return createDevAuth()
   }
   try {
     const config = await loadAuthConfig()
@@ -161,12 +161,12 @@ async function initialiseAuthExports(): Promise<AuthExports> {
     }
 
     console.warn(
-      '[ux/auth] next-auth module did not return expected exports, using stub auth implementation instead.',
+      '[ux/auth] next-auth module did not return expected exports, using dev auth implementation instead.',
     )
-    return createStubAuth()
+    return createDevAuth()
   } catch (err) {
-    console.warn('[ux/auth] next-auth initialisation failed, falling back to stub auth implementation.', err)
-    return createStubAuth()
+    console.warn('[ux/auth] next-auth initialisation failed, falling back to dev auth implementation.', err)
+    return createDevAuth()
   }
 }
 

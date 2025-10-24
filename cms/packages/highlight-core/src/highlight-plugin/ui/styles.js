@@ -754,8 +754,8 @@ const STYLE_TEXT = `
   white-space: pre-wrap;
   word-break: break-word;
 }
-.syntax-editor[data-empty='true'][data-placeholder]:before {
-  content: attr(data-placeholder);
+.syntax-editor[data-empty='true'][data-hint]:before {
+  content: attr(data-hint);
   position: absolute;
   inset: 16px 18px auto;
   font-family: var(--code-font, 'JetBrains Mono', Consolas, monospace);
@@ -976,7 +976,7 @@ const STYLE_TEXT = `
   overflow-y: auto;
   padding-right: 0.25rem;
 }
-.scenario-manager__placeholder {
+.scenario-manager__empty {
   flex: 1;
   display: flex;
   align-items: center;

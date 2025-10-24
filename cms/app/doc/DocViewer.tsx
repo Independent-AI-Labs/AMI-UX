@@ -459,7 +459,7 @@ export default function DocViewer({ searchParams }: DocViewerProps) {
         }
       `}} />
 
-      <header data-ami-highlight-ignore="1">
+      <header data-ami-highlight-exclude="1">
         <h1 id="appTitle">Docs</h1>
         <input id="search" type="search" placeholder="Search files and headings (/)" />
         <button
@@ -467,7 +467,7 @@ export default function DocViewer({ searchParams }: DocViewerProps) {
           id="themeToggle"
           data-hint="Toggle Theme"
           aria-label="Toggle Theme"
-          data-ami-highlight-ignore="1"
+          data-ami-highlight-exclude="1"
         >
           <svg
             id="iconThemeDoc"
@@ -489,7 +489,7 @@ export default function DocViewer({ searchParams }: DocViewerProps) {
           id="printBtn"
           data-hint="Print"
           aria-label="Print"
-          data-ami-highlight-ignore="1"
+          data-ami-highlight-exclude="1"
         >
           <svg
             viewBox="0 0 24 24"

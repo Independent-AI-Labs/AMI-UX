@@ -20,7 +20,7 @@ export function openCreateDirectoryDialog(options = {}) {
   const {
     title = 'Create Directory',
     description = '',
-    placeholder = 'Directory name',
+    hint = 'Directory name',
     confirmLabel = 'Create',
     cancelLabel = 'Cancel',
     initialValue = '',
@@ -31,7 +31,7 @@ export function openCreateDirectoryDialog(options = {}) {
   return new Promise((resolve) => {
     const overlay = document.createElement('div')
     overlay.className = 'dialog-backdrop'
-    overlay.setAttribute('data-ami-highlight-ignore', '1')
+    overlay.setAttribute('data-ami-highlight-exclude', '1')
 
     const surface = document.createElement('div')
     surface.className = 'dialog-surface create-directory-dialog'
@@ -84,7 +84,7 @@ export function openCreateDirectoryDialog(options = {}) {
     const input = document.createElement('input')
     input.type = 'text'
     input.className = 'create-directory-dialog__input'
-    input.placeholder = placeholder
+    input.setAttribute('aria-label', hint)
     input.value = initialValue
     input.setAttribute('aria-label', ariaLabel)
     field.appendChild(input)

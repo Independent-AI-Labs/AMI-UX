@@ -1158,8 +1158,8 @@ function getShellTabStrip() {
   if (shellTabStrip) return shellTabStrip
   const bar = document.getElementById('tabsBar')
   if (!bar) return null
-  if (!bar.hasAttribute('data-ami-highlight-ignore')) {
-    bar.setAttribute('data-ami-highlight-ignore', '1')
+  if (!bar.hasAttribute('data-ami-highlight-exclude')) {
+    bar.setAttribute('data-ami-highlight-exclude', '1')
   }
   shellTabStrip = createTabStrip(bar, {
     showAddButton: true,

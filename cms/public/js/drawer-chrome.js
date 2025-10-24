@@ -306,10 +306,9 @@ export function createDrawerChrome(React) {
           e('input', {
             type: filter.type || 'search',
             className: 'drawer-shell-header__search-input',
-            placeholder: filter.placeholder || '',
             value: filter.value ?? '',
             onChange: (event) => filter.onChange?.(event),
-            'aria-label': filter.ariaLabel || filter.placeholder || 'Filter items',
+            'aria-label': filter.ariaLabel || 'Filter items',
           }),
         ),
       )

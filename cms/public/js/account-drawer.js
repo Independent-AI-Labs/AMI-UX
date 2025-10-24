@@ -157,13 +157,13 @@ function createSlidingDrawerPortal(React) {
           zIndex: 1600,
         },
         'data-dialog-id': idRef.current,
-        'data-ami-highlight-ignore': '1',
+        'data-ami-highlight-exclude': '1',
       },
       e(
         'div',
         {
           className: 'dialog-backdrop dialog-backdrop--right account-drawer-backdrop',
-          'data-ami-highlight-ignore': '1',
+          'data-ami-highlight-exclude': '1',
           ref: overlayRef,
         },
         e(
@@ -849,7 +849,6 @@ function createAccountDrawerComponent(React) {
             onClose,
             closeLabel: 'Close account manager',
             filter: {
-              placeholder: 'Filter accounts…',
               ariaLabel: 'Filter accounts',
               value: filter,
               onChange: (event) => setFilter(event.target.value),
@@ -998,7 +997,7 @@ function createAddAccountDialog(React) {
           e('h3', null, provider.id === 'credentials' ? 'User Email' : 'Identifier'),
           e('input', {
             type: provider.id === 'credentials' ? 'email' : 'text',
-            placeholder: provider.id === 'credentials' ? 'name@example.com' : 'client-id or subject',
+            'aria-label': provider.id === 'credentials' ? 'Email address' : 'Client identifier or subject',
             value: email,
             onChange: (event) => {
               setEmail(event.target.value)
@@ -1011,7 +1010,7 @@ function createAddAccountDialog(React) {
           e('h3', null, 'Label (Optional)'),
           e('input', {
             type: 'text',
-            placeholder: 'Finance tenant, staging, etc.',
+            'aria-label': 'Label for this account',
             value: label,
             onChange: (event) => setLabel(event.target.value),
           }),

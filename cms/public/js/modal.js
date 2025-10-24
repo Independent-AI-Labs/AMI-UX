@@ -139,7 +139,7 @@ function createThemedOverlay({ zIndex = '1600' } = {}) {
   overlay.style.position = 'fixed'
   overlay.style.inset = '0'
   overlay.style.zIndex = zIndex
-  overlay.setAttribute('data-ami-highlight-ignore', '1')
+  overlay.setAttribute('data-ami-highlight-exclude', '1')
 
   const applyTheme = () => syncThemeIntoElement(overlay)
 
@@ -361,7 +361,7 @@ function createModalDialogFactory(React) {
       'div',
       {
         className: 'dialog-backdrop',
-        'data-ami-highlight-ignore': '1',
+        'data-ami-highlight-exclude': '1',
         ref: overlayRef,
       },
       React.createElement(
@@ -521,8 +521,8 @@ function createServerDirectoryModalFactory(React, { ModalDialog, FileTreeSelecto
               writable: opt.writable !== false,
             })
             if (normalized) accum.push(normalized)
-          } catch {
-            // ignore individual root failures
+          } catch (err) {
+            console.warn(`[modal] Failed to load tree for root "${opt.key}":`, err.message || String(err))
           }
         }
         if (alive) {
@@ -618,7 +618,7 @@ function createServerDirectoryModalFactory(React, { ModalDialog, FileTreeSelecto
       const result = await openCreateDirectoryDialog({
         title: 'Create Directory',
         description: `Create inside ${parentDisplay}.`,
-        placeholder: 'Directory name',
+        hint: 'Directory name',
         ariaLabel: 'Directory name',
         validate: (name) => {
           const trimmed = (name || '').trim()
@@ -1268,8 +1268,8 @@ export async function openSelectMediaModal({ onSelect } = {}) {
                 const normAbs = normalizeFsPath(normalized.absolutePath)
                 if (normAbs) seenAbs.add(normAbs)
               }
-            } catch {
-              // ignore individual root failures
+            } catch (err) {
+              console.warn(`[modal] Failed to load tree for root "${opt.key}":`, err.message || String(err))
             }
           }
         }
@@ -2760,14 +2760,13 @@ export async function openSelectMediaModal({ onSelect } = {}) {
 
     const drawerContent = React.createElement(
       'div',
-      { className: 'drawer-shell content-drawer-shell', 'data-ami-highlight-ignore': '1' },
+      { className: 'drawer-shell content-drawer-shell', 'data-ami-highlight-exclude': '1' },
       React.createElement(DrawerHeader, {
         title: 'Content Directory',
         description: 'Serve, upload, and manage workspace resources without leaving the shell.',
         onClose: requestClose,
         closeLabel: 'Close content directory',
         filter: {
-          placeholder: 'Filter…',
           ariaLabel: 'Filter content',
           value: filter,
           onChange: (event) => setFilter(event.target.value),
@@ -2953,7 +2952,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
       {
         className:
           'dialog-backdrop dialog-backdrop--right account-drawer-backdrop content-drawer-backdrop',
-        'data-ami-highlight-ignore': '1',
+        'data-ami-highlight-exclude': '1',
         ref: overlayRef,
       },
       surfaceNode,
@@ -3097,7 +3096,7 @@ export async function openSelectMediaModal({ onSelect } = {}) {
         React.createElement('input', {
           type: 'text',
           ref: inputRef,
-          placeholder: 'Enter absolute or repo-relative path',
+          'aria-label': 'Enter absolute or repo-relative path',
           style: {
             flex: 1,
             padding: '0.375rem 0.5rem',
@@ -3175,7 +3174,7 @@ export async function openServerDirectoryPicker(options = {}) {
 
   return new Promise((resolve) => {
     const container = document.createElement('div')
-    container.setAttribute('data-ami-highlight-ignore', '1')
+    container.setAttribute('data-ami-highlight-exclude', '1')
     document.body.appendChild(container)
 
     const root = ReactDOM.createRoot(container)

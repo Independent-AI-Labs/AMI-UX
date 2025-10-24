@@ -1,4 +1,4 @@
-import { IGNORE_ATTR, invalidateIgnoreCacheFor, markPluginNode, resetIgnoreCache, shouldIgnoreNode } from './dom-utils.js'
+import { EXCLUDE_ATTR, invalidateExcludeCacheFor, markPluginNode, resetExcludeCache, shouldExcludeNode } from './dom-utils.js'
 import { setHint } from './hints.js'
 import { debugLog } from './debug.js'
 
@@ -455,7 +455,7 @@ function decorateTreeAncestors(doc, treeSelectors) {
   const handler = (type) => (event) => {
     const target =
       event.target instanceof Element ? event.target.closest(treeSelectors.join(',')) : null
-    if (!target || shouldIgnoreNode(target)) return
+    if (!target || shouldExcludeNode(target)) return
     if (type === 'enter') {
       const ancestors = []
       let details = target.parentElement?.closest('details')
@@ -826,7 +826,7 @@ function createHoverOverlay(doc, selectors, callbacks) {
     if (!(event.target instanceof Element)) return
     const el = event.target.closest(allSelectors)
     if (!el) return
-    if (shouldIgnoreNode(el)) return
+    if (shouldExcludeNode(el)) return
     if (overlay.contains(el)) return
     clearHideTimer()
     pendingAnchor = el
@@ -868,9 +868,9 @@ function createHoverOverlay(doc, selectors, callbacks) {
     if (!(event.target instanceof Element)) return
     const el = event.target.closest(allSelectors)
     if (!el) return
-    if (shouldIgnoreNode(el)) return
+    if (shouldExcludeNode(el)) return
     const related = event.relatedTarget instanceof Element ? event.relatedTarget : null
-    if (related && shouldIgnoreNode(related)) {
+    if (related && shouldExcludeNode(related)) {
       pendingAnchor = null
       pendingPointer = null
       clearShowTimer()
@@ -1194,17 +1194,17 @@ function createAsyncHighlightRunner(options = {}) {
   function getRecord(el) {
     let record = elementRecords.get(el)
     if (!record) {
-      record = { revision: currentRevision, matchesMask: 0, ignore: false }
+      record = { revision: currentRevision, matchesMask: 0, exclude: false }
       elementRecords.set(el, record)
       return record
     }
     return record
   }
 
-  function markIgnore(el, value) {
+  function markExclude(el, value) {
     const record = getRecord(el)
     record.revision = currentRevision
-    record.ignore = value
+    record.exclude = value
     if (value) record.matchesMask = 0
     return record
   }
@@ -1283,8 +1283,8 @@ function createAsyncHighlightRunner(options = {}) {
         continue
       }
       seen.add(node)
-      const shouldSkip = shouldIgnoreNode(node)
-      markIgnore(node, shouldSkip)
+      const shouldSkip = shouldExcludeNode(node)
+      markExclude(node, shouldSkip)
       if (shouldSkip) continue
       applied += evaluateElement(node)
       const children = node.children
@@ -1305,7 +1305,7 @@ function createAsyncHighlightRunner(options = {}) {
   async function performFullScan(mode) {
     const token = ++runId
     bumpRevision()
-    resetIgnoreCache()
+    resetExcludeCache()
     mutationQueue = []
     pendingNodes = new WeakSet()
     mutationScheduled = false
@@ -1330,7 +1330,7 @@ function createAsyncHighlightRunner(options = {}) {
   async function flushMutationQueue(token) {
     if (!mutationQueue.length) return 0
     bumpRevision()
-    resetIgnoreCache()
+    resetExcludeCache()
     const started = now()
     const sliceState = { start: started }
     const seen = new WeakSet()
@@ -1406,7 +1406,7 @@ function createAsyncHighlightRunner(options = {}) {
       if (record.type === 'attributes') {
         const target = record.target
         if (!target || (ElementRef && !(target instanceof ElementRef))) continue
-        invalidateIgnoreCacheFor(target)
+        invalidateExcludeCacheFor(target)
         elementRecords.delete(target)
         enqueueNode(target)
         continue
@@ -1626,7 +1626,7 @@ export function initHighlightEffects(options = {}) {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['class', 'role', IGNORE_ATTR],
+      attributeFilter: ['class', 'role', EXCLUDE_ATTR],
     })
   }
   const detachTreeAncestorWatcher = trackTreeAncestors

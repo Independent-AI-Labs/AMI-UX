@@ -88,7 +88,7 @@ function ensureDialog() {
 
   overlayEl = document.createElement('div')
   overlayEl.className = 'dialog-backdrop'
-  overlayEl.setAttribute('data-ami-highlight-ignore', '1')
+  overlayEl.setAttribute('data-ami-highlight-exclude', '1')
   overlayEl.hidden = true
 
   surfaceEl = document.createElement('div')
@@ -299,12 +299,12 @@ function copyText(value) {
     return navigator.clipboard
       .writeText(value)
       .then(() => true)
-      .catch(async () => legacyCopy(value))
+      .catch(async () => manualCopy(value))
   }
-  return legacyCopy(value)
+  return manualCopy(value)
 }
 
-function legacyCopy(value) {
+function manualCopy(value) {
   try {
     const textarea = document.createElement('textarea')
     textarea.value = value

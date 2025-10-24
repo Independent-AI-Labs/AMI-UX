@@ -1,4 +1,4 @@
-import { markPluginNode, shouldIgnoreNode } from './dom-utils.js'
+import { markPluginNode, shouldExcludeNode } from './dom-utils.js'
 import { setHint } from './hints.js'
 import { debugLog } from './debug.js'
 
@@ -362,7 +362,7 @@ class AutomationController {
         this.onTriggerEditRequest(trigger.id, { focus: true })
       }
     })
-    markPluginNode(icon, { ignore: true })
+    markPluginNode(icon, { exclude: true })
     this.document.body.appendChild(icon)
     const entryInfo = {
       triggerId: trigger.id,
@@ -557,9 +557,9 @@ class AutomationController {
     const path = event.composedPath ? event.composedPath() : []
     let candidate = null
     if (path.length) {
-      candidate = path.find((node) => isElement(node) && !shouldIgnoreNode(node)) || null
+      candidate = path.find((node) => isElement(node) && !shouldExcludeNode(node)) || null
     } else if (isElement(event.target)) {
-      candidate = shouldIgnoreNode(event.target) ? null : event.target
+      candidate = shouldExcludeNode(event.target) ? null : event.target
     }
     if (candidate && candidate instanceof HTMLElement) {
       this.highlightPlacementTarget(candidate)

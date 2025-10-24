@@ -1,6 +1,6 @@
 const NOOP = () => {}
 
-function createStubVisibilityTracker() {
+function createMinimalVisibilityTracker() {
   const listeners = new Set()
   return {
     setRoot: NOOP,
@@ -21,7 +21,7 @@ function createStubVisibilityTracker() {
 
 export function createVisibilityTracker(options = {}) {
   if (typeof window === 'undefined' || typeof IntersectionObserver !== 'function') {
-    return createStubVisibilityTracker()
+    return createMinimalVisibilityTracker()
   }
 
   const listeners = new Set()

@@ -876,7 +876,7 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
         })
       : h(
           'section',
-          { className: 'scenario-manager__placeholder' },
+          { className: 'scenario-manager__empty' },
           'Select "Add Trigger" to create a scenario action.',
         )
 

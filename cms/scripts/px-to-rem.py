@@ -77,7 +77,56 @@ def should_convert_property(prop: str) -> bool:
     return any(safe in prop_lower for safe in SAFE_PROPS)
 
 
-def process_file(  # noqa: C901
+def _should_convert_px_value(prop: str, px_value: int) -> bool:
+    """Check if specific px value should be converted based on property and value."""
+    # Skip small values - keep for precision
+    if px_value <= MIN_PX_VALUE:
+        return False
+
+    # For width/height, only convert larger values
+    return not (any(p in prop.lower() for p in ["width", "height"]) and px_value <= MIN_DIMENSION_PX)
+
+
+def _process_css_property(
+    prop: str,
+    value: str,
+    modified_line: str,
+    base_px: int,
+    conversions: int,
+    max_conversions: int | None,
+    file_path: Path,
+    line_num: int,
+) -> tuple[str, int, list[str]]:
+    """Process a single CSS property for px to rem conversions."""
+    changes = []
+    px_pattern = r"(\d+)px"
+    px_matches = list(re.finditer(px_pattern, value))
+
+    for px_match in px_matches:
+        if max_conversions and conversions >= max_conversions:
+            break
+
+        px_value = int(px_match.group(1))
+
+        if not _should_convert_px_value(prop, px_value):
+            continue
+
+        rem_value = px_to_rem(px_value, base_px)
+        old_val = f"{px_value}px"
+
+        # Replace in modified line
+        modified_line = modified_line.replace(old_val, rem_value, 1)
+
+        changes.append(f"{file_path}:{line_num} | {prop}: {old_val} → {rem_value}")
+        conversions += 1
+
+        if max_conversions and conversions >= max_conversions:
+            break
+
+    return modified_line, conversions, changes
+
+
+def process_file(
     file_path: Path,
     base_px: int = 16,
     dry_run: bool = False,
@@ -107,35 +156,13 @@ def process_file(  # noqa: C901
             if not should_convert_property(prop):
                 continue
 
-            # Find px values in the value
-            px_pattern = r"(\d+)px"
-            px_matches = list(re.finditer(px_pattern, value))
+            modified_line, conversions, prop_changes = _process_css_property(
+                prop, value, modified_line, base_px, conversions, max_conversions, file_path, line_num
+            )
+            changes.extend(prop_changes)
 
-            for px_match in px_matches:
-                if max_conversions and conversions >= max_conversions:
-                    break
-
-                px_value = int(px_match.group(1))
-
-                # Skip small values - keep for precision
-                if px_value <= MIN_PX_VALUE:
-                    continue
-
-                # For width/height, only convert larger values
-                if any(p in prop.lower() for p in ["width", "height"]) and px_value <= MIN_DIMENSION_PX:
-                    continue
-
-                rem_value = px_to_rem(px_value, base_px)
-                old_val = f"{px_value}px"
-
-                # Replace in modified line
-                modified_line = modified_line.replace(old_val, rem_value, 1)
-
-                changes.append(f"{file_path}:{line_num} | {prop}: {old_val} → {rem_value}")
-                conversions += 1
-
-                if max_conversions and conversions >= max_conversions:
-                    break
+            if max_conversions and conversions >= max_conversions:
+                break
 
         new_lines.append(modified_line)
 
@@ -152,7 +179,29 @@ def process_file(  # noqa: C901
     return conversions, changes
 
 
-def main() -> int:  # noqa: C901
+def _filter_files(files: list[Path], excluded_dirs: set[str]) -> list[Path]:
+    """Filter out files in excluded directories."""
+    return [f for f in files if not any(exc in f.parts for exc in excluded_dirs)]
+
+
+def _display_results(total: int, all_changes: list[str], dry_run: bool, preview_limit: int) -> None:
+    """Display conversion results and preview."""
+    print()
+    print("=" * 60)
+    print(f"📊 Total conversions: {total}")
+
+    if dry_run and all_changes:
+        print(f"\n🔍 Changes preview (first {preview_limit}):")
+        for change in all_changes[:preview_limit]:
+            print(f"  {change}")
+        if len(all_changes) > preview_limit:
+            print(f"  ... and {len(all_changes) - preview_limit} more")
+
+    if dry_run:
+        print("\n⚠️  This was a dry run. Remove -d to apply changes.")
+
+
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Convert px values to rem in CSS/JS files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -185,7 +234,7 @@ Excluded: borders, shadows, outlines, small values (1-2px)
 
     # Filter out excluded directories
     excluded_dirs = {"node_modules", ".next", "vendor", ".git", "dist", "build"}
-    files = [f for f in files if not any(exc in f.parts for exc in excluded_dirs)]
+    files = _filter_files(files, excluded_dirs)
 
     if not files:
         print(f"❌ No files found matching: {args.pattern}")
@@ -217,19 +266,7 @@ Excluded: borders, shadows, outlines, small values (1-2px)
             all_changes.extend(changes)
             total_conversions += conversions
 
-    print()
-    print("=" * 60)
-    print(f"📊 Total conversions: {total_conversions}")
-
-    if args.dry_run and all_changes:
-        print(f"\n🔍 Changes preview (first {PREVIEW_LIMIT}):")
-        for change in all_changes[:PREVIEW_LIMIT]:
-            print(f"  {change}")
-        if len(all_changes) > PREVIEW_LIMIT:
-            print(f"  ... and {len(all_changes) - PREVIEW_LIMIT} more")
-
-    if args.dry_run:
-        print("\n⚠️  This was a dry run. Remove -d to apply changes.")
+    _display_results(total_conversions, all_changes, args.dry_run, PREVIEW_LIMIT)
 
     return 0
 

@@ -194,7 +194,7 @@ export class TriggerDialog {
     const props = {
       value: value || '',
       language: 'javascript',
-      placeholder: options.placeholder || '',
+      hint: options.hint || '',
       minLines: options.minLines || EDITOR_LINES,
       onChange: (next) => {
         this.editorState = { ...this.editorState, [kind]: next }
@@ -239,15 +239,15 @@ export class TriggerDialog {
     if (eventInput instanceof HTMLInputElement) eventInput.value = trigger?.eventType || 'click'
 
     this.renderEditor('target', trigger?.targetCode || '', {
-      placeholder: 'Return the element(s) to monitor.',
+      hint: 'Return the element(s) to monitor.',
       minLines: EDITOR_LINES,
     })
     this.renderEditor('condition', trigger?.conditionCode || '', {
-      placeholder: 'Return true to continue.',
+      hint: 'Return true to continue.',
       minLines: EDITOR_LINES,
     })
     this.renderEditor('action', trigger?.actionCode || '', {
-      placeholder: 'Implement automation logic using context.',
+      hint: 'Implement automation logic using context.',
       minLines: EDITOR_LINES,
     })
 

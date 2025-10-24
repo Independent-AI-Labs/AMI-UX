@@ -52,8 +52,8 @@ async function readExistingLock() {
     const raw = await fs.readFile(LOCK_FILE, 'utf8')
     const data = JSON.parse(raw)
     if (data && typeof data.pid === 'number') return data
-  } catch {
-    // ignore parse errors: treat as stale and overwrite later
+  } catch (err) {
+    console.warn(`[dev-single] Failed to parse lock file, treating as stale: ${err.message}`)
   }
   return null
 }
@@ -67,8 +67,8 @@ async function writeLock() {
 function removeLockSync() {
   try {
     fsSync.unlinkSync(LOCK_FILE)
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn(`[dev-single] Failed to remove lock file: ${err.message}`)
   }
 }
 

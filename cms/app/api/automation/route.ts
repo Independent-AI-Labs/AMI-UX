@@ -357,18 +357,8 @@ async function saveTriggerFile(automationDir: string, scenario: string, trigger:
 /**
  * Determine where to store automation metadata for a given path.
  * Uses UUID-based global metadata directory: /metadata/{contentUUID}/automation/
- * Legacy .meta directories are still supported for existing content.
  */
 async function resolveAutomationDir(rootKey: string, relPath: string, rootAbs: string): Promise<string> {
-  // Check if local .meta exists (legacy)
-  const localMetaAbs = path.join(rootAbs, `${relPath}${META_SUFFIX}`, AUTOMATION_DIRNAME)
-  const localExists = await fs.stat(localMetaAbs).then(s => s.isDirectory()).catch(() => false)
-
-  // If local exists, continue using it for existing content
-  if (localExists) {
-    return localMetaAbs
-  }
-
   // Get or create UUID for this content
   const contentUUID = await getOrCreateContentUUID(rootKey, relPath)
 

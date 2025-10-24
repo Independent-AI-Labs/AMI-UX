@@ -11,7 +11,7 @@ const DEFAULT_MENU_OPTIONS = {
   closeOnScroll: true,
   tokenMode: 'all',
   flagMode: 'all',
-  ignoreSelectors: ['.ami-context-menu', '.media-ctx', '[data-menu="native"]'],
+  excludeSelectors: ['.ami-context-menu', '.media-ctx', '[data-menu="native"]'],
 }
 
 const STYLE_ELEMENT_ID = 'ami-context-menu-styles'
@@ -237,9 +237,9 @@ class ContextMenuManager {
     return defs
   }
 
-  shouldIgnoreTarget(target) {
+  shouldExcludeTarget(target) {
     if (!(target instanceof Element)) return true
-    for (const selector of this.options.ignoreSelectors || []) {
+    for (const selector of this.options.excludeSelectors || []) {
       if (!selector) continue
       if (target.closest(selector)) return true
     }
@@ -250,7 +250,7 @@ class ContextMenuManager {
     this.lastPointerEvent = event
     if (event.defaultPrevented) return
     const target = event.target
-    if (this.shouldIgnoreTarget(target)) return
+    if (this.shouldExcludeTarget(target)) return
     const ctx = this.createContext(event, target)
     const definition = this.resolveDefinition(ctx)
     try {
@@ -629,7 +629,7 @@ function createMenuView({ definition, model, ctx, manager, depth }) {
   const menu = doc.createElement('div')
   menu.className = MENU_CLASS
   menu.dataset.depth = String(depth)
-  menu.setAttribute('data-ami-highlight-ignore', '1')
+  menu.setAttribute('data-ami-highlight-exclude', '1')
   if (model.title) menu.setAttribute('data-title', model.title)
 
   const stack = []

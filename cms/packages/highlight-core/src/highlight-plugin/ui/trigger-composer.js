@@ -231,7 +231,6 @@ export function createTriggerComposerToolkit(React) {
               value: currentDraft.eventType || 'click',
               onChange: (e) => handleFieldChange('eventType', e.target.value),
               disabled: isBusy,
-              placeholder: 'click',
               list: 'triggerComposerEvents',
             }),
             h(
@@ -290,7 +289,7 @@ export function createTriggerComposerToolkit(React) {
               onChange: (code) => handleFieldChange('targetCode', code),
               language: 'javascript',
               disabled: isBusy,
-              placeholder: typeMeta?.eventHint || '',
+              hint: typeMeta?.eventHint || '',
               minLines: EDITOR_LINES,
             }),
           )
@@ -364,7 +363,6 @@ export function createTriggerComposerToolkit(React) {
           value: currentDraft.name || '',
           onChange: (e) => handleFieldChange('name', e.target.value),
           disabled: isBusy,
-          placeholder: 'Trigger name',
         }),
       ),
     ]

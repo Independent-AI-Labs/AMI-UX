@@ -47,12 +47,12 @@ const preferenceKey = 'ami-auth-preferred'
 
 const LOOPBACK_HOSTS = new Set(['0.0.0.0', '::', '::0', '[::]', '[::0]'])
 
-function normalizeRedirectUrl(raw: string | null | undefined, fallbackPath: string): string {
-  if (typeof window === 'undefined') return fallbackPath
+function normalizeRedirectUrl(raw: string | null | undefined, defaultRedirect: string): string {
+  if (typeof window === 'undefined') return defaultRedirect
   const origin = window.location.origin
-  const fallback = new URL(fallbackPath || '/', origin)
+  const safeRedirect = new URL(defaultRedirect || '/', origin)
 
-  if (!raw) return fallback.toString()
+  if (!raw) return safeRedirect.toString()
 
   try {
     const candidate = new URL(raw, origin)
@@ -69,12 +69,12 @@ function normalizeRedirectUrl(raw: string | null | undefined, fallbackPath: stri
     }
 
     if (candidate.hostname !== current.hostname) {
-      return fallback.toString()
+      return safeRedirect.toString()
     }
 
     return candidate.toString()
   } catch {
-    return fallback.toString()
+    return safeRedirect.toString()
   }
 }
 
@@ -221,7 +221,6 @@ export function SignInForm({ callbackUrl, prefillEmail, initialErrorCode }: Sign
           id="email"
           name="email"
           type="email"
-          placeholder="you@example.com"
           required
           autoComplete="email"
           defaultValue={prefillEmail || ''}
@@ -235,7 +234,6 @@ export function SignInForm({ callbackUrl, prefillEmail, initialErrorCode }: Sign
           id="password"
           name="password"
           type="password"
-          placeholder="••••••••"
           required
           autoComplete="current-password"
           disabled={pending}

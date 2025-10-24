@@ -22,7 +22,7 @@ type NodeSummary = {
   childCount?: number
 }
 
-const IGNORED_DIRS = new Set(['.git', '.next', 'node_modules'])
+const EXCLUDED_DIRS = new Set(['.git', '.next', 'node_modules'])
 const INTRO_FILENAMES = ['readme.md', 'readme.mdx', 'introduction.md', 'intro.md']
 
 function normalizeRelPath(raw: string): string {
@@ -61,7 +61,7 @@ function isAllowedEntry(
   includeEmpty: boolean,
 ) {
   if (name.startsWith('.')) return false
-  if (dirent.isDirectory() && IGNORED_DIRS.has(name)) return false
+  if (dirent.isDirectory() && EXCLUDED_DIRS.has(name)) return false
   if (dirent.isDirectory() && name.endsWith('.meta')) return false
   if (dirent.isDirectory()) return true
   if (!dirent.isFile()) return false
@@ -123,7 +123,7 @@ async function listDirectoryEntries(
   for (const entry of entries) {
     const name = entry.name
     if (name.startsWith('.')) continue
-    if (entry.isDirectory() && IGNORED_DIRS.has(name)) continue
+    if (entry.isDirectory() && EXCLUDED_DIRS.has(name)) continue
     if (entry.isDirectory() && name.endsWith('.meta')) continue
     const childRel = baseRel ? path.posix.join(baseRel, name) : name
     const childAbs = path.join(rootAbs, childRel)

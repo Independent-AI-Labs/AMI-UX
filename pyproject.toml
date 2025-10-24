@@ -46,6 +46,10 @@ dev-dependencies = [
 [tool.ruff]
 target-version = "py312"
 
+[tool.ruff.lint.per-file-ignores]
+"module_setup.py" = ["E402"]  # Bootstrap imports after sys.path setup
+"scripts/run_tests.py" = ["E402", "PLC0415"]  # Bootstrap imports, lazy imports for venv check
+
 [tool.mypy]
 python_version = "3.12"
 warn_unused_ignores = true

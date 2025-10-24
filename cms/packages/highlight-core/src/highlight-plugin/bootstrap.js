@@ -2,7 +2,7 @@ import { HighlightManager } from './core/manager.js'
 import { createHighlightSettingsUI } from './ui/panel.js'
 import { observeMutations } from './runtime/mutations.js'
 import { setupMessageBridge } from './runtime/message-bridge.js'
-import { shouldIgnoreNode, isPluginNode } from './core/dom-utils.js'
+import { shouldExcludeNode, isPluginNode } from './core/dom-utils.js'
 import { debugLog, setDebugEnabled } from './core/debug.js'
 
 const INIT_FLAG = '__amiHighlightPlugin'
@@ -183,7 +183,7 @@ function watchInitialTargets(doc, manager, options = {}) {
       for (const node of added) {
         if (activated) return
         if (ElementRef && node instanceof ElementRef) {
-          if (shouldIgnoreNode(node) || isPluginNode(node)) continue
+          if (shouldExcludeNode(node) || isPluginNode(node)) continue
           trigger('element-added')
           return
         }
@@ -193,7 +193,7 @@ function watchInitialTargets(doc, manager, options = {}) {
             if (
               ElementRef &&
               child instanceof ElementRef &&
-              !shouldIgnoreNode(child) &&
+              !shouldExcludeNode(child) &&
               !isPluginNode(child)
             ) {
               trigger('fragment-child')

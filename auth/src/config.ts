@@ -19,8 +19,8 @@ function loadCredentialsProvider() {
     const mod = require('next-auth/providers/credentials')
     return (mod as any).default ?? mod
   } catch (err) {
-    console.warn('[ux/auth] next-auth credentials provider unavailable, using stub provider.', err)
-    return function stubCredentials(options: any) {
+    console.warn('[ux/auth] next-auth credentials provider unavailable, using dev provider.', err)
+    return function devCredentials(options: any) {
       return {
         id: 'credentials',
         name: 'Credentials',
@@ -149,7 +149,6 @@ function createCredentialsProvider(): NextAuthProvider {
       email: {
         type: 'email',
         label: 'Email',
-        placeholder: 'name@example.com',
       },
       password: {
         type: 'password',

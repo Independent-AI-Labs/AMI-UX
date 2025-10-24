@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-MODULE_ROOT = Path(__file__).resolve().parent.parent
+MODULE_ROOT = Path(__file__).resolve().parents[1]
 CMS_DIR = MODULE_ROOT / "cms"
 
 
@@ -56,8 +56,8 @@ def _run_cms_suite() -> int:
 def main() -> int:
     _ensure_repo_on_path()
 
-    from base.backend.utils.runner_bootstrap import ensure_module_venv  # noqa: PLC0415
-    from base.scripts.run_tests import TestRunner  # noqa: PLC0415
+    from base.backend.utils.runner_bootstrap import ensure_module_venv
+    from base.scripts.run_tests import TestRunner
 
     ensure_module_venv(Path(__file__))
 

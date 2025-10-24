@@ -2,7 +2,7 @@ import { displayName, pathAnchor, normalizeFsPath } from './utils.js'
 import { fetchFile } from './api.js'
 import { resolveFileView, getDefaultFileView } from './file-view-registry.js?v=20251004'
 import { icon as iconMarkup } from './icon-pack.js?v=20250306'
-import { markIgnoredNode, markPluginNode } from './highlight-plugin/core/dom-utils.js'
+import { markExcludedNode, markPluginNode } from './highlight-plugin/core/dom-utils.js'
 
 const DOM_NODE = typeof Node === 'function' ? Node : null
 const STRUCTURE_WIDTH_STORAGE_KEY = 'ami:cms:structurePanelWidth'
@@ -492,10 +492,10 @@ function updateSummary(summary, node, depth, indexPath) {
     titleWrap = document.createElement('span')
     titleWrap.className = 'tree-title'
     summary.insertBefore(titleWrap, summary.firstChild || null)
-    const legacyNodes = summary.querySelectorAll(
+    const oldFormatNodes = summary.querySelectorAll(
       ':scope > .tree-numbering, :scope > .tree-label, :scope > .meta',
     )
-    legacyNodes.forEach((node) => {
+    oldFormatNodes.forEach((node) => {
       try {
         titleWrap.appendChild(node)
       } catch {}
@@ -1737,7 +1737,7 @@ function createStructureWatcher(state) {
         defaultView &&
         defaultView.location &&
         defaultView.location.hash &&
-        Date.now() > watcher.ignoreHashClearUntil
+        Date.now() > watcher.excludeHashClearUntil
       ) {
         try {
           defaultView.history.replaceState(
@@ -1870,7 +1870,7 @@ function createStructureWatcher(state) {
     tocRoot,
     links: [],
     lastActive: new Set(),
-    ignoreHashClearUntil: 0,
+    excludeHashClearUntil: 0,
     scheduleUpdate(force = false) {
       scheduleWatcherUpdate(force)
     },
@@ -2007,10 +2007,10 @@ function createStructureWatcher(state) {
     const path = link.dataset?.path || ''
     const type = link.dataset?.type || ''
     if (!path) {
-      watcher.ignoreHashClearUntil = Date.now() + 1200
+      watcher.excludeHashClearUntil = Date.now() + 1200
       return
     }
-    watcher.ignoreHashClearUntil = Date.now() + 1600
+    watcher.excludeHashClearUntil = Date.now() + 1600
     if (type === 'dir' || type === 'file') {
       e.preventDefault()
       const details = await ensureDetailsChain(path)
@@ -2039,7 +2039,7 @@ function createStructureWatcher(state) {
       }
       return
     }
-    watcher.ignoreHashClearUntil = Date.now() + 1200
+    watcher.excludeHashClearUntil = Date.now() + 1200
   })
   // Also handle clicks on links in the content area (rendered markdown files)
   contentElement.addEventListener('click', async (e) => {
@@ -2049,10 +2049,10 @@ function createStructureWatcher(state) {
     const path = link.dataset?.path || ''
     const type = link.dataset?.type || ''
     if (!path) {
-      watcher.ignoreHashClearUntil = Date.now() + 1200
+      watcher.excludeHashClearUntil = Date.now() + 1200
       return
     }
-    watcher.ignoreHashClearUntil = Date.now() + 1600
+    watcher.excludeHashClearUntil = Date.now() + 1600
     if (type === 'dir' || type === 'file') {
       e.preventDefault()
       const details = await ensureDetailsChain(path)
@@ -2081,7 +2081,7 @@ function createStructureWatcher(state) {
       }
       return
     }
-    watcher.ignoreHashClearUntil = Date.now() + 1200
+    watcher.excludeHashClearUntil = Date.now() + 1200
   })
 
   tocRoot.addEventListener('toggle', () => watcher.scheduleUpdate(true), true)

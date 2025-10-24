@@ -113,8 +113,8 @@ async function loadReferenceFromRepo(): Promise<AllowedList> {
         }
       }
     }
-  } catch {
-    // Ignore errors and use defaults
+  } catch (err) {
+    console.warn(`[text-formats] Failed to load text_extensions.json from ${repoPath}, using defaults:`, err instanceof Error ? err.message : String(err))
   }
   mergeDefaults(target)
   if (!target.extensions.size && !target.basenames.size) {

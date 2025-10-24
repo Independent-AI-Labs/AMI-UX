@@ -31,21 +31,21 @@ function stripPath(url: URL): URL {
   return url
 }
 
-function ensureProtocol(value: string | null, fallback: string): string {
-  if (!value) return fallback
+function ensureProtocol(value: string | null, original: string): string {
+  if (!value) return original
   const trimmed = value.trim()
-  if (!trimmed) return fallback
+  if (!trimmed) return original
   return trimmed.endsWith(':') ? trimmed : `${trimmed}:`
 }
 
 export function resolveRequestOrigin(request: Request): URL {
-  const fallback = new URL(request.url)
+  const original = new URL(request.url)
   const protoHeader = firstHeaderValue(request.headers.get('x-forwarded-proto'))
   const hostHeader = firstHeaderValue(request.headers.get('x-forwarded-host'))
     ?? firstHeaderValue(request.headers.get('host'))
   const portHeader = firstHeaderValue(request.headers.get('x-forwarded-port'))
 
-  const base = stripPath(new URL(`${fallback.protocol}//${fallback.host}`))
+  const base = stripPath(new URL(`${original.protocol}//${original.host}`))
 
   if (hostHeader) {
     const { hostname, port } = parseHostHeader(hostHeader)
@@ -55,7 +55,7 @@ export function resolveRequestOrigin(request: Request): URL {
     } else if (portHeader) {
       base.port = portHeader
     } else {
-      base.port = fallback.port
+      base.port = original.port
     }
   } else {
     base.hostname = normaliseHostname(base.hostname)
@@ -64,10 +64,10 @@ export function resolveRequestOrigin(request: Request): URL {
     }
   }
 
-  base.protocol = ensureProtocol(protoHeader, fallback.protocol)
+  base.protocol = ensureProtocol(protoHeader, original.protocol)
 
-  if (!base.port && fallback.port) {
-    base.port = fallback.port
+  if (!base.port && original.port) {
+    base.port = original.port
   }
 
   return base
@@ -86,8 +86,8 @@ export function buildAbsoluteUrl(base: URL, target: string | URL): URL {
     const candidate = new URL(target)
     if (candidate.origin === base.origin) return candidate
     return new URL(candidate.pathname + candidate.search + candidate.hash, base)
-  } catch {
-    // Ignore parse failures - treat as relative below
+  } catch (err) {
+    console.warn(`[request-origin] URL parse failed for "${target}", treating as relative:`, err instanceof Error ? err.message : String(err))
   }
 
   return new URL(target, base)

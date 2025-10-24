@@ -1,12 +1,12 @@
-import { IGNORE_ATTR, isPluginNode, shouldIgnoreNode } from '../core/dom-utils.js'
+import { EXCLUDE_ATTR, isPluginNode, shouldExcludeNode } from '../core/dom-utils.js'
 import { debugLog } from '../core/debug.js'
 
 const NodeRef = typeof Node !== 'undefined' ? Node : null
-const ATTRIBUTE_FILTER = ['class', 'role', IGNORE_ATTR]
+const ATTRIBUTE_FILTER = ['class', 'role', EXCLUDE_ATTR]
 
 function isRelevantNode(node) {
   if (!node || !NodeRef) return false
-  if (isPluginNode(node) || shouldIgnoreNode(node)) return false
+  if (isPluginNode(node) || shouldExcludeNode(node)) return false
   return node.nodeType === NodeRef.ELEMENT_NODE || node.nodeType === NodeRef.TEXT_NODE
 }
 
