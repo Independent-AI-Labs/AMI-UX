@@ -17,9 +17,6 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "base").exists())))
 
 # Import consolidated environment utilities from base
-# E402 is unavoidable here: sys.path bootstrap (line 17) must precede base imports
-# This is the standard pattern used across all modules (base, browser, compliance, domains, files, nodes, streams)
-# to enable cross-module imports. The bootstrap ensures base package is findable.
 from base.scripts.env.paths import setup_imports  # noqa: E402
 from base.scripts.env.venv import ensure_venv  # noqa: E402
 
