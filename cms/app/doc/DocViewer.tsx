@@ -84,6 +84,7 @@ export default function DocViewer({ searchParams }: DocViewerProps) {
     loadScript('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js')
     loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js')
     loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js')
+    loadScript('/js/highlight-plugin/bootstrap.js?v=20250310', 'module')
     loadScript('/js/doc.js?v=20251004', 'module')
 
     document.body.classList.add('doc-viewer')

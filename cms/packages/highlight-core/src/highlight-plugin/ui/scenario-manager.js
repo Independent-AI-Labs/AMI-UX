@@ -1,7 +1,7 @@
 import { ensureReact } from '../support/ensure-react.js'
 import { createFileTreeToolkit } from '../../lib/file-tree.js'
 import { dialogService } from '../../lib/dialog-service.js'
-import { markPluginNode, withIgnoreProps } from '../core/dom-utils.js'
+import { markPluginNode, withExcludeProps } from '../core/dom-utils.js'
 import { icon as iconMarkup } from '../../lib/icon-pack.js'
 import { createTriggerComposerToolkit } from './trigger-composer.js'
 
@@ -883,7 +883,7 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
     const renderFullscreenButton = () =>
       h(
         'button',
-        withIgnoreProps({
+        withExcludeProps({
           type: 'button',
           className:
             'icon-button scenario-manager__control-button scenario-manager__control-button--fullscreen',
@@ -901,7 +901,7 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
     const renderCloseButton = () =>
       h(
         'button',
-        withIgnoreProps({
+        withExcludeProps({
           type: 'button',
           className: 'icon-button scenario-manager__control-button scenario-manager__control-button--close',
           onClick: handleClose,
@@ -913,7 +913,7 @@ function createScenarioManagerComponent(React, fileTreeToolkit, composerToolkit,
     const renderHeaderControls = () =>
       h(
         'div',
-        withIgnoreProps({ className: 'scenario-manager__header-controls' }),
+        withExcludeProps({ className: 'scenario-manager__header-controls' }),
         renderFullscreenButton(),
         renderCloseButton(),
       )
