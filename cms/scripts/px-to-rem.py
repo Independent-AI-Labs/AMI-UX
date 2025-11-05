@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env bash
+'exec "$(dirname "$0")/../../scripts/ami-run.sh" "$(dirname "$0")/px-to-rem.py" "$@" #'
+
 """
 Convert px values to rem safely in CSS/JS files
 Base: 16px = 1rem
