@@ -630,7 +630,7 @@
       </div>
       <div class="brand-singularity-dialog__canvas-wrap">
         <canvas id="brandSingularityLarge" width="640" height="640" aria-describedby="brandSingularityDialogTitle"></canvas>
-        <div class="brand-singularity-dialog__fps" id="brandSingularityFps" aria-live="polite">— fps</div>
+        <div class="brand-singularity-dialog__fps" id="brandSingularityFps" aria-live="polite">- fps</div>
       </div>
     </div>
   </div>
@@ -890,7 +890,7 @@
               try { largeTeardown() } catch {}
             }
             largeTeardown = null
-            if (fpsLabel) fpsLabel.textContent = '— fps'
+            if (fpsLabel) fpsLabel.textContent = '- fps'
           },
         })
 

@@ -1,4 +1,4 @@
-# UX Multi-Visualization — Master TODO
+# UX Multi-Visualization - Master TODO
 
 Scope: `ux/cms` (Next.js app) and its public viewer. Goal: support four visualization modes with detection, serving, upload, and a unified UI.
 

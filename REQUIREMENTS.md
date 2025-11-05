@@ -4,10 +4,10 @@ The UX workspace contains the user-facing surfaces that ship with AMI-ORCHESTRAT
 
 ## Repository Layout
 
-- `cms/` — documentation shell exposed to operators (evolving into AMI Data Portal; see `cms/README.md` and `cms/SPEC-PORTAL.md`). Static HTML/JS front-end backed by Next.js route-handlers for file access, uploads, and library metadata.
-- `ui-concept/` — experimental control panel used for rapid prototyping. Large Next.js app kept separate from the shipped CMS to avoid destabilising production workflows.
-- `scripts/` — helper utilities reused by both apps (server runners, health checks, PID management). Note: `cms/` has its own `scripts/` directory for app-specific tooling.
-- `module_setup.py` / `uv.lock` — standard orchestrator bootstrap (uv-managed Python env) for agents interacting with this module.
+- `cms/` - documentation shell exposed to operators (evolving into AMI Data Portal; see `cms/README.md` and `cms/SPEC-PORTAL.md`). Static HTML/JS front-end backed by Next.js route-handlers for file access, uploads, and library metadata.
+- `ui-concept/` - experimental control panel used for rapid prototyping. Large Next.js app kept separate from the shipped CMS to avoid destabilising production workflows.
+- `scripts/` - helper utilities reused by both apps (server runners, health checks, PID management). Note: `cms/` has its own `scripts/` directory for app-specific tooling.
+- `module_setup.py` / `uv.lock` - standard orchestrator bootstrap (uv-managed Python env) for agents interacting with this module.
 
 ## Docs Shell (`ux/cms`)
 

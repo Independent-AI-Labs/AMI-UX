@@ -163,7 +163,7 @@ export function initShellConsole() {
 
   function writeSessionBanner(session) {
     if (!term || !session) return
-    emitToTerminal(`\u001b[38;5;81m${session.label}\u001b[0m — UI preview\r\n`)
+    emitToTerminal(`\u001b[38;5;81m${session.label}\u001b[0m - UI preview\r\n`)
   }
 
   function renderActiveSession({ reset = false } = {}) {

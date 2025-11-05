@@ -1,4 +1,4 @@
-# UX Module — Setup Contract
+# UX Module - Setup Contract
 
 Delegation
 - Uses Base `AMIModuleSetup` for venv and dependencies.

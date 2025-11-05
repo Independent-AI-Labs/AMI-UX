@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import DocViewer from './DocViewer'
 
 export const metadata: Metadata = {
-  title: 'Docs — Embedded',
+  title: 'Docs - Embedded',
   icons: {
     icon: '/favicon.svg',
   },

@@ -235,7 +235,7 @@ function ensureDialog() {
 
   const relativeLine = document.createElement('div')
   relativeLine.innerHTML =
-    '<strong>Relative metadata:</strong> <span class="metadata-settings__relative-text">—</span>'
+    '<strong>Relative metadata:</strong> <span class="metadata-settings__relative-text">-</span>'
   rootValue.appendChild(relativeLine)
 
   detailsSection.appendChild(rootValue)
@@ -369,7 +369,7 @@ async function openServerDirectorySelector() {
 function setValue(target, wrap, value, hint) {
   if (!target || !wrap) return
   const safe = value && String(value).trim() ? String(value).trim() : ''
-  target.textContent = safe || '—'
+  target.textContent = safe || '-'
   if (hint) {
     target.dataset.hint = hint
     target.title = hint
@@ -398,7 +398,7 @@ function updateDetails(context) {
       fields.relativeValue.textContent = relativeMeta
       fields.relativeSection.hidden = false
     } else {
-      fields.relativeValue.textContent = '—'
+      fields.relativeValue.textContent = '-'
       fields.relativeSection.hidden = true
     }
   }
