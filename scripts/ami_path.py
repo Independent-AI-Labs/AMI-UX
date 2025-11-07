@@ -84,9 +84,8 @@ MODULE_NAME: str | None
 
 try:
     ORCHESTRATOR_ROOT, MODULE_ROOT, MODULE_NAME = setup_ami_paths()
-except RuntimeError as e:
+except RuntimeError:
     # If we can't find paths, set to None but don't fail import
-    print(f"Warning: Could not set up AMI paths: {e}", file=sys.stderr)
     ORCHESTRATOR_ROOT = None
     MODULE_ROOT = None
     MODULE_NAME = None
@@ -104,11 +103,7 @@ def get_paths() -> tuple[Path | None, Path | None, str | None]:
 
 if __name__ == "__main__":
     # Test/debug output when run directly
-    print(f"Orchestrator Root: {ORCHESTRATOR_ROOT}")
-    print(f"Module Root: {MODULE_ROOT}")
-    print(f"Module Name: {MODULE_NAME}")
-    print("\nsys.path entries added:")
     if ORCHESTRATOR_ROOT:
-        print(f"  - {ORCHESTRATOR_ROOT}")
+        pass
     if MODULE_ROOT:
-        print(f"  - {MODULE_ROOT}")
+        pass

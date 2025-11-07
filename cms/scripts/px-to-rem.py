@@ -186,21 +186,17 @@ def _filter_files(files: list[Path], excluded_dirs: set[str]) -> list[Path]:
     return [f for f in files if not any(exc in f.parts for exc in excluded_dirs)]
 
 
-def _display_results(total: int, all_changes: list[str], dry_run: bool, preview_limit: int) -> None:
+def _display_results(all_changes: list[str], dry_run: bool, preview_limit: int) -> None:
     """Display conversion results and preview."""
-    print()
-    print("=" * 60)
-    print(f"📊 Total conversions: {total}")
 
     if dry_run and all_changes:
-        print(f"\n🔍 Changes preview (first {preview_limit}):")
-        for change in all_changes[:preview_limit]:
-            print(f"  {change}")
+        for _change in all_changes[:preview_limit]:
+            pass
         if len(all_changes) > preview_limit:
-            print(f"  ... and {len(all_changes) - preview_limit} more")
+            pass
 
     if dry_run:
-        print("\n⚠️  This was a dry run. Remove -d to apply changes.")
+        pass
 
 
 def main() -> int:
@@ -239,36 +235,32 @@ Excluded: borders, shadows, outlines, small values (1-2px)
     files = _filter_files(files, excluded_dirs)
 
     if not files:
-        print(f"❌ No files found matching: {args.pattern}")
         return 1
 
-    print(f"📁 Found {len(files)} file(s):")
-    for f in files:
-        print(f"  {f.relative_to(cwd)}")
-    print()
+    for _f in files:
+        pass
 
     total_conversions = 0
     all_changes = []
 
     for file_path in files:
         if args.max and total_conversions >= args.max:
-            print(f"⚠️  Reached max conversions limit ({args.max})")
             break
 
         remaining = args.max - total_conversions if args.max else None
         conversions, changes = process_file(file_path, base_px=args.base, dry_run=args.dry_run, max_conversions=remaining)
 
         if conversions > 0:
-            rel_path = file_path.relative_to(cwd)
+            file_path.relative_to(cwd)
             if args.dry_run:
-                print(f"🔍 [DRY RUN] {rel_path} ({conversions} changes)")
+                pass
             else:
-                print(f"✅ {rel_path} ({conversions} changes)")
+                pass
 
             all_changes.extend(changes)
             total_conversions += conversions
 
-    _display_results(total_conversions, all_changes, args.dry_run, PREVIEW_LIMIT)
+    _display_results(all_changes, args.dry_run, PREVIEW_LIMIT)
 
     return 0
 
